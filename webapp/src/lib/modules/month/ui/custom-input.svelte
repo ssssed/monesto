@@ -1,14 +1,15 @@
 <script lang="ts">
 	import Keyboard from './keyboard.svelte';
-	import ContinueButton from './continue-button.svelte';
 	import { cn } from '$lib/shared/utils';
+	import type { Snippet } from 'svelte';
 
 	let {
 		value = $bindable(''),
 		ref = $bindable(null),
-		onOpened
+		children
 	} = $props<{
 		value: string;
+		children?: Snippet;
 		ref?: HTMLDivElement | null;
 		onOpened?: (ref: HTMLDivElement, keyboardRef: HTMLElement) => void;
 	}>();
@@ -94,7 +95,7 @@
 	onItemClick={(s) => (value += s)}
 	onRemoveSymbol={() => (value = value.slice(0, -1))}
 >
-	<ContinueButton disabled={value.length === 0} onclick={() => (opened = false)} />
+	{@render children?.()}
 </Keyboard>
 
 <style>
