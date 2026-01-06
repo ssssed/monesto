@@ -16,6 +16,7 @@ type MandatoryStore = Base & {
 
 type StrategyStore = Base & {
 	type: 'strategy';
+	selectedId: string;
 };
 
 type StepStoreMap = {
@@ -34,6 +35,7 @@ export let monthStore = $state<StepStoreMap>({
 		value: ''
 	},
 	strategy: {
-		type: 'strategy'
+		type: 'strategy',
+		selectedId: '1'
 	}
 });

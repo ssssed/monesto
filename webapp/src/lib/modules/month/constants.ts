@@ -1,8 +1,9 @@
-import { ArrowLeft, History, TrendingUp, X, type IconProps } from '@lucide/svelte';
+import { ArrowLeft, History, Shield, TrendingUp, X, type IconProps } from '@lucide/svelte';
 import MonthIncomePage from './mediators/month-income-page.svelte';
 import MonthMandatoryPage from './mediators/month-mandatory-page.svelte';
 import type { Component } from 'svelte';
 import type { StepProps } from './types';
+import MonthStrategyPage from './mediators/month-strategy-page.svelte';
 
 export const RECENT_INFO_CONFIG = {
 	average: {
@@ -17,7 +18,7 @@ export const RECENT_INFO_CONFIG = {
 
 export type RecentInfoType = keyof typeof RECENT_INFO_CONFIG;
 
-export type NewMonthStepType = 'incoming' | 'mandatory' | 'strategy';
+export type NewMonthStepType = 'incoming' | 'mandatory' | 'strategy' | 'finish';
 
 export const STEPS: Record<
 	NewMonthStepType,
@@ -58,10 +59,29 @@ export const STEPS: Record<
 			type: 'back',
 			icon: ArrowLeft
 		},
+		component: MonthStrategyPage,
+		next: 'finish',
+		prev: 'mandatory'
+	},
+	finish: {
+		step: 4,
+		headerActionButton: {
+			type: 'back',
+			icon: ArrowLeft
+		},
 		component: null,
 		next: null,
-		prev: 'mandatory'
+		prev: 'strategy'
 	}
 };
 
 export const SUGGESTS = ['🏠 Rent', '⚡ Utilities', '🛡️ Insurance'];
+
+export const STRATEGIES = [
+	{
+		id: '1',
+		icon: Shield,
+		title: 'Emergency Fund',
+		description: 'Save 3-6 months of expenses for safety.'
+	}
+];
