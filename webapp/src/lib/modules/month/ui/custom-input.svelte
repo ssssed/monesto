@@ -6,12 +6,14 @@
 	let {
 		value = $bindable(''),
 		ref = $bindable(null),
-		children
+		children,
+		onEnter
 	} = $props<{
 		value: string;
 		children?: Snippet;
 		ref?: HTMLDivElement | null;
 		onOpened?: (ref: HTMLDivElement, keyboardRef: HTMLElement) => void;
+		onEnter?: () => void;
 	}>();
 
 	let opened = $state(false);
@@ -88,7 +90,8 @@
 
 <Keyboard
 	{opened}
-  title={`$${value}`}
+	{onEnter}
+	title={`$${value}`}
 	onClose={() => {
 		opened = false;
 	}}

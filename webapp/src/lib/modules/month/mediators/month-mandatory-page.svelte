@@ -18,7 +18,7 @@
 	<p class="mb-8 text-center text-sm leading-normal font-medium text-slate-500 dark:text-slate-400">
 		Your regular monthly costs
 	</p>
-	<MandatoryInput bind:value={monthStore.mandatory.value}>
+	<MandatoryInput bind:value={monthStore.mandatory.value} onEnter={onNext}>
 		<ContinueButton disabled={monthStore.mandatory.value.length === 0} onclick={onNext} />
 	</MandatoryInput>
 	<div class="flex w-full max-w-xs flex-wrap justify-center gap-2">

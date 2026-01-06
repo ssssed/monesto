@@ -24,7 +24,7 @@
 		</p>
 	</div>
 
-	<IncomeInput bind:value={monthStore.incoming.value}>
+	<IncomeInput bind:value={monthStore.incoming.value} onEnter={onNext}>
 		<ContinueButton disabled={monthStore.incoming.value.length === 0} onclick={onNext} />
 	</IncomeInput>
 
