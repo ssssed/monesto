@@ -1,19 +1,24 @@
 <script lang="ts">
+	import type { MonthStatus } from '../api';
 	import { STEPS, type NewMonthStepType } from '../model.svelte';
 	import NewMonthHeader from '../ui/new-month-header.svelte';
 
-	let stepStage = $state<NewMonthStepType>('finish');
+	let {monthStatus}: {monthStatus: MonthStatus} = $props()
+
+	let stepStage = $state<NewMonthStepType>('incoming');
 	let step = $derived(STEPS[stepStage]);
 
 	const handleNext = () => {
 		if (!step.next) return;
 
+		step?.onNext?.();
 		stepStage = step.next;
 	};
 
 	const handlePrev = () => {
 		if (!step.prev) return;
 
+		step?.onPrev?.();
 		stepStage = step.prev;
 	};
 </script>
@@ -34,6 +39,7 @@
 		onPrev={handlePrev}
 		hasNext={!!step.next}
 		hasPrev={!!step.prev}
+		{monthStatus}
 	/>
 
 	<div

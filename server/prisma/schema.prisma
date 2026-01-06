@@ -27,17 +27,40 @@ model User {
 model UserMonth {
   id     String @id @default(uuid())
   userId String
-  year   Int
-  month  Int // 1–12
 
-  incoming  Int?
-  mandatory Int?
+  year  Int
+  month Int // 1–12
+
+  // === Планируемые значения ===
+  incomingAmount   Decimal?
+  incomingCurrency String?
+
+  mandatoryAmount   Decimal?
+  mandatoryCurrency String?
+
+  strategyName String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
+  savingsHistory UserMonthSavingsHistory[]
+
   @@unique([userId, year, month])
   @@map("user_months")
+}
+
+model UserMonthSavingsHistory {
+  id          String @id @default(uuid())
+  userMonthId String
+
+  amount   Decimal
+  currency String
+
+  createdAt DateTime @default(now())
+
+  userMonth UserMonth @relation(fields: [userMonthId], references: [id])
+
+  @@map("user_month_savings_history")
 }

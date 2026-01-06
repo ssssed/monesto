@@ -6,7 +6,7 @@
 	import type { StepProps } from '../types';
 	import { monthStore } from '../model.svelte';
 
-	let { hasNext, onNext }: StepProps = $props();
+	let { onNext, monthStatus }: StepProps = $props();
 </script>
 
 <div class="flex flex-1 flex-col items-center justify-center">
@@ -28,10 +28,26 @@
 		<ContinueButton disabled={monthStore.incoming.value.length === 0} onclick={onNext} />
 	</IncomeInput>
 
-	<div class="flex w-full max-w-md flex-wrap justify-center gap-3 p-3">
-		<RecentInfo type="last" price="3200" bind:value={monthStore.incoming.value} />
-		<RecentInfo type="average" price="3050" disabled />
-	</div>
+	{#if monthStatus.recentInfo}
+		<div class="flex w-full max-w-md flex-wrap justify-center gap-3 p-3">
+			{#if monthStatus.recentInfo['last-incoming']}
+				<RecentInfo
+					type="last"
+					price={monthStatus.recentInfo['last-incoming'].amount}
+					currency={monthStatus.recentInfo['last-incoming'].currency}
+					bind:value={monthStore.incoming.value}
+				/>
+			{/if}
+			{#if monthStatus.recentInfo.average}
+				<RecentInfo
+					type="average"
+					price={monthStatus.recentInfo.average.amount}
+					currency={monthStatus.recentInfo.average.currency}
+					disabled
+				/>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <ContinueButton disabled={monthStore.incoming.value.length === 0} onclick={onNext} />

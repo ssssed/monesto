@@ -8,6 +8,6 @@
 	{#if monthStatus.isMonthComplete}
 		Complete...
 	{:else}
-		<MonthPage />	
+		<MonthPage {monthStatus} />	
 	{/if}
 {/await}

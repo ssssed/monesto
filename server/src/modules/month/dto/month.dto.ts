@@ -1,17 +1,29 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsOptional, IsString, Matches } from 'class-validator';
 
 export class UpdateMonthDto {
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  incoming?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  mandatory?: number;
+  @IsString()
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: 'incoming must be a valid number string with up to 2 decimals',
+  })
+  incoming?: string; // теперь строка, можно с точкой
 
   @IsOptional()
   @IsString()
-  strategy?: string;
+  incomingCurrency?: string; // валюта для дохода
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: 'mandatory must be a valid number string with up to 2 decimals',
+  })
+  mandatory?: string; // теперь строка, можно с точкой
+
+  @IsOptional()
+  @IsString()
+  mandatoryCurrency?: string; // валюта для обязательных расходов
+
+  @IsOptional()
+  @IsString()
+  strategy?: string; // стратегия накопления
 }

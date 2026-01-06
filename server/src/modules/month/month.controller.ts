@@ -1,4 +1,13 @@
-import { Controller, Get, Body, Patch, Param, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Req,
+} from '@nestjs/common';
 import { MonthService } from './month.service';
 import { UpdateMonthDto } from './dto/month.dto';
 
@@ -9,11 +18,19 @@ export class MonthController {
   @Get('current/status')
   async getCurrentMonthStatus(@Req() req) {
     const telegramId = req.telegramId;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
 
-    return this.monthService.getCurrentMonthStatus(telegramId);
+    return this.monthService.getCurrentMonthStatus({
+      telegramId,
+      year,
+      month,
+    });
   }
 
   @Patch(':year/:month')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async updateMonth(
     @Req() req,
     @Param('year') year: string,

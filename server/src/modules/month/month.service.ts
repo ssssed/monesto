@@ -1,43 +1,115 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { monthData, monthRecentData } from './mock';
 import { UpdateMonthDto } from './dto/month.dto';
+
+export type RecentInfo = {
+  type: 'average' | 'last-incoming' | 'last-mandatory';
+  amount: string;
+  currency: string;
+};
 
 @Injectable()
 export class MonthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCurrentMonthStatus(telegramId: string) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
+  async getCurrentMonthStatus({
+    month,
+    telegramId,
+    year,
+  }: {
+    telegramId: string;
+    year: number;
+    month: number;
+  }) {
+    // const monthData = await this.prisma.userMonth.findFirst({
+    //   where: {
+    //     user: {
+    //       telegramId,
+    //     },
+    //     year,
+    //     month,
+    //   },
+    //   select: {
+    //     incomingAmount: true,
+    //     incomingCurrency: true,
+    //     mandatoryAmount: true,
+    //     mandatoryCurrency: true,
+    //   },
+    // });
 
-    const monthData = await this.prisma.userMonth.findFirst({
-      where: {
-        user: {
-          telegramId,
-        },
-        year,
-        month,
-      },
-      select: {
-        incoming: true,
-        mandatory: true,
-      },
+    if (!monthData) throw new BadRequestException('user not found');
+
+    const incoming = new Prisma.Decimal(monthData!.incomingAmount ?? 0);
+    const mandatory = new Prisma.Decimal(monthData!.mandatoryAmount ?? 0);
+
+    const hasIncoming = !!monthData?.incomingAmount && incoming.toNumber() > 0;
+    const hasMandatory =
+      !!monthData?.mandatoryAmount && mandatory.toNumber() > 0;
+
+    // Проверка валют
+    if (
+      monthData?.incomingCurrency &&
+      monthData?.mandatoryCurrency &&
+      monthData.incomingCurrency !== monthData.mandatoryCurrency
+    ) {
+      throw new BadRequestException(
+        'Service does not support different currencies for income and mandatory expenses',
+      );
+    }
+
+    const recentInfo = this.getRecentInfo({
+      telegramId,
+      year,
+      month: month - 1,
     });
-
-    const hasIncoming = !!monthData?.incoming && monthData.incoming > 0;
-
-    const hasMandatory = !!monthData?.mandatory && monthData.mandatory > 0;
 
     return {
       hasIncoming,
       hasMandatory,
       isMonthComplete: hasIncoming && hasMandatory,
+      recentInfo,
     };
+  }
+
+  private getRecentInfo({
+    month,
+    telegramId,
+    year,
+  }: {
+    telegramId: string;
+    year: number;
+    month: number;
+  }) {
+    if (!monthRecentData) throw new BadRequestException('user not found');
+
+    const incoming = new Prisma.Decimal(monthRecentData!.incomingAmount ?? 0);
+    const mandatory = new Prisma.Decimal(monthRecentData!.mandatoryAmount ?? 0);
+
+    // Формируем recentInfo
+    const recentInfo: Partial<
+      Record<RecentInfo['type'], Omit<RecentInfo, 'type'>>
+    > = {};
+
+    if (incoming && incoming.toNumber() > 0) {
+      recentInfo['last-incoming'] = {
+        amount: incoming.toString(),
+        currency: monthRecentData!.incomingCurrency ?? '$',
+      };
+    }
+
+    if (mandatory && mandatory.toNumber() > 0) {
+      recentInfo['last-mandatory'] = {
+        amount: mandatory.toString(),
+        currency: monthRecentData!.mandatoryCurrency ?? '$',
+      };
+    }
+
+    // TODO: посчитать average
+    // recentInfo.push({ type: 'average', amount: '0', currency: '$' });
+
+    return recentInfo;
   }
 
   async updateMonth(params: {
@@ -48,17 +120,40 @@ export class MonthService {
   }) {
     const { telegramId, year, month, dto } = params;
 
-    this.assertMonthEditable(year, month);
-
     const user = await this.prisma.user.findUnique({
       where: { telegramId },
     });
 
-    if (!user) {
-      throw new BadRequestException('User not found');
+    if (!user) throw new BadRequestException('User not found');
+
+    // Существующий месяц
+    const existingMonth = await this.prisma.userMonth.findUnique({
+      where: {
+        userId_year_month: {
+          userId: user.id,
+          year,
+          month,
+        },
+      },
+    });
+
+    // Проверка валют
+    const incomingCurrency =
+      dto.incomingCurrency ?? existingMonth?.incomingCurrency;
+    const mandatoryCurrency =
+      dto.mandatoryCurrency ?? existingMonth?.mandatoryCurrency;
+
+    if (
+      incomingCurrency &&
+      mandatoryCurrency &&
+      incomingCurrency !== mandatoryCurrency
+    ) {
+      throw new BadRequestException(
+        'Incoming and mandatory currencies must be the same. Mixed currencies are not supported.',
+      );
     }
 
-    const monthRecord = await this.prisma.userMonth.upsert({
+    await this.prisma.userMonth.upsert({
       where: {
         userId_year_month: {
           userId: user.id,
@@ -70,41 +165,27 @@ export class MonthService {
         userId: user.id,
         year,
         month,
-        incoming: dto.incoming ?? null,
-        mandatory: dto.mandatory ?? null,
+        incomingAmount: dto.incoming ? new Prisma.Decimal(dto.incoming) : null,
+        incomingCurrency: incomingCurrency ?? '$',
+        mandatoryAmount: dto.mandatory
+          ? new Prisma.Decimal(dto.mandatory)
+          : null,
+        mandatoryCurrency: mandatoryCurrency ?? '$',
+        strategyName: dto.strategy ?? null,
       },
       update: {
         ...(dto.incoming !== undefined && {
-          incoming: dto.incoming,
+          incomingAmount: new Prisma.Decimal(dto.incoming),
         }),
+        ...(dto.incomingCurrency && { incomingCurrency: dto.incomingCurrency }),
         ...(dto.mandatory !== undefined && {
-          mandatory: dto.mandatory,
+          mandatoryAmount: new Prisma.Decimal(dto.mandatory),
         }),
-        ...(dto.strategy !== undefined && {
-          strategy: dto.strategy,
+        ...(dto.mandatoryCurrency && {
+          mandatoryCurrency: dto.mandatoryCurrency,
         }),
+        ...(dto.strategy && { strategyName: dto.strategy }),
       },
     });
-
-    return {
-      success: true,
-      month: monthRecord,
-    };
-  }
-
-  /**
-   * 🔒 Блокировка прошлых месяцев
-   */
-  private assertMonthEditable(year: number, month: number) {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-
-    const isPast =
-      year < currentYear || (year === currentYear && month < currentMonth);
-
-    if (isPast) {
-      throw new ForbiddenException('Past months are read-only');
-    }
   }
 }

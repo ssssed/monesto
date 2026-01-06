@@ -5,6 +5,7 @@ import MonthIncomePage from './mediators/month-income-page.svelte';
 import MonthMandatoryPage from './mediators/month-mandatory-page.svelte';
 import MonthStrategyPage from './mediators/month-strategy-page.svelte';
 import FinishPage from './mediators/finish-page.svelte';
+import { updateMonthData, type UpdateMonthBodyType } from './api';
 
 type Base = {
 	type: NewMonthStepType;
@@ -48,6 +49,21 @@ export let monthStore = $state<StepStoreMap>({
 
 export type NewMonthStepType = 'incoming' | 'mandatory' | 'strategy' | 'finish';
 
+const updateMonthField = async <T extends keyof UpdateMonthBodyType>(
+	field: T,
+	value: UpdateMonthBodyType[T]
+) => {
+	const now = new Date();
+	const month = now.getMonth() + 1;
+	const year = now.getFullYear();
+
+	await updateMonthData({
+		month,
+		year,
+		[field]: value
+	});
+};
+
 export const STEPS: Record<
 	NewMonthStepType,
 	{
@@ -60,6 +76,8 @@ export const STEPS: Record<
 		component: Component<StepProps> | null;
 		next: NewMonthStepType | null;
 		prev: NewMonthStepType | null;
+		onPrev?: () => void;
+		onNext?: () => void;
 	}
 > = {
 	incoming: {
@@ -71,7 +89,10 @@ export const STEPS: Record<
 		},
 		component: MonthIncomePage,
 		next: 'mandatory',
-		prev: null
+		prev: null,
+		onNext: () => {
+			updateMonthField('incoming', monthStore.incoming.value);
+		}
 	},
 	mandatory: {
 		step: 2,
@@ -81,7 +102,10 @@ export const STEPS: Record<
 		},
 		component: MonthMandatoryPage,
 		next: 'strategy',
-		prev: 'incoming'
+		prev: 'incoming',
+		onNext: () => {
+			updateMonthField('mandatory', monthStore.mandatory.value);
+		}
 	},
 	strategy: {
 		step: 3,
@@ -91,7 +115,10 @@ export const STEPS: Record<
 		},
 		component: MonthStrategyPage,
 		next: 'finish',
-		prev: 'mandatory'
+		prev: 'mandatory',
+		onNext: () => {
+			updateMonthField('strategy', monthStore.strategy.selectedId);
+		}
 	},
 	finish: {
 		step: 4,
