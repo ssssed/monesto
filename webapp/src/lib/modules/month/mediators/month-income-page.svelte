@@ -29,8 +29,8 @@
 	</IncomeInput>
 
 	<div class="flex w-full max-w-md flex-wrap justify-center gap-3 p-3">
-		<RecentInfo type="last" price={3200} />
-		<RecentInfo type="average" price={3050} />
+		<RecentInfo type="last" price="3200" bind:value={monthStore.incoming.value} />
+		<RecentInfo type="average" price="3050" disabled />
 	</div>
 </div>
 

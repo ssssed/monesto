@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 
 	let { title, step, maxSteps, children } = $props<{
-		title: string;
+		title?: string;
 		step: number;
 		maxSteps: number;
 		children?: Snippet;
@@ -13,7 +13,7 @@
 	class="bg-background-light/80 dark:bg-background-dark/80 grid grid-cols-3 items-center backdrop-blur-md"
 >
 	{@render children?.()}
-	<span class="flex-1 text-center text-lg leading-tight font-bold text-slate-800 dark:text-white"
+	<span class="flex-1 text-center text-nowrap text-lg leading-tight font-bold text-slate-800 dark:text-white"
 		>{title}</span
 	>
 	<p

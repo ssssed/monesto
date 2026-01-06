@@ -93,7 +93,7 @@
 			{#each number as number (number)}
 				<button
 					class={cn(
-						'keypad-btn flex h-14 items-center justify-center rounded-xl text-2xl font-medium text-slate-900 transition-transform dark:text-white',
+						'keypad-btn flex h-14 items-center justify-center rounded-xl text-2xl font-medium text-slate-900 transition-transform active:scale-95 active:bg-primary/10 dark:text-white',
 						{
 							'scale-95 bg-primary/10': activeKey === number
 						}
@@ -103,7 +103,7 @@
 			{/each}
 			<button
 				class={cn(
-					'keypad-btn flex h-14 items-center justify-center rounded-xl text-slate-900 transition-transform dark:text-white',
+					'keypad-btn flex h-14 items-center justify-center rounded-xl text-slate-900 transition-transform active:scale-95 active:bg-primary/10 dark:text-white',
 					{
 						'scale-95 bg-primary/10': activeKey === 'Backspace'
 					}

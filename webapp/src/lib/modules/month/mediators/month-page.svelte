@@ -1,8 +1,6 @@
 <script lang="ts">
-	import type { Component } from 'svelte';
-	import { STEPS, type NewMonthStepType } from '../constants';
+	import { STEPS, type NewMonthStepType } from '../model.svelte';
 	import NewMonthHeader from '../ui/new-month-header.svelte';
-	import type { StepProps } from '../types';
 
 	let stepStage = $state<NewMonthStepType>('incoming');
 	let step = $derived(STEPS[stepStage]);
@@ -23,7 +21,7 @@
 <main
 	class="font-display flex flex-1 flex-col overflow-y-auto bg-background antialiased transition-colors duration-300"
 >
-	<NewMonthHeader title="New Month" step={step.step} maxSteps={Object.keys(STEPS).length}>
+	<NewMonthHeader title={step.title} step={step.step} maxSteps={Object.keys(STEPS).length}>
 		<svelte:component
 			this={step.headerActionButton.icon}
 			onclick={() => {
@@ -33,7 +31,7 @@
 	</NewMonthHeader>
 
 	<svelte:component
-		this={step.component as Component<StepProps>}
+		this={step.component}
 		onNext={handleNext}
 		onPrev={handlePrev}
 		hasNext={!!step.next}

@@ -1,79 +1,17 @@
-import { ArrowLeft, History, Shield, TrendingUp, X, type IconProps } from '@lucide/svelte';
-import MonthIncomePage from './mediators/month-income-page.svelte';
-import MonthMandatoryPage from './mediators/month-mandatory-page.svelte';
-import type { Component } from 'svelte';
-import type { StepProps } from './types';
-import MonthStrategyPage from './mediators/month-strategy-page.svelte';
+import { History, Shield, TrendingUp } from '@lucide/svelte';
 
 export const RECENT_INFO_CONFIG = {
 	average: {
 		icon: TrendingUp,
-		text: (price: number, currency = '$') => `Last Month: ${currency}${price}`
+		text: (price: number, currency = '$') => `Average: ${currency}${price}`
 	},
 	last: {
 		icon: History,
-		text: (price: number, currency = '$') => `Average: ${currency}${price}`
+		text: (price: number, currency = '$') => `Last Month: ${currency}${price}`
 	}
 };
 
 export type RecentInfoType = keyof typeof RECENT_INFO_CONFIG;
-
-export type NewMonthStepType = 'incoming' | 'mandatory' | 'strategy' | 'finish';
-
-export const STEPS: Record<
-	NewMonthStepType,
-	{
-		step: number;
-		headerActionButton: {
-			type: 'close' | 'back';
-			icon: Component<IconProps>;
-		};
-		component: Component<StepProps> | null;
-		next: NewMonthStepType | null;
-		prev: NewMonthStepType | null;
-	}
-> = {
-	incoming: {
-		step: 1,
-		headerActionButton: {
-			type: 'close',
-			icon: X
-		},
-		component: MonthIncomePage,
-		next: 'mandatory',
-		prev: null
-	},
-	mandatory: {
-		step: 2,
-		headerActionButton: {
-			type: 'back',
-			icon: ArrowLeft
-		},
-		component: MonthMandatoryPage,
-		next: 'strategy',
-		prev: 'incoming'
-	},
-	strategy: {
-		step: 3,
-		headerActionButton: {
-			type: 'back',
-			icon: ArrowLeft
-		},
-		component: MonthStrategyPage,
-		next: 'finish',
-		prev: 'mandatory'
-	},
-	finish: {
-		step: 4,
-		headerActionButton: {
-			type: 'back',
-			icon: ArrowLeft
-		},
-		component: null,
-		next: null,
-		prev: 'strategy'
-	}
-};
 
 export const SUGGESTS = ['🏠 Rent', '⚡ Utilities', '🛡️ Insurance'];
 
