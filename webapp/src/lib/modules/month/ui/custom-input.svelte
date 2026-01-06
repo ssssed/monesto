@@ -74,9 +74,11 @@
 					{value || '0'}
 				</span>
 
-				<span
-					class={cn('caret h-16 w-[2px] bg-primary', { '-translate-x-[25px]': value === '' })}
-				/>
+				{#if opened}
+					<span
+						class={cn('caret h-16 w-[2px] bg-primary', { '-translate-x-[25px]': value === '' })}
+					/>
+				{/if}
 			</div>
 		</div>
 	</div>
