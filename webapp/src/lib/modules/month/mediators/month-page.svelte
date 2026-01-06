@@ -2,7 +2,7 @@
 	import { STEPS, type NewMonthStepType } from '../model.svelte';
 	import NewMonthHeader from '../ui/new-month-header.svelte';
 
-	let stepStage = $state<NewMonthStepType>('incoming');
+	let stepStage = $state<NewMonthStepType>('finish');
 	let step = $derived(STEPS[stepStage]);
 
 	const handleNext = () => {
@@ -22,16 +22,14 @@
 	class="font-display flex flex-1 flex-col overflow-y-auto bg-background antialiased transition-colors duration-300"
 >
 	<NewMonthHeader title={step.title} step={step.step} maxSteps={Object.keys(STEPS).length}>
-		<svelte:component
-			this={step.headerActionButton.icon}
+		<step.headerActionButton.icon
 			onclick={() => {
 				if (step.headerActionButton.type === 'back') handlePrev();
 			}}
 		/>
 	</NewMonthHeader>
 
-	<svelte:component
-		this={step.component}
+	<step.component
 		onNext={handleNext}
 		onPrev={handlePrev}
 		hasNext={!!step.next}

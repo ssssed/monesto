@@ -37,7 +37,7 @@
 	}}
 >
 	<span class="text-lg text-slate-400 group-hover:text-primary dark:text-slate-500">
-		<svelte:component this={info.icon} />
+		<info.icon />
 	</span>
 	<p class="text-sm leading-normal font-medium text-slate-700 dark:text-slate-200">
 		{info.text(price, currency)}

@@ -10,7 +10,7 @@
 </script>
 
 <header
-	class="bg-background-light/80 dark:bg-background-dark/80 grid grid-cols-3 items-center backdrop-blur-md"
+	class="bg-background-light/80 fixed top-0 w-full left-0 right-0 p-4 z-10 dark:bg-background-dark/80 grid grid-cols-3 items-center backdrop-blur-md"
 >
 	{@render children?.()}
 	<span class="flex-1 text-center text-nowrap text-lg leading-tight font-bold text-slate-800 dark:text-white"

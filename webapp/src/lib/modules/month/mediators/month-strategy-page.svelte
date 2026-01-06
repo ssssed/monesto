@@ -8,7 +8,7 @@
 	let { onNext, hasNext }: StepProps = $props();
 </script>
 
-<div class="flex flex-1 flex-col">
+<div class="flex flex-1 flex-col mt-11.25">
 	<h1
 		class="text-text-main-light dark:text-text-main-dark mt-4 mb-3 text-left text-3xl leading-tight font-bold tracking-tight"
 	>
@@ -30,7 +30,7 @@
 					monthStore.strategy.selectedId = strategy.id;
 				}}
 			>
-				<svelte:component this={strategy.icon} />
+			<strategy.icon />
 			</StrategyCard>
 		{/each}
 	</div>

@@ -4,16 +4,10 @@
 	import type { StepProps } from '../types';
 	import { monthStore } from '../model.svelte';
 
-	let { onNext }: StepProps = $props();
+	let _: StepProps = $props();
 
 	const income = Number(monthStore.incoming.value);
 	const mandatory = Number(monthStore.mandatory.value);
-
-	const strategyPercentMap = {
-		conservative: 15,
-		balanced: 20,
-		aggressive: 30
-	} as const;
 
 	const percent = 20;
 	const available = Math.max(income - mandatory, 0);
@@ -21,7 +15,7 @@
 </script>
 
 <h2
-	class="mt-8 mb-4 text-center text-lg font-bold tracking-[-0.015em] text-[#111813] dark:text-white"
+	class="mt-8 text-[#111813] dark:text-white tracking-tight text-[28px] font-bold leading-tight text-center pb-6"
 >
 	Your Recommendation
 </h2>
