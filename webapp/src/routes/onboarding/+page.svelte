@@ -1,34 +1,76 @@
-<script>
+<script lang="ts">
 	import Button from '$lib/shared/ui/button/button.svelte';
-	import { ArrowRight } from "@lucide/svelte";
-	import * as Carousel from "$lib/shared/ui/carousel";
+	import * as Carousel from '$lib/shared/ui/carousel';
 	import { ONBOARDING_STEPS, OnboardingCard } from '$lib/modules/onboarding';
+	import type { CarouselAPI } from '$lib/shared/ui/carousel/context';
 
+	let api = $state<CarouselAPI>();
+	let current = $state(0);
+	let currentStep = $derived(ONBOARDING_STEPS[current]);
+
+	const next = () => {
+		api?.scrollNext();
+	};
+
+	$effect(() => {
+		if (api) {
+			current = api.selectedScrollSnap();
+			api.on('select', () => {
+				current = api!.selectedScrollSnap();
+			});
+		}
+	});
 </script>
-<nav class="flex w-full justify-end mb-10">
-	<a href="/" class="text-muted-foreground dark:text-[#8ab098] text-sm font-semibold leading-normal tracking-[0.015em] shrink-0">Skip</a>
+
+<nav class="mb-10 flex w-full justify-end">
+	<form method="POST" class="contents">
+		<button
+			type="submit"
+			class="shrink-0 text-sm leading-normal font-semibold tracking-[0.015em] text-muted-foreground dark:text-[#8ab098]"
+		>
+			Skip
+		</button>
+	</form>
 </nav>
 
-<main class="flex-1 flex flex-col items-center justify-center w-full">
-	<Carousel.Root class="w-full max-w-md flex flex-col flex-1" opts={{
-    align: "start",
-  }}>
+<main class="flex w-full flex-1 flex-col items-center justify-center">
+	<Carousel.Root
+		class="flex w-full max-w-md flex-1 flex-col"
+		opts={{
+			align: 'start'
+		}}
+		setApi={(emblaApi) => (api = emblaApi)}
+	>
 		<Carousel.Content class="h-full">
 			{#each ONBOARDING_STEPS as step (step.title)}
-				<Carousel.Item >
+				<Carousel.Item>
 					<OnboardingCard title={step.title} description={step.description} image={step.image} />
 				</Carousel.Item>
 			{/each}
 		</Carousel.Content>
-		
-		<div class="w-full flex flex-col items-center py-4 px-6 bg-transparent z-10 mt-auto">
-			<Carousel.Pagination length={3} />
-			<Button class="w-full" size="extraLg">
-				<span class="text-[#053314] text-lg font-bold tracking-wide">
-					Get Started
-				</span>
-				<ArrowRight color="#053314" strokeWidth=3 />
-			</Button>
+
+		<div class="z-10 mt-auto flex w-full flex-col items-center bg-transparent px-6 py-4">
+			<Carousel.Pagination length={ONBOARDING_STEPS.length} />
+			{#if currentStep.isFinal}
+				<form method="POST" class="w-full">
+					<Button
+						type="submit"
+						class="w-full text-lg font-bold tracking-wide text-[#053314]"
+						size="extraLg"
+					>
+						{currentStep.buttonText}
+						<currentStep.buttonIcon color="#053314" strokeWidth="3" />
+					</Button>
+				</form>
+			{:else}
+				<Button
+					class="w-full text-lg font-bold tracking-wide text-[#053314]"
+					size="extraLg"
+					onclick={next}
+				>
+					{currentStep.buttonText}
+				</Button>
+			{/if}
 		</div>
 	</Carousel.Root>
-	</main>
+</main>
