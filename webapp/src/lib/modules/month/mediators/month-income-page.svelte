@@ -4,7 +4,7 @@
 	import RecentInfo from '../ui/recent-info.svelte';
 	import ContinueButton from '../ui/continue-button.svelte';
 	import type { StepProps } from '../types';
-	import { monthStore } from '../model.svelte';
+	import { monthStore } from '../model/model.svelte';
 
 	let { onNext, monthStatus }: StepProps = $props();
 </script>

@@ -10,4 +10,6 @@
 	{:else}
 		<MonthPage {monthStatus} />	
 	{/if}
+{:catch error}
+	<pre>{error?.message ?? 'http error'}</pre>
 {/await}

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { MonthStatus } from '../api';
-	import { STEPS, type NewMonthStepType } from '../model.svelte';
+	import { initMountStatusStore, STEPS, type NewMonthStepType } from '../model/model.svelte';
 	import NewMonthHeader from '../ui/new-month-header.svelte';
 
-	let {monthStatus}: {monthStatus: MonthStatus} = $props()
+	let { monthStatus }: { monthStatus: MonthStatus } = $props();
 
 	let stepStage = $state<NewMonthStepType>('incoming');
 	let step = $derived(STEPS[stepStage]);
@@ -21,6 +21,8 @@
 		step?.onPrev?.();
 		stepStage = step.prev;
 	};
+
+	initMountStatusStore(monthStatus);
 </script>
 
 <main

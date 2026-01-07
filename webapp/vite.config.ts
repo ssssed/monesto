@@ -7,5 +7,8 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 	ssr: {
 		noExternal: ['bits-ui', '@melt-ui/svelte', 'svelte-sonner']
+	},
+	server: {
+		allowedHosts: ['*']
 	}
 });

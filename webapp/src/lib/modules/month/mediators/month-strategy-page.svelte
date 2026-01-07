@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { STRATEGIES } from '../constants';
-	import { monthStore } from '../model.svelte';
+	import { STRATEGIES } from '../model/constants';
+	import { monthStore } from '../model/model.svelte';
 	import type { StepProps } from '../types';
 	import ContinueButton from '../ui/continue-button.svelte';
 	import StrategyCard from '../ui/strategy-card.svelte';
@@ -21,13 +21,13 @@
 	</p>
 
 	<div class="mt-8 flex flex-col gap-4">
-		{#each STRATEGIES as strategy (strategy.id)}
+		{#each STRATEGIES as strategy (strategy.name)}
 			<StrategyCard
 				title={strategy.title}
 				description={strategy.description}
-				isSelected={strategy.id === monthStore.strategy.selectedId}
+				isSelected={strategy.name === monthStore.strategy.selectedName}
 				onClick={() => {
-					monthStore.strategy.selectedId = strategy.id;
+					monthStore.strategy.selectedName = strategy.name;
 				}}
 			>
 			<strategy.icon />

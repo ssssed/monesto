@@ -2,7 +2,7 @@
 	import Button from '$lib/shared/ui/button/button.svelte';
 	import { CircleCheck } from '@lucide/svelte';
 	import type { StepProps } from '../types';
-	import { monthStore } from '../model.svelte';
+	import { monthStore } from '../model/model.svelte';
 
 	let _: StepProps = $props();
 

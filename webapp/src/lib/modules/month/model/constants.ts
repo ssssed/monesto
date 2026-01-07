@@ -17,7 +17,7 @@ export const SUGGESTS = ['🏠 Rent', '⚡ Utilities', '🛡️ Insurance'];
 
 export const STRATEGIES = [
 	{
-		id: '1',
+		name: 'stash',
 		icon: Shield,
 		title: 'Emergency Fund',
 		description: 'Save 3-6 months of expenses for safety.'

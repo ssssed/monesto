@@ -2,9 +2,9 @@
 	import MandatoryInput from '../ui/custom-input.svelte';
 	import ContinueButton from '../ui/continue-button.svelte';
 	import type { StepProps } from '../types';
-	import { SUGGESTS } from '../constants';
+	import { SUGGESTS } from '../model/constants';
 	import Suggest from '../ui/suggest.svelte';
-	import { monthStore } from '../model.svelte';
+	import { monthStore } from '../model/model.svelte';
 
 	let { onNext }: StepProps = $props();
 </script>

@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { MonthModule } from './month/month.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MonthModule } from './month/month.module';
     }),
     PrismaModule,
     MonthModule,
+    UserModule,
   ],
   controllers: [],
   providers: [PrismaService],

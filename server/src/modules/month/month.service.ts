@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { monthData, monthRecentData } from './mock';
+import { monthRecentData } from './mock';
 import { UpdateMonthDto } from './dto/month.dto';
 
 export type RecentInfo = {
@@ -23,21 +23,22 @@ export class MonthService {
     year: number;
     month: number;
   }) {
-    // const monthData = await this.prisma.userMonth.findFirst({
-    //   where: {
-    //     user: {
-    //       telegramId,
-    //     },
-    //     year,
-    //     month,
-    //   },
-    //   select: {
-    //     incomingAmount: true,
-    //     incomingCurrency: true,
-    //     mandatoryAmount: true,
-    //     mandatoryCurrency: true,
-    //   },
-    // });
+    const monthData = await this.prisma.userMonth.findFirst({
+      where: {
+        user: {
+          telegramId,
+        },
+        year,
+        month,
+      },
+      select: {
+        incomingAmount: true,
+        incomingCurrency: true,
+        mandatoryAmount: true,
+        mandatoryCurrency: true,
+        strategyName: true,
+      },
+    });
 
     if (!monthData) throw new BadRequestException('user not found');
 
@@ -47,6 +48,8 @@ export class MonthService {
     const hasIncoming = !!monthData?.incomingAmount && incoming.toNumber() > 0;
     const hasMandatory =
       !!monthData?.mandatoryAmount && mandatory.toNumber() > 0;
+    const hasStrategy =
+      !!monthData?.strategyName && monthData.strategyName.length > 0;
 
     // Проверка валют
     if (
@@ -68,11 +71,14 @@ export class MonthService {
     return {
       hasIncoming,
       hasMandatory,
-      isMonthComplete: hasIncoming && hasMandatory,
+      isMonthComplete: hasIncoming && hasMandatory && hasStrategy,
+      incoming: incoming.toString(),
+      mandatory: mandatory.toString(),
       recentInfo,
     };
   }
 
+  // TODO: убрать моки
   private getRecentInfo({
     month,
     telegramId,
@@ -139,9 +145,14 @@ export class MonthService {
 
     // Проверка валют
     const incomingCurrency =
-      dto.incomingCurrency ?? existingMonth?.incomingCurrency;
+      dto?.incomingCurrency !== undefined
+        ? dto.incomingCurrency
+        : (existingMonth?.incomingCurrency ?? 'USD');
+
     const mandatoryCurrency =
-      dto.mandatoryCurrency ?? existingMonth?.mandatoryCurrency;
+      dto?.mandatoryCurrency !== undefined
+        ? dto.mandatoryCurrency
+        : (existingMonth?.mandatoryCurrency ?? 'USD');
 
     if (
       incomingCurrency &&
@@ -165,27 +176,33 @@ export class MonthService {
         userId: user.id,
         year,
         month,
-        incomingAmount: dto.incoming ? new Prisma.Decimal(dto.incoming) : null,
+        incomingAmount: dto?.incoming ? new Prisma.Decimal(dto.incoming) : null,
         incomingCurrency: incomingCurrency ?? '$',
-        mandatoryAmount: dto.mandatory
+        mandatoryAmount: dto?.mandatory
           ? new Prisma.Decimal(dto.mandatory)
           : null,
         mandatoryCurrency: mandatoryCurrency ?? '$',
-        strategyName: dto.strategy ?? null,
+        strategyName: dto?.strategy ?? null,
       },
       update: {
-        ...(dto.incoming !== undefined && {
+        ...(dto?.incoming !== undefined && {
           incomingAmount: new Prisma.Decimal(dto.incoming),
         }),
-        ...(dto.incomingCurrency && { incomingCurrency: dto.incomingCurrency }),
-        ...(dto.mandatory !== undefined && {
+        ...(dto?.incomingCurrency && {
+          incomingCurrency: dto.incomingCurrency,
+        }),
+        ...(dto?.mandatory !== undefined && {
           mandatoryAmount: new Prisma.Decimal(dto.mandatory),
         }),
-        ...(dto.mandatoryCurrency && {
+        ...(dto?.mandatoryCurrency && {
           mandatoryCurrency: dto.mandatoryCurrency,
         }),
-        ...(dto.strategy && { strategyName: dto.strategy }),
+        ...(dto?.strategy && { strategyName: dto.strategy }),
       },
     });
+
+    return {
+      ok: true,
+    };
   }
 }

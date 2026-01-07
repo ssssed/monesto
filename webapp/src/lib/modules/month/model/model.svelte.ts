@@ -1,11 +1,11 @@
-import type { Component } from 'svelte';
+import { onMount, type Component } from 'svelte';
 import { ArrowLeft, X, type IconProps } from '@lucide/svelte';
-import type { StepProps } from './types';
-import MonthIncomePage from './mediators/month-income-page.svelte';
-import MonthMandatoryPage from './mediators/month-mandatory-page.svelte';
-import MonthStrategyPage from './mediators/month-strategy-page.svelte';
-import FinishPage from './mediators/finish-page.svelte';
-import { updateMonthData, type UpdateMonthBodyType } from './api';
+import type { StepProps } from '../types';
+import MonthIncomePage from '../mediators/month-income-page.svelte';
+import MonthMandatoryPage from '../mediators/month-mandatory-page.svelte';
+import MonthStrategyPage from '../mediators/month-strategy-page.svelte';
+import FinishPage from '../mediators/finish-page.svelte';
+import { updateMonthData, type MonthStatus, type UpdateMonthBodyType } from '../api';
 
 type Base = {
 	type: NewMonthStepType;
@@ -23,7 +23,7 @@ type MandatoryStore = Base & {
 
 type StrategyStore = Base & {
 	type: 'strategy';
-	selectedId: string;
+	selectedName: string;
 };
 
 type StepStoreMap = {
@@ -43,7 +43,7 @@ export let monthStore = $state<StepStoreMap>({
 	},
 	strategy: {
 		type: 'strategy',
-		selectedId: '1'
+		selectedName: 'stash'
 	}
 });
 
@@ -117,7 +117,7 @@ export const STEPS: Record<
 		next: 'finish',
 		prev: 'mandatory',
 		onNext: () => {
-			updateMonthField('strategy', monthStore.strategy.selectedId);
+			updateMonthField('strategy', monthStore.strategy.selectedName);
 		}
 	},
 	finish: {
@@ -130,4 +130,16 @@ export const STEPS: Record<
 		next: null,
 		prev: 'strategy'
 	}
+};
+
+export const initMountStatusStore = (monthStatus: MonthStatus) => {
+	onMount(() => {
+		if (monthStatus.incoming) {
+			monthStore.incoming.value = monthStatus.incoming;
+		}
+
+		if (monthStatus.mandatory) {
+			monthStore.mandatory.value = monthStatus.mandatory;
+		}
+	});
 };

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/shared/utils';
-	import { RECENT_INFO_CONFIG, type RecentInfoType } from '../constants';
+	import { RECENT_INFO_CONFIG, type RecentInfoType } from '../model/constants';
 
 	let {
 		type,
