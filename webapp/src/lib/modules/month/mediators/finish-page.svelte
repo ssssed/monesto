@@ -2,7 +2,7 @@
 	import Button from '$lib/shared/ui/button/button.svelte';
 	import { CircleCheck } from '@lucide/svelte';
 	import type { StepProps } from '../types';
-	import { monthStore } from '../model/model.svelte';
+	import { createPlan, monthStore } from '../model/model.svelte';
 
 	let _: StepProps = $props();
 
@@ -12,10 +12,23 @@
 	const percent = 20;
 	const available = Math.max(income - mandatory, 0);
 	const monthlyAmount = Math.round((available * percent) / 100);
+
+	let isCreatePlan = $state<boolean>(false);
+
+	const handleCreatePlan = () => {
+		isCreatePlan = true;
+		try {
+			createPlan();
+		} catch (error) {
+			console.error('Error creating plan:', error);
+		} finally {
+			isCreatePlan = false;
+		}
+	};
 </script>
 
 <h2
-	class="mt-8 text-[#111813] dark:text-white tracking-tight text-[28px] font-bold leading-tight text-center pb-6"
+	class="mt-8 pb-6 text-center text-[28px] leading-tight font-bold tracking-tight text-[#111813] dark:text-white"
 >
 	Your Recommendation
 </h2>
@@ -45,7 +58,7 @@
 				</p>
 			</div>
 
-			<div class="bg-background h-1 w-16 rounded-full dark:bg-white/10" />
+			<div class="h-1 w-16 rounded-full bg-background dark:bg-white/10" />
 
 			<div class="flex items-center gap-2 rounded-full bg-[#f0f4f2] px-4 py-1 dark:bg-white/10">
 				<CircleCheck size={20} color="#111813" />
@@ -64,7 +77,12 @@
 		leaves enough room for daily coffee and unexpected costs.
 	</p>
 
-	<Button class="mt-auto w-full text-lg font-bold" size="extraLg">Create my plan</Button>
+	<Button
+		class="mt-auto w-full text-lg font-bold"
+		size="extraLg"
+		onclick={handleCreatePlan}
+		disabled={isCreatePlan}>Create my plan</Button
+	>
 </main>
 
 <style>

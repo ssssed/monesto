@@ -6,6 +6,8 @@ import MonthMandatoryPage from '../mediators/month-mandatory-page.svelte';
 import MonthStrategyPage from '../mediators/month-strategy-page.svelte';
 import FinishPage from '../mediators/finish-page.svelte';
 import { updateMonthData, type MonthStatus, type UpdateMonthBodyType } from '../api';
+import { invalidate } from '$app/navigation';
+import { DEPENDS } from '$lib/shared/config/deepends';
 
 type Base = {
 	type: NewMonthStepType;
@@ -142,4 +144,8 @@ export const initMountStatusStore = (monthStatus: MonthStatus) => {
 			monthStore.mandatory.value = monthStatus.mandatory;
 		}
 	});
+};
+
+export const createPlan = async () => {
+	invalidate(DEPENDS.MONTH_STATUS);
 };

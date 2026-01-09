@@ -1,15 +1,12 @@
 <script lang="ts">
-	import { MonthPage, getMonthStatus } from '$lib/modules/month';
+	import { MonthPage, PlanPage } from '$lib/modules/month';
+	import type { PageData } from './$types';
+
+	let { data }: {data: PageData} = $props();
 </script>
 
-{#await getMonthStatus()}
-	Loading...
-{:then monthStatus}
-	{#if monthStatus.isMonthComplete}
-		Complete...
-	{:else}
-		<MonthPage {monthStatus} />	
-	{/if}
-{:catch error}
-	<pre>{error?.message ?? 'http error'}</pre>
-{/await}
+{#if data.monthStatus.isMonthComplete}
+	<PlanPage monthStatus={data.monthStatus} />
+{:else}
+	<MonthPage monthStatus={data.monthStatus} />
+{/if}
