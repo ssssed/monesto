@@ -4,15 +4,15 @@ import { defineMiddleware } from 'requestify.js';
 export const getTelegramId = () => {
 	if (typeof window === 'undefined') return;
 
-	const devTelegramId = PUBLIC_TELEGRAM_DEV_ID;
-	const telegramId = String(window.Telegram.WebApp.initDataUnsafe.user?.id);
+	const devTelegramId = PUBLIC_TELEGRAM_DEV_ID || undefined;
+	const telegramId = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
 
-	return devTelegramId ?? telegramId;
+	return devTelegramId || telegramId || undefined;
 };
 
 export const telegramMiddleware = defineMiddleware({
 	name: 'telegram',
-	before: (config) => {
+	before: config => {
 		const telegramId = getTelegramId();
 
 		if (telegramId) {

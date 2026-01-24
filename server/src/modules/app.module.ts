@@ -7,18 +7,26 @@ import { PrismaModule } from './prisma/prisma.module';
 import { MonthModule } from './month/month.module';
 import { UserModule } from './user/user.module';
 
+const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+const imports = [
+  ConfigModule.forRoot({
+    isGlobal: true,
+    envFilePath:
+      process.env.NODE_ENV === 'production'
+        ? undefined
+        : `.env.${process.env.NODE_ENV ?? 'development'}`,
+  }),
+  PrismaModule,
+  MonthModule,
+  UserModule,
+];
+
+if (botToken) {
+  imports.push(TelegramModule, BotModule);
+}
+
 @Module({
-  imports: [
-    TelegramModule,
-    BotModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: `.env.${process.env.NODE_ENV ?? 'development'}`,
-    }),
-    PrismaModule,
-    MonthModule,
-    UserModule,
-  ],
+  imports,
   controllers: [],
   providers: [PrismaService],
 })
