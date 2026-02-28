@@ -3,16 +3,31 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16
-    container_name: finance_postgres
+    container_name: pcb_fad_postgres
     restart: always
     ports:
-      - '4321:5432'
+      - '4322:5432'
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: finance_app
+      POSTGRES_DB: pcb_fad
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pcb_fad_postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./apps/core-server
+      dockerfile: Dockerfile
+    container_name: pcb_fad_backend
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/pcb_fad?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      PORT: 3001
+    depends_on:
+      - postgres
 
 volumes:
-  postgres_data:
+  pcb_fad_postgres_data:

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>Правила распределения — PCB FAD</title>
+  <link rel="stylesheet" href="palette.css">
+  <style>
+    .rule-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.25rem; }
+    .rule-card-header { background: var(--muted); padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+    .rule-trigger { font-weight: 600; font-size: 0.9375rem; }
+    .rule-on-dashboard { font-size: 0.8125rem; color: var(--muted-foreground); display: flex; align-items: center; gap: 0.375rem; }
+    .rule-on-dashboard input { margin: 0; }
+    .rule-steps { padding: 1rem; background: var(--card); }
+    .step { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; font-size: 0.9375rem; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .step-num { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .step-desc { flex: 1; }
+    .step-desc .target { color: var(--primary); font-weight: 500; }
+    .step-add { margin-top: 0.5rem; }
+    .step-add a { font-size: 0.8125rem; color: var(--primary); text-decoration: none; }
+    .diagram-block { margin-top: 2rem; padding: 1.25rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+    .diagram-block h3 { margin: 0 0 1rem 0; font-size: 0.9375rem; }
+    .diagram-visual { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; background: var(--muted); border-radius: var(--radius); font-size: 0.8125rem; }
+    .diagram-node { padding: 0.35rem 0.6rem; border-radius: var(--radius); background: var(--card); border: 1px solid var(--border); }
+    .diagram-node.trigger { background: var(--accent); border-color: var(--primary); }
+    .diagram-arrow { color: var(--muted-foreground); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <span class="brand">PCB FAD</span>
+      <a href="dashboard.html">Дашборд</a>
+      <a href="accounts-assets.html">Счета и активы</a>
+      <a href="distribution-rules.html">Правила</a>
+    </nav>
+
+    <h1 class="page-title">Правила распределения</h1>
+    <p class="page-desc">Гибкие цепочки: триггер (тип дохода) → действия. Взять %, вычесть расход, конвертировать и перевести на счёт.</p>
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+      <button class="btn">+ Добавить правило</button>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-card-header">
+        <span class="rule-trigger">Зарплата</span>
+        <label class="rule-on-dashboard"><input type="checkbox"> Показать на дашборде</label>
+      </div>
+      <div class="rule-steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <span class="step-desc">Взять <strong>10%</strong> → перечислить → <span class="target">Tinkoff Savings</span></span>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <span class="step-desc">Вычесть → <span class="target">Платёж за кредит</span> (35 000 ₽)</span>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <span class="step-desc">Взять <strong>20%</strong> → конвертировать в USD → перечислить на <span class="target">Cash USD</span></span>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <span class="step-desc">Взять <strong>250 $</strong> → перечислить → <span class="target">Cash USD</span></span>
+        </div>
+        <div class="step-add"><a href="#">+ Добавить шаг</a></div>
+      </div>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-card-header">
+        <span class="rule-trigger">Аванс</span>
+        <label class="rule-on-dashboard"><input type="checkbox"> Показать на дашборде</label>
+      </div>
+      <div class="rule-steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <span class="step-desc">Взять <strong>10%</strong> → перечислить → <span class="target">Tinkoff Savings</span></span>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <span class="step-desc">Вычесть → <span class="target">ЖКХ</span> (8 500 ₽)</span>
+        </div>
+        <div class="step-add"><a href="#">+ Добавить шаг</a></div>
+      </div>
+    </div>
+
+    <div class="diagram-block">
+      <h3>Диаграмма правил</h3>
+      <p style="font-size: 0.8125rem; color: var(--muted-foreground); margin: 0 0 1rem 0;">Визуализация цепочек: триггер и шаги по порядку.</p>
+      <div class="diagram-visual">
+        <span class="diagram-node trigger">Зарплата</span>
+        <span class="diagram-arrow">→</span>
+        <span class="diagram-node">10% → Tinkoff</span>
+        <span class="diagram-arrow">→</span>
+        <span class="diagram-node">− Кредит</span>
+        <span class="diagram-arrow">→</span>
+        <span class="diagram-node">20% → USD</span>
+        <span class="diagram-arrow">→</span>
+        <span class="diagram-node">250$ → Cash USD</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

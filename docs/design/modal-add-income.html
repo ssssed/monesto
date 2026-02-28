@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>Добавить доход — PCB FAD</title>
+  <link rel="stylesheet" href="palette.css">
+  <style>
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 2rem; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 20px 40px rgba(0,0,0,0.15); max-width: 420px; width: 100%; padding: 1.5rem; }
+    .modal-title { font-size: 1.125rem; font-weight: 600; margin: 0 0 1rem 0; }
+    .modal .input-group { margin-bottom: 1rem; }
+    .modal .input-group input, .modal .input-group select { max-width: none; }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+    .modal-actions .btn-ghost { color: var(--muted-foreground); }
+  </style>
+</head>
+<body>
+  <div class="modal-overlay">
+    <div class="modal">
+      <h2 class="modal-title">Добавить доход</h2>
+      <div class="input-group">
+        <label for="name">Название</label>
+        <input id="name" type="text" value="" placeholder="Например: Стипендия">
+      </div>
+      <div class="input-group">
+        <label for="type">Тип</label>
+        <select id="type">
+          <option>Разовый</option>
+          <option>По периодам (аванс / зарплата)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="tax">С налогом</label>
+        <select id="tax">
+          <option value="no">Нет</option>
+          <option value="yes">Да</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="amount">Сумма</label>
+        <input id="amount" type="text" placeholder="0">
+      </div>
+      <div class="input-group">
+        <label for="currency">Валюта</label>
+        <select id="currency">
+          <option>RUB</option>
+          <option>USD</option>
+          <option>EUR</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost">Отмена</button>
+        <button class="btn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "monesto",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:webapp": "npm -w webapp run dev",
+    "dev:core": "npm -w @monesto/server run start:dev",
+    "dev:server": "npm -w @monesto/webapp-server run start:dev",
+    "build:webapp": "npm -w webapp run build",
+    "build:core": "npm -w @monesto/server run build",
+    "build:server": "npm -w @monesto/webapp-server run build"
+  }
+}

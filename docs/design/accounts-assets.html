@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>Счета и активы — PCB FAD</title>
+  <link rel="stylesheet" href="palette.css">
+  <style>
+    .list-card { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; }
+    .list-card .info { display: flex; align-items: center; gap: 1rem; }
+    .list-card .name { font-weight: 600; font-size: 1rem; }
+    .list-card .meta { font-size: 0.8125rem; color: var(--muted-foreground); margin-top: 0.25rem; }
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: var(--radius); font-size: 0.75rem; background: var(--muted); color: var(--muted-foreground); }
+    .badge-account { background: var(--accent); color: var(--accent-foreground); }
+    .badge-asset { background: var(--secondary); color: var(--secondary-foreground); }
+    .list-card .actions { display: flex; gap: 0.5rem; }
+    .list-card .actions a { font-size: 0.875rem; color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <span class="brand">PCB FAD</span>
+      <a href="dashboard.html">Дашборд</a>
+      <a href="accounts-assets.html">Счета и активы</a>
+      <a href="distribution-rules.html">Правила</a>
+    </nav>
+
+    <h1 class="page-title">Счета и активы</h1>
+    <p class="page-desc">Места хранения денег. Используются в правилах: «10% → Tinkoff Savings», «250 USD → Cash USD».</p>
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+      <button class="btn">+ Добавить</button>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="list-card">
+        <div class="info">
+          <div>
+            <div class="name">Tinkoff Savings</div>
+            <div class="meta">Счёт · RUB</div>
+          </div>
+          <span class="badge badge-account">Account</span>
+        </div>
+        <div class="actions"><a href="#">Изменить</a><a href="#">Удалить</a></div>
+      </div>
+      <div class="list-card" style="border-top: 1px solid var(--border);">
+        <div class="info">
+          <div>
+            <div class="name">Cash USD</div>
+            <div class="meta">Актив · USD</div>
+          </div>
+          <span class="badge badge-asset">Asset</span>
+        </div>
+        <div class="actions"><a href="#">Изменить</a><a href="#">Удалить</a></div>
+      </div>
+      <div class="list-card" style="border-top: 1px solid var(--border);">
+        <div class="info">
+          <div>
+            <div class="name">Основная карта</div>
+            <div class="meta">Счёт · RUB</div>
+          </div>
+          <span class="badge badge-account">Account</span>
+        </div>
+        <div class="actions"><a href="#">Изменить</a><a href="#">Удалить</a></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

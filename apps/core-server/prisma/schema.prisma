@@ -1,0 +1,177 @@
+// PCB FAD Backend — отдельная схема, не связана с server/prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  login        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts       Account[]
+  dashboardLayout DashboardLayout?
+  incomeTypes    IncomeType[]
+  incomes        Income[]
+  expenses       Expense[]
+  rules          Rule[]
+  tags           Tag[]
+  movements      Movement[]
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  type      AccountType
+  currency  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags   Tag[]   @relation("AccountTags")
+  rules  RuleStep[]
+  movementsTo   Movement[] @relation("MovementToAccount")
+  movementsFrom Movement[] @relation("MovementFromAccount")
+}
+
+enum AccountType {
+  account
+  asset
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  color     String   // hex
+  alias     String   // e.g. sber, tbank, cash
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[] @relation("AccountTags")
+}
+
+model DashboardLayout {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  layoutJson Json     // [{ id, widgetType, position/order }]
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model IncomeType {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  hasTax      Boolean  @default(false)
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes Income[]
+  rules  Rule[]
+}
+
+model Income {
+  id            String   @id @default(uuid())
+  userId        String
+  incomeTypeId  String
+  amount        Decimal
+  currency      String
+  year          Int
+  month         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeType IncomeType @relation(fields: [incomeTypeId], references: [id], onDelete: Cascade)
+  movement   Movement?
+}
+
+model Expense {
+  id          String        @id @default(uuid())
+  userId      String
+  name        String
+  amount      Decimal
+  currency    String
+  periodicity ExpensePeriodicity
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movement Movement?
+}
+
+enum ExpensePeriodicity {
+  on_advance
+  on_salary
+  monthly
+}
+
+model Rule {
+  id                  String   @id @default(uuid())
+  userId              String
+  triggerIncomeTypeId String
+  showOnDashboard     Boolean  @default(false)
+  order               Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeType IncomeType @relation(fields: [triggerIncomeTypeId], references: [id], onDelete: Cascade)
+  steps  RuleStep[]
+}
+
+model RuleStep {
+  id         String   @id @default(uuid())
+  ruleId     String
+  order      Int
+  actionType String
+  params     Json
+  targetAccountId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  rule    Rule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  targetAccount Account? @relation(fields: [targetAccountId], references: [id])
+}
+
+// Движения: пул ↔ актив (доход → пул, расход ← пул, пул → актив, актив → пул)
+model Movement {
+  id          String   @id @default(uuid())
+  userId      String
+  type        MovementType
+  amount      Decimal
+  currency    String
+  year        Int
+  month       Int
+  fromAccountId String?  // null = пул
+  toAccountId   String?  // null = пул
+  incomeId      String?  @unique
+  expenseId     String?  @unique
+  createdAt   DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount  Account? @relation("MovementFromAccount", fields: [fromAccountId], references: [id])
+  toAccount    Account? @relation("MovementToAccount", fields: [toAccountId], references: [id])
+  income       Income?  @relation(fields: [incomeId], references: [id], onDelete: Cascade)
+  expense      Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+enum MovementType {
+  income      // доход → пул
+  expense     // расход ← пул
+  pool_to_asset  // пул → актив
+  asset_to_pool  // актив → пул
+}

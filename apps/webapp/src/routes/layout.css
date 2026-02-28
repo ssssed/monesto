@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@monesto/ui-kit/theme.css';
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+
+	body {
+		font-family: 'Inter', sans-serif;
+		@apply flex min-h-dvh flex-col bg-background p-6 text-foreground antialiased;
+	}
+}

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>Дашборд — PCB FAD</title>
+  <link rel="stylesheet" href="palette.css">
+  <style>
+    .month-selector { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .month-selector select { padding: 0.5rem 1rem; font-size: 0.9375rem; border: 1px solid var(--input); border-radius: var(--radius); background: var(--card); }
+    .month-selector .label { font-size: 0.9375rem; color: var(--muted-foreground); }
+
+    .widget { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; position: relative; }
+    .widget-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .widget-title { font-size: 0.875rem; font-weight: 600; color: var(--muted-foreground); margin: 0; }
+    .widget-grab { width: 1.25rem; height: 1.25rem; cursor: default; color: var(--muted-foreground); opacity: 0.7; }
+    .widget-value { font-size: 1.5rem; font-weight: 600; color: var(--foreground); }
+    .widget-value.positive { color: var(--primary); }
+    .widget-value.negative { color: var(--destructive); }
+    .widget-actions { margin-top: 0.75rem; }
+    .tooltip-trigger { cursor: default; border-bottom: 1px dotted var(--muted-foreground); }
+    .tooltip-box { visibility: hidden; position: absolute; z-index: 10; bottom: 100%; left: 0; margin-bottom: 0.5rem; padding: 0.75rem 1rem; background: var(--popover); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.08); font-size: 0.8125rem; color: var(--popover-foreground); min-width: 200px; }
+    .tooltip-trigger:hover .tooltip-box { visibility: visible; }
+    .tooltip-box ul { margin: 0; padding-left: 1.25rem; }
+
+    .widgets-top { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 1100px) { .widgets-top { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .widgets-top { grid-template-columns: 1fr; } }
+
+    .asset-charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 1000px) { .asset-charts { grid-template-columns: 1fr; } }
+    .asset-widget { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; position: relative; }
+    .asset-widget .widget-header { margin-bottom: 0.5rem; }
+    .asset-widget .chart-area { height: 140px; display: flex; align-items: flex-end; gap: 0.35rem; padding: 0.75rem 0; }
+    .asset-widget .chart-bar { flex: 1; background: var(--chart-1); border-radius: var(--radius) var(--radius) 0 0; min-height: 4px; }
+    .asset-widget:nth-child(2) .chart-bar { background: var(--chart-2); }
+    .asset-widget:nth-child(3) .chart-bar { background: var(--chart-3); }
+    .asset-widget .asset-sum { font-size: 1rem; font-weight: 600; color: var(--foreground); margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <span class="brand">PCB FAD</span>
+      <a href="dashboard.html">Дашборд</a>
+      <a href="accounts-assets.html">Счета и активы</a>
+      <a href="distribution-rules.html">Правила</a>
+    </nav>
+
+    <div class="month-selector">
+      <span class="label">Месяц:</span>
+      <select>
+        <option>Февраль 2025</option>
+        <option>Январь 2025</option>
+        <option>Декабрь 2024</option>
+        <option>Ноябрь 2024</option>
+      </select>
+    </div>
+
+    <div class="widgets-top">
+      <div class="widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Доходы</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <div style="position: relative;">
+          <span class="tooltip-trigger">
+            <span class="widget-value">198 600 ₽</span>
+            <div class="tooltip-box">
+              <strong>Из чего складывается:</strong>
+              <ul>
+                <li>Аванс: 78 300 ₽</li>
+                <li>Зарплата: 78 300 ₽</li>
+                <li>Стипендия: 42 000 ₽</li>
+              </ul>
+            </div>
+          </span>
+          <div class="widget-actions">
+            <a href="modal-add-income.html" class="btn btn-ghost" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">+ Добавить доход</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Расходы</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <div style="position: relative;">
+          <span class="tooltip-trigger">
+            <span class="widget-value">35 800 ₽</span>
+            <div class="tooltip-box">
+              <strong>Из чего складывается:</strong>
+              <ul>
+                <li>Кредит: 25 000 ₽</li>
+                <li>ЖКХ: 8 500 ₽</li>
+                <li>Подписки: 2 300 ₽</li>
+              </ul>
+            </div>
+          </span>
+          <div class="widget-actions">
+            <a href="modal-add-expense.html" class="btn btn-ghost" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">+ Добавить расход</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Остаток баланса</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--muted-foreground); margin: 0 0 0.25rem 0;">доходы − расходы + остаток с прошлых месяцев</p>
+        <span class="widget-value positive">412 400 ₽</span>
+      </div>
+
+      <div class="widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Свободные деньги</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--muted-foreground); margin: 0 0 0.25rem 0;">доход − расходы − обязательный инвест</p>
+        <span class="widget-value">98 200 ₽</span>
+      </div>
+    </div>
+
+    <h2 class="card-title" style="margin-bottom: 0.75rem;">Активы</h2>
+    <div class="asset-charts">
+      <div class="asset-widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Tinkoff Savings</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <div class="chart-area">
+          <div class="chart-bar" style="height: 30%;"></div>
+          <div class="chart-bar" style="height: 45%;"></div>
+          <div class="chart-bar" style="height: 55%;"></div>
+          <div class="chart-bar" style="height: 70%;"></div>
+          <div class="chart-bar" style="height: 85%;"></div>
+          <div class="chart-bar" style="height: 100%;"></div>
+        </div>
+        <div class="asset-sum">145 000 ₽</div>
+      </div>
+      <div class="asset-widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Cash USD</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <div class="chart-area">
+          <div class="chart-bar" style="height: 40%;"></div>
+          <div class="chart-bar" style="height: 50%;"></div>
+          <div class="chart-bar" style="height: 65%;"></div>
+          <div class="chart-bar" style="height: 75%;"></div>
+          <div class="chart-bar" style="height: 90%;"></div>
+          <div class="chart-bar" style="height: 100%;"></div>
+        </div>
+        <div class="asset-sum">1 250 $</div>
+      </div>
+      <div class="asset-widget">
+        <div class="widget-header">
+          <h3 class="widget-title">Основная карта</h3>
+          <span class="widget-grab" title="Переместить">⋮⋮</span>
+        </div>
+        <div class="chart-area">
+          <div class="chart-bar" style="height: 60%;"></div>
+          <div class="chart-bar" style="height: 55%;"></div>
+          <div class="chart-bar" style="height: 70%;"></div>
+          <div class="chart-bar" style="height: 65%;"></div>
+          <div class="chart-bar" style="height: 80%;"></div>
+          <div class="chart-bar" style="height: 100%;"></div>
+        </div>
+        <div class="asset-sum">122 400 ₽</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
