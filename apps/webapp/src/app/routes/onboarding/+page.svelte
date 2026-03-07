@@ -6,6 +6,7 @@
 		CarouselContent,
 		CarouselItem,
 		CarouselPagination,
+		Page,
 		type CarouselAPI
 	} from '@monesto/ui-kit';
 
@@ -38,7 +39,7 @@
 	</form>
 </nav>
 
-<main class="flex w-full flex-1 flex-col items-center justify-center">
+<Page>
 	<Carousel
 		class="flex w-full max-w-md flex-1 flex-col"
 		opts={{
@@ -78,4 +79,4 @@
 			{/if}
 		</div>
 	</Carousel>
-</main>
+</Page>
