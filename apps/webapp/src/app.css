@@ -1,8 +1,0 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import '@monesto/ui-kit/theme.css';
-
-/* Сканировать файлы приложения */
-@source "./**/*.{svelte,ts,js}";
-/* Сканировать компоненты из пакета @monesto/ui-kit */
-@source "../../../packages/ui-kit/src/lib/**/*.{svelte,ts,js}";
