@@ -1,10 +1,10 @@
+import type { WithElementRef } from "$lib/utils";
 import type {
   EmblaCarouselSvelteType,
   default as emblaCarouselSvelte,
 } from "embla-carousel-svelte";
 import { getContext, hasContext, setContext } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
-import type { WithElementRef } from "../../../utils";
 
 export type CarouselAPI =
   NonNullable<

@@ -4,7 +4,16 @@
     "./.svelte-kit/tsconfig.json"
   ],
   "compilerOptions": {
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "baseUrl": ".",
+    "paths": {
+      "$shared": ["src/shared"],
+      "$shared/*": ["src/shared/*"],
+      "$modules": ["src/modules"],
+      "$modules/*": ["src/modules/*"],
+      "$infrastructures": ["src/infrastructures"],
+      "$infrastructures/*": ["src/infrastructures/*"]
+    }
   },
   "include": ["src/**/*"]
 }
