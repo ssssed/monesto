@@ -1,7 +1,28 @@
 <script lang="ts">
+	import { z } from 'zod';
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 	import Keyboard from './keyboard.svelte';
+
+	// Валидное float-значение: одна точка, не начинается с '.', без ведущего 0 кроме "0" и "0.xxx"
+	const numberInputSchema = z
+		.string()
+		.refine((s) => (s.match(/\./g) || []).length <= 1, { message: '' }) // не более одной точки в целом
+		.refine((s) => s === '' || s[0] !== '.', { message: '' }) // перед точкой должна быть цифра
+		.refine(
+			(s) =>
+				s === '' ||
+				s === '0' ||
+				s[0] !== '0' ||
+				(s.length > 1 && s[1] === '.'),
+			{ message: '' }
+		)
+		.refine((s) => /^\d*\.?\d*$/.test(s), { message: '' });
+
+	function isValidNumberInput(s: string): boolean {
+		const result = numberInputSchema.safeParse(s);
+		return result.success;
+	}
 
 	let {
 		value = $bindable(''),
@@ -112,7 +133,10 @@
   onClose={() => {
     opened = false;
   }}
-  onItemClick={(s) => (value += s)}
+  onItemClick={(s: string) => {
+    const next = value + s;
+    if (isValidNumberInput(next)) value = next;
+  }}
   onRemoveSymbol={() => (value = value.slice(0, -1))}
 >
   {@render children?.()}
