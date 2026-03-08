@@ -1,8 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "./theme-build.css";
 
 /* Сканировать компоненты ui-kit для генерации используемых утилит */
-@source "./lib/**/*.{svelte,ts,js}";
+@source "./**/*.{svelte,ts,js}";
 
 @import "./variables.css";

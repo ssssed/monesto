@@ -1,7 +1,32 @@
 <script lang="ts">
-	import { Button } from '@monesto/ui-kit';
+	import {
+		Button,
+		Drawer,
+		DrawerClose,
+		DrawerContent,
+		DrawerDescription,
+		DrawerFooter,
+		DrawerHeader,
+		DrawerTitle,
+		DrawerTrigger,
+		Input
+	} from '@monesto/ui-kit';
+
+	const value = $state('');
 </script>
 
-<h1>Web</h1>
-<Button>Button</Button>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<Input {value} />
+
+<Drawer>
+	<DrawerTrigger>Open</DrawerTrigger>
+	<DrawerContent>
+		<DrawerHeader>
+			<DrawerTitle>Are you sure absolutely sure?</DrawerTitle>
+			<DrawerDescription>This action cannot be undone.</DrawerDescription>
+		</DrawerHeader>
+		<DrawerFooter>
+			<Button>Submit</Button>
+			<DrawerClose>Cancel</DrawerClose>
+		</DrawerFooter>
+	</DrawerContent>
+</Drawer>

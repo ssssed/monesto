@@ -1,4 +1,4 @@
-export { Button, type ButtonProps } from "./components/ui/button";
+export { Button, type ButtonProps } from "./components/ui/button"
 export {
   Carousel,
   CarouselContent,
@@ -6,8 +6,8 @@ export {
   CarouselNext,
   CarouselPagination,
   CarouselPrevious,
-  type CarouselAPI,
-} from "./components/ui/carousel";
+  type CarouselAPI
+} from "./components/ui/carousel"
 export {
   Drawer,
   DrawerClose,
@@ -19,11 +19,13 @@ export {
   DrawerOverlay,
   DrawerPortal,
   DrawerTitle,
-  DrawerTrigger,
-} from "./components/ui/drawer";
-export { Header, Page } from "./components/ui/layout";
-export { cn } from "./utils";
+  DrawerTrigger
+} from "./components/ui/drawer"
+export { Input } from './components/ui/input'
+export { Header, Page } from "./components/ui/layout"
+export { cn } from "./utils"
 /**
- * Точка входа для сборки theme.css (импорт только ради включения в бандл).
+ * Точка входа для сборки app.css (импорт только ради включения в бандл).
  */
-import "./theme-build.css";
+import "./theme.css"
+
