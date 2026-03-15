@@ -1,0 +1,1 @@
+export { default as MonthIncomingPage } from './mediators/incoming-page.svelte';
