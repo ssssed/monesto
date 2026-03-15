@@ -37,6 +37,7 @@
   "dependencies": {
     "cli-table3": "^0.6.5",
     "commander": "^12.1.0",
+    "node-html-parser": "^7.1.0",
     "prompts": "^2.4.2"
   },
   "devDependencies": {

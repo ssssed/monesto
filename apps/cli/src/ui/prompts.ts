@@ -1,10 +1,16 @@
 import prompts from 'prompts';
 
-import type { MonestoConfig } from '../services/config.js';
+export interface CalculateParams {
+  money?: number;
+  tax?: string;
+  currency?: string;
+  imprestDate?: number;
+  gold?: string;
+  usd?: string;
+  rub?: string;
+}
 
-export interface PromptResult extends MonestoConfig {}
-
-export async function askMissingParameters(existing: Partial<MonestoConfig>): Promise<PromptResult> {
+export async function askMissingParameters(existing: Partial<CalculateParams>): Promise<CalculateParams> {
   const questions: prompts.PromptObject[] = [];
 
   if (existing.money == null) {
@@ -49,12 +55,12 @@ export async function askMissingParameters(existing: Partial<MonestoConfig>): Pr
   }
 
   if (questions.length === 0) {
-    return existing as PromptResult;
+    return { ...existing, currency: existing.currency ?? 'rub', imprestDate: existing.imprestDate ?? 25 } as CalculateParams;
   }
 
   const answers = await prompts(questions);
 
-  const merged: PromptResult = {
+  const merged: CalculateParams = {
     ...existing,
     ...answers
   };

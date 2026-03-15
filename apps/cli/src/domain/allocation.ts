@@ -66,7 +66,8 @@ function computeFromInput(
     }
     return {
       asset: 'usd',
-      amountRub,
+      // Если сумма в долларах меньше 50 000, то добавляем 200 рублей комиссии
+      amountRub: amountRub < 50000 ? amountRub + 200 : amountRub,
       details: {
         usdAmount,
         percentOfNet
@@ -138,4 +139,3 @@ export function allocateAssets(params: {
     isValid: true
   };
 }
-

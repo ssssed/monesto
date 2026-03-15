@@ -4,7 +4,6 @@ import { allocateAssets } from './domain/allocation.js';
 import { splitNetIncomeByWorkdays } from './domain/salarySplit.js';
 import { calculateNetIncome } from './domain/tax.js';
 import { getGoldPricePerGramRub, getUsdToRubRate } from './services/rates.js';
-import { loadConfig, saveConfig, type MonestoConfig } from './services/config.js';
 import { askMissingParameters } from './ui/prompts.js';
 import { renderAllocationTable, renderSummary } from './ui/table.js';
 
@@ -18,57 +17,26 @@ interface CliOptions {
   rub?: string;
 }
 
-function mergeConfig(saved: Partial<MonestoConfig>, args: CliOptions): MonestoConfig {
-  const config: MonestoConfig = {
-    money: saved.money,
-    tax: saved.tax,
-    currency: saved.currency ?? 'rub',
-    imprestDate: saved.imprestDate,
-    gold: saved.gold,
-    usd: saved.usd,
-    rub: saved.rub
-  };
-
-  if (args.money != null) {
-    const value = Number(args.money);
-    if (Number.isFinite(value)) {
-      config.money = value;
-    }
+function optionsToParams(options: CliOptions): Partial<{ money: number; tax: string; currency: string; imprestDate: number; gold: string; usd: string; rub: string }> {
+  const params: Record<string, unknown> = {};
+  if (options.money != null) {
+    const n = Number(options.money);
+    if (Number.isFinite(n)) params.money = n;
   }
-
-  if (args.tax != null) {
-    config.tax = args.tax;
+  if (options.tax != null) params.tax = options.tax;
+  if (options.currency != null) params.currency = options.currency;
+  if (options.imprestDate != null) {
+    const n = Number(options.imprestDate);
+    if (Number.isFinite(n)) params.imprestDate = n;
   }
-
-  if (args.currency != null) {
-    config.currency = args.currency;
-  }
-
-  if (args.imprestDate != null) {
-    const value = Number(args.imprestDate);
-    if (Number.isFinite(value)) {
-      config.imprestDate = value;
-    }
-  }
-
-  if (args.gold != null) {
-    config.gold = args.gold;
-  }
-  if (args.usd != null) {
-    config.usd = args.usd;
-  }
-  if (args.rub != null) {
-    config.rub = args.rub;
-  }
-
-  return config;
+  if (options.gold != null) params.gold = options.gold;
+  if (options.usd != null) params.usd = options.usd;
+  if (options.rub != null) params.rub = options.rub;
+  return params as Partial<{ money: number; tax: string; currency: string; imprestDate: number; gold: string; usd: string; rub: string }>;
 }
 
 async function handleCalculate(options: CliOptions): Promise<void> {
-  const saved = await loadConfig();
-  const merged = mergeConfig(saved, options);
-
-  const completed = await askMissingParameters(merged);
+  const completed = await askMissingParameters(optionsToParams(options));
 
   if (completed.money == null) {
     console.error('Не указан месячный доход (--money).');
@@ -115,16 +83,6 @@ async function handleCalculate(options: CliOptions): Promise<void> {
 
   renderSummary(gross, taxResult, split);
   renderAllocationTable(allocation, taxResult.netIncome);
-
-  await saveConfig({
-    money: gross,
-    tax: taxInput,
-    currency: completed.currency ?? 'rub',
-    imprestDate: completed.imprestDate ?? 25,
-    gold: completed.gold,
-    usd: completed.usd,
-    rub: completed.rub
-  });
 }
 
 export async function main(argv: string[]): Promise<void> {
