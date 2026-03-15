@@ -1,0 +1,15 @@
+{
+  "extends": "@repo/typescript-config/svelte.json",
+  "compilerOptions": {
+    "strictNullChecks": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "target": "ESNext",
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"]
+}
+

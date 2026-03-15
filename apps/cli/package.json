@@ -1,0 +1,50 @@
+{
+  "name": "@monesto/cli",
+  "version": "0.0.1",
+  "description": "CLI для расчёта чистого дохода, аванса и зарплаты по рабочим дням и распределения по активам (золото, USD, рубли)",
+  "type": "module",
+  "bin": {
+    "monesto": "bin/monesto-cli.js",
+    "@monesto/cli": "bin/monesto-cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node ./bin/monesto-cli.js",
+    "dev": "node --enable-source-maps ./dist/cli.js",
+    "check-types": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "keywords": [
+    "monesto",
+    "cli",
+    "salary",
+    "income",
+    "allocation",
+    "ruble",
+    "usd",
+    "gold"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "eslint": "^9.39.1",
+    "tslib": "^2.8.1",
+    "typescript": "5.9.2",
+    "vitest": "^3.2.0"
+  }
+}
