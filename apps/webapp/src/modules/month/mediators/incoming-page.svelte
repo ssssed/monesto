@@ -23,7 +23,7 @@
 		</p>
 	</div>
 
-	<NumberInput bind:value={data.value} onEnter={onNext}>
+	<NumberInput bind:value={data.value} onEnter={onNext} prefix="₽">
 		<ContinueButton disabled={data.value.length === 0} onclick={onNext} />
 	</NumberInput>
 </div>
