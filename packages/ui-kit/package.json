@@ -10,7 +10,8 @@
   },
   "files": [
     "dist",
-    "variables.css",
+    "src/theme.css",
+    "src/variables.css",
     "!dist/**/*.test.*",
     "!dist/**/*.spec.*"
   ],
@@ -24,7 +25,7 @@
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./theme.css": "./dist/theme.css"
+    "./theme.css": "./src/theme.css"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"

@@ -1,0 +1,4 @@
+/**
+ * Прокси к корневому `theme.css`, чтобы `import "./theme.css"` из `index` резолвился и в dev, и в `dist`.
+ */
+@import "../theme.css";
