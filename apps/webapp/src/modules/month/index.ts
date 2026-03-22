@@ -1,1 +1,1 @@
-export { default as MonthIncomingPage } from './mediators/incoming-page.svelte';
+export { default as MonthPage } from './mediators/page.svelte';

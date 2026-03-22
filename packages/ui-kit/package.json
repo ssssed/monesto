@@ -10,7 +10,8 @@
   },
   "files": [
     "dist",
-    "variables.css",
+    "src/theme.css",
+    "src/variables.css",
     "!dist/**/*.test.*",
     "!dist/**/*.spec.*"
   ],
@@ -19,12 +20,12 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "svelte": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./src/lib/index.ts",
+      "import": "./src/lib/index.ts",
+      "svelte": "./src/lib/index.ts",
+      "default": "./src/lib/index.ts"
     },
-    "./theme.css": "./dist/theme.css"
+    "./theme.css": "./src/theme.css"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"

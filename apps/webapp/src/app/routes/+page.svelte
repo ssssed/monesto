@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { NumberInput } from '@monesto/ui-kit';
-
-	const value = $state('');
+	import { MonthPage } from '$modules/month';
 </script>
 
-<NumberInput {value} />
+<MonthPage />
