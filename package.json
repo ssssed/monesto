@@ -7,10 +7,12 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "check-types": "turbo run check-types",
-    "deploy:cli": "npm run build -w @monesto/cli && npm publish -w @monesto/cli --access public"
+    "deploy:cli": "npm run build -w @monesto/cli && npm publish -w @monesto/cli --access public",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/prompts": "^2.4.9",
+    "husky": "^9.1.7",
     "prettier": "^3.7.4",
     "prettier-plugin-svelte": "^3.4.0",
     "turbo": "^2.8.14"
