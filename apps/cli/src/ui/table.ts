@@ -35,7 +35,7 @@ export function renderSummary(
   console.log('');
 }
 
-export function renderAllocationTable(allocation: AllocationResult, netIncomeRub: number): void {
+export function renderAllocationTable(allocation: AllocationResult): void {
   console.log('--- Распределение по активам ---');
 
   const table = new Table({
