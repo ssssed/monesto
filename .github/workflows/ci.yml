@@ -1,0 +1,171 @@
+# PR: сначала правила заголовка/описания/ветки, затем lint, типы, сборка, тесты.
+# Push в main/master: только проверки кода (без контекста PR).
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-conventions:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Проверка названия PR, ветки и описания
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const headRef = pr.head.ref;
+            const title = pr.title.trim();
+            const rawBody = pr.body ?? "";
+            const bodyWithoutComments = rawBody.replace(/<!--[\s\S]*?-->/g, "").trim();
+
+            if (headRef.startsWith("dependabot/")) {
+              core.info("Пропуск: ветка dependabot.");
+              return;
+            }
+
+            const branchRe = /^(feature|fix)\/.+$/;
+            if (!branchRe.test(headRef)) {
+              core.setFailed(
+                [
+                  "Неверное имя ветки.",
+                  "Ожидается: feature/<название> или fix/<название> (латиница, kebab-case, без пробелов).",
+                  `Текущая ветка: ${headRef}`,
+                ].join("\n")
+              );
+              return;
+            }
+
+            const titleRe = /^(feature|fix)\/([^:]+):\s+\S.*$/;
+            const titleMatch = title.match(titleRe);
+            if (!titleMatch) {
+              core.setFailed(
+                [
+                  "Неверный заголовок PR.",
+                  "Ожидается: feature/<slug>: <короткое описание> или fix/<slug>: <короткое описание>",
+                  "После двоеточия обязательны пробел и текст описания.",
+                  `Текущий заголовок: ${title}`,
+                ].join("\n")
+              );
+              return;
+            }
+
+            const branchSlugMatch = headRef.match(/^(feature|fix)\/(.+)$/);
+            const titleKind = titleMatch[1];
+            const titleSlug = titleMatch[2];
+            const branchKind = branchSlugMatch[1];
+            const branchSlug = branchSlugMatch[2];
+            if (titleKind !== branchKind || titleSlug !== branchSlug) {
+              core.setFailed(
+                [
+                  "Префикс и slug в заголовке PR должны совпадать с веткой.",
+                  `Ветка: ${headRef} → ожидается заголовок: ${branchKind}/${branchSlug}: <описание>`,
+                  `Сейчас заголовок: ${title}`,
+                ].join("\n")
+              );
+              return;
+            }
+
+            const minBodyLen = 80;
+            if (bodyWithoutComments.length < minBodyLen) {
+              core.setFailed(
+                [
+                  "Описание PR слишком короткое или пустое.",
+                  `После удаления HTML-комментариев нужно не менее ${minBodyLen} символов текста.`,
+                  "Заполните разделы шаблона (описание, тип изменения и т.д.).",
+                ].join("\n")
+              );
+              return;
+            }
+
+            /**
+             * Извлекает текст описания: приоритет у раздела ## Описание, иначе первый блок после ###,
+             * иначе тело без строк-заголовков markdown (чтобы не отклонять осмысленные PR без шаблона).
+             * @param {object} props
+             * @param {string} props.body
+             * @returns {string}
+             */
+            function extractDescriptionText(props) {
+              const { body } = props;
+              const underH2Desc = body.match(
+                /##\s+Описание\s*\n+([\s\S]*?)(?=\n## |\n##$|$)/
+              );
+              if (underH2Desc) {
+                return underH2Desc[1].trim();
+              }
+
+              const underFirstH3 = body.match(
+                /^###[^\n]*\r?\n+([\s\S]*?)(?=\n### |\n## |\n##$|$)/m
+              );
+              if (underFirstH3) {
+                return underFirstH3[1].trim();
+              }
+
+              return body
+                .replace(/^#{1,6}\s+.*$/gm, "")
+                .replace(/^\s*[-*]\s+\[[ x]\]\s+.*$/gm, "")
+                .trim();
+            }
+
+            const minDescLen = 30;
+            const descText = extractDescriptionText({ body: bodyWithoutComments });
+            if (descText.length < minDescLen) {
+              core.setFailed(
+                [
+                  "Раздел с описанием слишком короткий или пустой.",
+                  `Нужно не менее ${minDescLen} символов: укажите блок «## Описание», либо начните с «### Заголовок», либо опишите изменения в тексте PR.`,
+                  "Если используете шаблон — заполните раздел «Описание» под соответствующим заголовком.",
+                ].join("\n")
+              );
+              return;
+            }
+
+            core.info("Проверки PR: OK.");
+
+  verify:
+    needs: pr-conventions
+    if: |
+      always() &&
+      (needs.pr-conventions.result == 'success' || needs.pr-conventions.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npx turbo run lint
+
+      - name: Typecheck
+        run: npx turbo run check-types
+
+      - name: Build
+        run: npx turbo run build
+
+      - name: Test (@monesto/cli)
+        run: npm run test -w @monesto/cli -- --run

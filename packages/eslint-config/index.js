@@ -13,6 +13,12 @@ export const config = ts.config(
         ...globals.browser,
         ...globals.node
       }
+    },
+    rules: {
+      '@typescript-eslint/no-empty-object-type': [
+        'error',
+        { allowObjectTypes: 'always' }
+      ]
     }
   },
   {
@@ -22,6 +28,16 @@ export const config = ts.config(
       parserOptions: {
         parser: ts.parser
       }
+    },
+    rules: {
+      'prefer-const': 'off',
+      'svelte/valid-compile': ['error', { ignoreWarnings: true }]
+    }
+  },
+  {
+    files: ['**/*.svelte.ts'],
+    rules: {
+      'prefer-const': 'off'
     }
   }
 );
