@@ -1,6 +1,7 @@
-import { ArrowLeft, X, type IconProps } from '@lucide/svelte';
+import { ArrowLeft, type IconProps } from '@lucide/svelte';
 import type { Component } from 'svelte';
 import MonthIncomePage from '../mediators/incoming-page.svelte';
+import MandatoryPage from '../mediators/mandatory-page.svelte';
 
 export type StepProps = {
 	onNext: () => void;
@@ -23,7 +24,7 @@ export type Step = {
 	next: StepName | null;
 	onPrev?: () => void;
 	onNext?: () => void;
-	header?: StepHeader;
+	header: StepHeader;
 };
 
 export const STEPS: Record<StepName, Step> = {
@@ -39,19 +40,18 @@ export const STEPS: Record<StepName, Step> = {
 			console.log(stepStore.incoming);
 		},
 		header: {
-			title: 'New month',
-			leftIcon: ArrowLeft
+			title: 'New month'
 		}
 	},
 	mandatory: {
 		step: 2,
-		component: MonthIncomePage,
+		component: MandatoryPage,
 		next: null,
 		prev: 'incoming',
 		onNext: () => {},
 		onPrev: () => {},
 		header: {
-			leftIcon: X
+			leftIcon: ArrowLeft
 		}
 	}
 };
@@ -60,47 +60,29 @@ export function getStepName(step: number) {
 	return Object.keys(STEPS)[step - 1] as StepName;
 }
 
-export function defineMonthStateMachine() {
-	let step = $state<StepName>('incoming');
-	const currentStep = $derived(STEPS[step]);
-
-	const handleNext = () => {
-		if (!currentStep.next) return;
-
-		currentStep.onNext?.();
-		step = currentStep.next;
-	};
-
-	const handlePrev = () => {
-		if (!currentStep.prev) return;
-
-		currentStep.onPrev?.();
-		step = currentStep.prev;
-	};
-
-	const maxSteps = Object.keys(STEPS).length;
-
-	return {
-		step,
-		currentStep: {
-			...currentStep,
-			hasNext: currentStep.next != null,
-			hasPrev: currentStep.prev != null
-		},
-		handleNext,
-		handlePrev,
-		maxSteps
-	};
-}
-
 export type IncomingStore = {
 	type: 'incoming';
 	value: string;
 };
 
+/** Строка «не распределено» всегда одна и считается как value минус сумма кастомных статей */
+export type MandatoryBreakdownLineKind = 'unallocated' | 'custom';
+
+export type MandatoryBreakdownLine = {
+	/** Стабильный ключ для `{#each ... (id)}` */
+	id: string;
+	kind: MandatoryBreakdownLineKind;
+	/** Подпись к статье расхода (для «не распределено» фиксирована в UI) */
+	label: string;
+	/** Сумма строки для `custom`; для `unallocated` синхронизируется из value − сумма(custom) */
+	amount: string;
+};
+
 export type MandatoryStore = {
 	type: 'mandatory';
 	value: string;
+	/** Разбивка суммы по статьям: что это и сколько */
+	breakdown: MandatoryBreakdownLine[];
 };
 
 type StepDataMap = {
@@ -115,6 +97,7 @@ export let stepStore = $state<{ [K in StepName]: StepDataMap[K] }>({
 	},
 	mandatory: {
 		type: 'mandatory',
-		value: ''
+		value: '',
+		breakdown: []
 	}
 });
