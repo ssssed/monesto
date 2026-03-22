@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@monesto/ui-kit/theme.css';
+
+/* Сканировать файлы приложения */
+@source "./**/*.{svelte,ts,js}";

@@ -1,0 +1,21 @@
+# Исходники и тесты
+src/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Конфиги разработки
+tsconfig.json
+eslint.config.js
+.gitignore
+
+# Сборка и отладка (в пакет идут только bin + dist)
+*.map
+dist/*.map
+coverage/
+.vitest/
+
+# Прочее
+node_modules/
+.DS_Store
