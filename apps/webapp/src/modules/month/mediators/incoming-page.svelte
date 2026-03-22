@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Wallet } from '@lucide/svelte';
 	import { NumberInput } from '@monesto/ui-kit';
-	import { monthStore } from '../model/model.svelte';
-	import type { StepProps } from '../model/types';
+	import { stepStore, type StepProps } from '../model/model.svelte';
 	import ContinueButton from '../ui/continue-button.svelte';
 
 	let { onNext }: StepProps = $props();
+	let data = stepStore.incoming;
 </script>
 
 <div class="flex flex-1 flex-col items-center justify-center">
@@ -23,9 +23,9 @@
 		</p>
 	</div>
 
-	<NumberInput bind:value={monthStore.incoming.value} onEnter={onNext}>
-		<ContinueButton disabled={monthStore.incoming.value.length === 0} onclick={onNext} />
+	<NumberInput bind:value={data.value} onEnter={onNext}>
+		<ContinueButton disabled={data.value.length === 0} onclick={onNext} />
 	</NumberInput>
 </div>
 
-<ContinueButton disabled={monthStore.incoming.value.length === 0} onclick={onNext} />
+<ContinueButton disabled={data.value.length === 0} onclick={onNext} />
