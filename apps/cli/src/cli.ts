@@ -117,7 +117,7 @@ async function handleCalculate(options: CliOptions): Promise<void> {
   }
 
   renderSummary(gross, taxResult, split);
-  renderAllocationTable(allocation, taxResult.netIncome);
+  renderAllocationTable(allocation);
 }
 
 export async function main(argv: string[]): Promise<void> {
