@@ -1,11 +1,10 @@
-/** День месяца выплаты зарплаты (хвост прошлого месяца: 16–конец). */
+/** День месяца выплаты зарплаты. */
 const SALARY_PAY_DAY = 10;
-/** День месяца выплаты аванса (первая половина текущего месяца: 1–15). */
+/** День месяца выплаты аванса. */
 const ADVANCE_PAY_DAY = 25;
-/** Первый день периода «хвоста» в прошлом месяце (1–15 = аванс, 16–конец = зарплата 10-го). */
-const PREV_TAIL_START_DAY = 16;
-/** Последний день периода аванса в текущем месяце. */
-const ADVANCE_END_DAY = 15;
+
+const DEFAULT_ADVANCE_START_DAY = 1;
+const DEFAULT_ADVANCE_END_DAY = 15;
 
 /** Нерабочие праздничные дни РФ (месяц 1–12, день). По производственному календарю. */
 const RU_HOLIDAYS: ReadonlyArray<{ month: number; day: number }> = [
@@ -22,22 +21,26 @@ const RU_HOLIDAYS: ReadonlyArray<{ month: number; day: number }> = [
 
 export interface WorkdaysInfo {
   total: number;
-  /** Рабочие дни в текущем месяце 1–15 (аванс). */
+  /** Рабочие дни в текущем месяце за период аванса (advanceStartDay–advanceEndDay). */
   imprest: number;
-  /** Рабочие дни в прошлом месяце 16–конец (зарплата). */
+  /** Рабочие дни в прошлом месяце за хвост (advanceEndDay+1 – конец). */
   salary: number;
 }
 
+/** Период аванса в текущем месяце (дни с advanceStart по advanceEnd включительно). */
+export interface AdvancePeriod {
+  start: number;
+  end: number;
+}
+
 export interface SalarySplitResult {
-  /** Сумма к выплате 25-го (аванс за 1–15 текущего месяца). */
   imprestAmount: number;
-  /** Сумма к выплате 10-го (зарплата за 15–конец прошлого месяца). */
   salaryAmount: number;
-  /** Дата выплаты аванса (25-е текущего месяца). */
   imprestDate: Date;
-  /** Дата выплаты зарплаты (10-е текущего месяца). */
   salaryDate: Date;
   workdays: WorkdaysInfo;
+  /** Период аванса: с advanceStart по advanceEnd число текущего месяца. */
+  advancePeriod: AdvancePeriod;
 }
 
 function isWeekend(date: Date): boolean {
@@ -71,16 +74,26 @@ function countWorkdaysInRange(year: number, month1Based: number, startDay: numbe
 
 /**
  * Делит месячный чистый доход на две выплаты:
- * - 10-е текущего месяца — зарплата за рабочие дни 16–конец прошлого месяца;
- * - 25-е текущего месяца — аванс за рабочие дни 1–15 текущего месяца.
+ * - 10-е текущего месяца — зарплата за рабочие дни (advanceEndDay+1)–конец прошлого месяца;
+ * - 25-е текущего месяца — аванс за рабочие дни advanceStartDay–advanceEndDay текущего месяца.
  */
 export function splitNetIncomeByWorkdays(params: {
   netIncome: number;
   year: number;
   /** Текущий месяц (1–12), например 3 для марта. */
   month: number;
+  /** Первый день периода аванса в текущем месяце (по умолчанию 1). */
+  advanceStartDay?: number;
+  /** Последний день периода аванса в текущем месяце (по умолчанию 15). Хвост зарплаты в прошлом месяце: (advanceEndDay+1)–конец. */
+  advanceEndDay?: number;
 }): SalarySplitResult {
-  const { netIncome, year, month } = params;
+  const {
+    netIncome,
+    year,
+    month,
+    advanceStartDay = DEFAULT_ADVANCE_START_DAY,
+    advanceEndDay = DEFAULT_ADVANCE_END_DAY
+  } = params;
 
   if (!Number.isFinite(netIncome) || netIncome < 0) {
     throw new Error('netIncome must be a non-negative number');
@@ -91,24 +104,31 @@ export function splitNetIncomeByWorkdays(params: {
     throw new Error('month must be in range 1-12');
   }
 
+  if (advanceStartDay < 1 || advanceEndDay < advanceStartDay) {
+    throw new Error('advanceStartDay и advanceEndDay должны быть 1–31, advanceEndDay >= advanceStartDay');
+  }
+
   const prevMonthIndex0 = currMonthIndex0 === 0 ? 11 : currMonthIndex0 - 1;
   const prevYear = currMonthIndex0 === 0 ? year - 1 : year;
 
   const prevMonth1 = prevMonthIndex0 + 1;
   const prevLastDay = getLastDayOfMonth(prevYear, prevMonthIndex0);
-  const salaryWorkdays = countWorkdaysInRange(prevYear, prevMonth1, PREV_TAIL_START_DAY, prevLastDay);
+  const prevTailStartDay = advanceEndDay + 1;
+  const salaryWorkdays =
+    prevTailStartDay <= prevLastDay
+      ? countWorkdaysInRange(prevYear, prevMonth1, prevTailStartDay, prevLastDay)
+      : 0;
   const prevMonthTotalWorkdays = countWorkdaysInRange(prevYear, prevMonth1, 1, prevLastDay);
 
   const currMonth1 = currMonthIndex0 + 1;
   const currLastDay = getLastDayOfMonth(year, currMonthIndex0);
-  const advanceWorkdays = countWorkdaysInRange(year, currMonth1, 1, ADVANCE_END_DAY);
+  const advanceEndDayClamped = Math.min(advanceEndDay, currLastDay);
+  const advanceWorkdays = countWorkdaysInRange(year, currMonth1, advanceStartDay, advanceEndDayClamped);
   const currMonthTotalWorkdays = countWorkdaysInRange(year, currMonth1, 1, currLastDay);
 
-  // 10.03 — доля от прошлого месяца: (рабочие 16–конец) / (все рабочие прошлого месяца)
   const salaryAmount =
     prevMonthTotalWorkdays > 0 ? (netIncome * salaryWorkdays) / prevMonthTotalWorkdays : 0;
 
-  // 25.03 — доля от марта: (рабочие 1–15) / (все рабочие марта)
   const imprestAmount =
     currMonthTotalWorkdays > 0 ? (netIncome * advanceWorkdays) / currMonthTotalWorkdays : 0;
 
@@ -121,7 +141,8 @@ export function splitNetIncomeByWorkdays(params: {
       total: salaryWorkdays + advanceWorkdays,
       imprest: advanceWorkdays,
       salary: salaryWorkdays
-    }
+    },
+    advancePeriod: { start: advanceStartDay, end: advanceEndDay }
   };
 }
 

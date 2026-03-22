@@ -12,12 +12,24 @@ interface CliOptions {
   tax?: string;
   currency?: string;
   imprestDate?: string;
+  advanceStart?: string;
+  advanceEnd?: string;
   gold?: string;
   usd?: string;
   rub?: string;
 }
 
-function optionsToParams(options: CliOptions): Partial<{ money: number; tax: string; currency: string; imprestDate: number; gold: string; usd: string; rub: string }> {
+function optionsToParams(options: CliOptions): Partial<{
+  money: number;
+  tax: string;
+  currency: string;
+  imprestDate: number;
+  advanceStart: number;
+  advanceEnd: number;
+  gold: string;
+  usd: string;
+  rub: string;
+}> {
   const params: Record<string, unknown> = {};
   if (options.money != null) {
     const n = Number(options.money);
@@ -29,10 +41,28 @@ function optionsToParams(options: CliOptions): Partial<{ money: number; tax: str
     const n = Number(options.imprestDate);
     if (Number.isFinite(n)) params.imprestDate = n;
   }
+  if (options.advanceStart != null) {
+    const n = Number(options.advanceStart);
+    if (Number.isFinite(n)) params.advanceStart = n;
+  }
+  if (options.advanceEnd != null) {
+    const n = Number(options.advanceEnd);
+    if (Number.isFinite(n)) params.advanceEnd = n;
+  }
   if (options.gold != null) params.gold = options.gold;
   if (options.usd != null) params.usd = options.usd;
   if (options.rub != null) params.rub = options.rub;
-  return params as Partial<{ money: number; tax: string; currency: string; imprestDate: number; gold: string; usd: string; rub: string }>;
+  return params as Partial<{
+    money: number;
+    tax: string;
+    currency: string;
+    imprestDate: number;
+    advanceStart: number;
+    advanceEnd: number;
+    gold: string;
+    usd: string;
+    rub: string;
+  }>;
 }
 
 async function handleCalculate(options: CliOptions): Promise<void> {
@@ -52,10 +82,15 @@ async function handleCalculate(options: CliOptions): Promise<void> {
 
   const taxResult = calculateNetIncome(gross, taxInput);
 
+  const advanceStart = completed.advanceStart ?? 1;
+  const advanceEnd = completed.advanceEnd ?? 15;
+
   const split = splitNetIncomeByWorkdays({
     netIncome: taxResult.netIncome,
     year,
-    month
+    month,
+    advanceStartDay: advanceStart,
+    advanceEndDay: advanceEnd
   });
 
   const [usdToRub, goldPerGramRub] = await Promise.all([
@@ -97,6 +132,8 @@ export async function main(argv: string[]): Promise<void> {
     .option('--tax <tax>', 'Налог: 13% или фиксированная сумма, например 31200.')
     .option('--currency <code>', 'Базовая валюта дохода (v1: только rub).', 'rub')
     .option('--imprest-date <day>', 'День месяца аванса (1-31).')
+    .option('--advance-start <day>', 'Первый день периода аванса в текущем месяце (по умолчанию 1).', '1')
+    .option('--advance-end <day>', 'Последний день периода аванса в текущем месяце (по умолчанию 15). Зарплата 10-го — за (advance-end+1)–конец прошлого месяца.', '15')
     .option('--gold <value>', 'Инвестиции в золото: процент (10%) или сумма в RUB (50000).')
     .option('--usd <value>', 'Инвестиции в USD: процент (10%) или сумма в USD (250).')
     .option('--rub <value>', 'Инвестиции в RUB: процент (10%) или сумма в RUB (50000).')

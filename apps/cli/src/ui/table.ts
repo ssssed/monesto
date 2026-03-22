@@ -19,15 +19,18 @@ export function renderSummary(
   console.log(`Чистый доход: ${formatCurrency(tax.netIncome)} RUB`);
   console.log('');
 
+  const { start: advStart, end: advEnd } = split.advancePeriod;
+  const salaryTailStart = advEnd + 1;
+
   console.log('--- Аванс и зарплата (по рабочим дням) ---');
   console.log(
-    `Зарплата (${split.salaryDate.toLocaleDateString()}): ${formatCurrency(split.salaryAmount)} RUB — за 16–конец прошлого месяца`
+    `Зарплата (${split.salaryDate.toLocaleDateString()}): ${formatCurrency(split.salaryAmount)} RUB — за ${salaryTailStart}–конец прошлого месяца`
   );
   console.log(
-    `Аванс (${split.imprestDate.toLocaleDateString()}):   ${formatCurrency(split.imprestAmount)} RUB — за 1–15 текущего месяца`
+    `Аванс (${split.imprestDate.toLocaleDateString()}):   ${formatCurrency(split.imprestAmount)} RUB — за ${advStart}–${advEnd} число текущего месяца`
   );
   console.log(
-    `Рабочие дни: всего=${split.workdays.total}, зарплата (16–конец прошл.)=${split.workdays.salary}, аванс (1–15 тек.)=${split.workdays.imprest}`
+    `Рабочие дни: всего=${split.workdays.total}, зарплата (${salaryTailStart}–конец прошл.)=${split.workdays.salary}, аванс (${advStart}–${advEnd} тек. мес.)=${split.workdays.imprest}`
   );
   console.log('');
 }

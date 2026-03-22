@@ -5,6 +5,8 @@ export interface CalculateParams {
   tax?: string;
   currency?: string;
   imprestDate?: number;
+  advanceStart?: number;
+  advanceEnd?: number;
   gold?: string;
   usd?: string;
   rub?: string;
@@ -55,7 +57,13 @@ export async function askMissingParameters(existing: Partial<CalculateParams>): 
   }
 
   if (questions.length === 0) {
-    return { ...existing, currency: existing.currency ?? 'rub', imprestDate: existing.imprestDate ?? 25 } as CalculateParams;
+    return {
+      ...existing,
+      currency: existing.currency ?? 'rub',
+      imprestDate: existing.imprestDate ?? 25,
+      advanceStart: existing.advanceStart ?? 1,
+      advanceEnd: existing.advanceEnd ?? 15
+    } as CalculateParams;
   }
 
   const answers = await prompts(questions);
@@ -96,9 +104,9 @@ export async function askMissingParameters(existing: Partial<CalculateParams>): 
     merged.rub = undefined;
   }
 
-  if (!merged.currency) {
-    merged.currency = 'rub';
-  }
+  if (!merged.currency) merged.currency = 'rub';
+  merged.advanceStart = merged.advanceStart ?? existing.advanceStart ?? 1;
+  merged.advanceEnd = merged.advanceEnd ?? existing.advanceEnd ?? 15;
 
   return merged;
 }
