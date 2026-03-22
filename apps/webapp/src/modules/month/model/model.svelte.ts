@@ -103,8 +103,6 @@ export type MandatoryStore = {
 	value: string;
 };
 
-type StepStore = IncomingStore | MandatoryStore;
-
 type StepDataMap = {
 	incoming: IncomingStore;
 	mandatory: MandatoryStore;
