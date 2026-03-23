@@ -109,15 +109,15 @@
 
 <Drawer open={opened} {onClose}>
 	<DrawerContent class="bg-slate-100/95 dark:bg-muted/95" onclick={handleClick}>
-		<DrawerHeader class="pb-2">
-			<DrawerTitle>
-				{#if title != null && title.length > 0}
+		{#if title != null && title.length > 0}
+			<DrawerHeader class="pb-2">
+				<DrawerTitle>
 					<p class="line-clamp-2 text-center text-base font-medium text-slate-700 dark:text-slate-200">
 						{title}
 					</p>
-				{/if}
-			</DrawerTitle>
-		</DrawerHeader>
+				</DrawerTitle>
+			</DrawerHeader>
+		{/if}
 		<div class="grid grid-cols-3 gap-1.5 px-1.5 pb-2">
 			{#each number as number (number)}
 				<button

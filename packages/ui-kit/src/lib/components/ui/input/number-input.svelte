@@ -3,6 +3,7 @@
 	import type { Snippet } from 'svelte';
 	import { z } from 'zod';
 	import Keyboard from './keyboard.svelte';
+	import { subscribeElementActuallyVisibleToUser } from './input-viewport-visibility';
 	import type { InputFocusUnderline, InputSize, NumberInputTextAlign } from './types';
 
 	const NUMBER_INPUT_SIZES: Record<
@@ -102,6 +103,7 @@
 	const sz = $derived(NUMBER_INPUT_SIZES[(size ?? 'default') as InputSize]);
 
 	let opened = $state(false);
+	let inputActuallyVisible = $state(false);
 
 	let viewportEl: HTMLDivElement;
 	let contentEl: HTMLDivElement;
@@ -131,6 +133,22 @@
 
 		return () => ro.disconnect();
 	});
+
+	$effect(() => {
+		if (!opened || !ref) return;
+		return subscribeElementActuallyVisibleToUser(ref, (visible) => {
+			inputActuallyVisible = visible;
+		});
+	});
+
+	/** Как в поле: не показывать на клавиатуре один только prefix при пустом value — всегда с числом (в т.ч. «0»). */
+	const keyboardTitle = $derived(
+		opened && inputActuallyVisible
+			? ''
+			: prefix
+				? `${prefix}${value || '0'}`
+				: value
+	);
 </script>
 
 <div class={cn("group relative", sz.rootMinH, className)}>
@@ -212,7 +230,7 @@
 <Keyboard
   {opened}
   {onEnter}
-  title={`${prefix}${value}`}
+  title={keyboardTitle}
   onClose={() => {
     opened = false;
   }}

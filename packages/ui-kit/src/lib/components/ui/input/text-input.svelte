@@ -2,6 +2,7 @@
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 	import TextKeyboard from './text-keyboard.svelte';
+	import { subscribeElementActuallyVisibleToUser } from './input-viewport-visibility';
 	import type { InputFocusUnderline, InputSize } from './types';
 
 	const TEXT_INPUT_SIZES: Record<
@@ -64,7 +65,7 @@
 		forAttribute?: string;
 		placeholder?: string;
 		maxLength?: number;
-		ref?: HTMLDivElement | null;
+		ref?: HTMLButtonElement | null;
 		onEnter?: () => void;
 		size?: InputSize;
 		/** Полоска под полем: `center` — узкая по центру и растягивается при фокусе; `full` — сразу на всю ширину. */
@@ -75,14 +76,18 @@
 	const sz = $derived(TEXT_INPUT_SIZES[(size ?? 'default') as InputSize]);
 
 	let opened = $state(false);
+	/** Поле реально видно пользователю (не перекрыто модалкой) — заголовок на клавиатуре не дублируем. */
+	let inputActuallyVisible = $state(false);
 
 	let viewportEl: HTMLDivElement;
 	let contentEl: HTMLDivElement;
 	let offset = $state(0);
 
+	// Автоскролл при открытии клавиатуры
 	$effect(() => {
 		if (!opened || !viewportEl) return;
 
+		// Даём немного времени рендеру клавиатуры
 		setTimeout(() => {
 			viewportEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		}, 50);
@@ -102,6 +107,19 @@
 
 		return () => ro.disconnect();
 	});
+
+	// Как number-input: `ref` на кнопку (ширина поля для геометрии); перекрытие клавиатурой в модалке — в `input-viewport-visibility`.
+	$effect(() => {
+		if (!opened || !ref) return;
+		return subscribeElementActuallyVisibleToUser(ref, (visible) => {
+			inputActuallyVisible = visible;
+		});
+	});
+
+	/** Как в number-input: при реально видимом поле заголовок на клавиатуре пустой (не дублируем значение). */
+	const keyboardTitle = $derived(
+		opened && inputActuallyVisible ? '' : value || placeholder
+	);
 
 	/**
 	 * Добавляет фрагмент текста в значение с учётом `maxLength`.
@@ -134,43 +152,50 @@
     bind:this={ref}
     role="textbox"
     tabindex="0"
-    onclick={() => {
+    onclick={async () => {
       opened = true;
     }}
-    class="relative flex w-full min-w-0 cursor-text items-center justify-center select-none"
+    class={cn(
+      "relative flex w-full min-w-0 cursor-text items-center select-none",
+      "justify-center",
+    )}
   >
     <div
-      bind:this={viewportEl}
-      class={cn("relative min-w-0 w-full flex-1 overflow-hidden", sz.viewportH)}
+      class={cn("flex min-w-0 items-center gap-1", "max-w-full")}
     >
       <div
-        bind:this={contentEl}
-        class={cn(
-          "flex h-full w-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white",
-          sz.valueText,
-        )}
-        style="transform: translateX({offset}px)"
+        bind:this={viewportEl}
+        class={cn("relative min-w-0 flex-1 overflow-hidden", sz.viewportH)}
       >
-        <span
+        <div
+          bind:this={contentEl}
           class={cn(
-            "transition-colors",
-            value === ""
-              ? "text-slate-400 dark:text-slate-600"
-              : "text-slate-900 dark:text-white",
+            "flex h-full w-full items-center gap-1 justify-center whitespace-nowrap text-slate-900 dark:text-white",
+            sz.valueText,
           )}
+          style="transform: translateX({offset}px)"
         >
-          {value === "" ? placeholder || " " : value}
-        </span>
-
-        {#if opened}
           <span
             class={cn(
-              "caret bg-primary",
-              sz.caret,
-              value === "" ? sz.caretEmptyShift : "",
+              "transition-colors",
+              value === ""
+                ? "text-slate-400 dark:text-slate-600"
+                : "text-slate-900 dark:text-white",
             )}
-          ></span>
-        {/if}
+          >
+            {value === "" ? placeholder || " " : value}
+          </span>
+
+          {#if opened}
+            <span
+              class={cn(
+                "caret bg-primary",
+                sz.caret,
+                value === "" ? sz.caretEmptyShift : "",
+              )}
+            ></span>
+          {/if}
+        </div>
       </div>
     </div>
   </button>
@@ -189,7 +214,7 @@
 
 <TextKeyboard
   {opened}
-  title={value || placeholder}
+  title={keyboardTitle}
   {onEnter}
   onClose={closeKeyboard}
   onItemClick={appendFragment}
