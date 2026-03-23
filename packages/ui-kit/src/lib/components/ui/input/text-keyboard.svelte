@@ -59,10 +59,9 @@
 
 	/**
 	 * Краткая подсветка нажатой клавиши (и для экранной, и для физической клавиатуры).
-	 * @param props — метка клавиши `keyId`
+	 * @param keyId — метка клавиши
 	 */
-	function flashKey(props: { keyId: string }) {
-		const { keyId } = props;
+	function flashKey(keyId: string) {
 		activeKey = keyId;
 		setTimeout(() => {
 			activeKey = null;
@@ -71,10 +70,9 @@
 
 	/**
 	 * Вставляет букву с учётом Shift (кириллица).
-	 * @param props — символ `ch` в нижнем регистре
+	 * @param ch — символ в нижнем регистре
 	 */
-	function insertCyrillicLetter(props: { ch: string }) {
-		const { ch } = props;
+	function insertCyrillicLetter(ch: string) {
 		const out = shiftActive ? ch.toLocaleUpperCase('ru-RU') : ch;
 		onItemClick(out);
 	}
@@ -84,12 +82,19 @@
 	};
 
 	/**
-	 * Обрабатывает нажатия физической клавиатуры, пока открыт дроер.
-	 * @param props — событие `e`
+	 * Подтверждение ввода: опциональный `onEnter`, затем закрытие дроера.
 	 */
-	function handlePhysicalKeyDown(props: { e: KeyboardEvent }) {
-		const { e } = props;
-		flashKey({ keyId: e.key });
+	function confirmAndClose() {
+		onEnter?.();
+		onClose();
+	}
+
+	/**
+	 * Обрабатывает нажатия физической клавиатуры, пока открыт дроер.
+	 * @param e — событие клавиатуры
+	 */
+	function handlePhysicalKeyDown(e: KeyboardEvent) {
+		flashKey(e.key);
 
 		if (e.key === 'Backspace') {
 			e.preventDefault();
@@ -99,7 +104,7 @@
 
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			onEnter?.();
+			confirmAndClose();
 			return;
 		}
 
@@ -127,7 +132,7 @@
 		if (!opened) return;
 
 		const onKeyDown = (e: KeyboardEvent) => {
-			handlePhysicalKeyDown({ e });
+			handlePhysicalKeyDown(e);
 		};
 
 		window.addEventListener('keydown', onKeyDown);
@@ -179,8 +184,8 @@
 							type="button"
 							class={cn(keyNormal, activeKey === ch && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: ch });
-								insertCyrillicLetter({ ch });
+								flashKey(ch);
+								insertCyrillicLetter(ch);
 							}}
 						>
 							{shiftActive ? ch.toLocaleUpperCase('ru-RU') : ch}
@@ -194,8 +199,8 @@
 							type="button"
 							class={cn(keyNormal, activeKey === ch && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: ch });
-								insertCyrillicLetter({ ch });
+								flashKey(ch);
+								insertCyrillicLetter(ch);
 							}}
 						>
 							{shiftActive ? ch.toLocaleUpperCase('ru-RU') : ch}
@@ -218,8 +223,8 @@
 							type="button"
 							class={cn(keyNormal, activeKey === ch && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: ch });
-								insertCyrillicLetter({ ch });
+								flashKey(ch);
+								insertCyrillicLetter(ch);
 							}}
 						>
 							{shiftActive ? ch.toLocaleUpperCase('ru-RU') : ch}
@@ -230,7 +235,7 @@
 						class={cn(keySpecial, 'w-[54px] shrink-0', activeKey === 'Backspace' && keyActive)}
 						aria-label="Удалить"
 						onclick={() => {
-							flashKey({ keyId: 'Backspace' });
+							flashKey('Backspace');
 							onRemoveSymbol();
 						}}
 					>
@@ -244,7 +249,7 @@
 							type="button"
 							class={cn(keyNormal, activeKey === sym && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: sym });
+								flashKey(sym);
 								onItemClick(sym);
 							}}
 						>
@@ -258,7 +263,7 @@
 							type="button"
 							class={cn(keyNormal, activeKey === sym && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: sym });
+								flashKey(sym);
 								onItemClick(sym);
 							}}
 						>
@@ -271,7 +276,7 @@
 						type="button"
 						class={cn(keySpecial, 'min-w-[60px] shrink-0 px-1 text-[13px]', activeKey === '#+=' && keyActive)}
 						onclick={() => {
-							flashKey({ keyId: '#+=' });
+							flashKey('#+=');
 							numberPadPage = 2;
 						}}
 					>
@@ -282,7 +287,7 @@
 							type="button"
 							class={cn(keyNormal, activeKey === sym && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: sym });
+								flashKey(sym);
 								onItemClick(sym);
 							}}
 						>
@@ -294,7 +299,7 @@
 						class={cn(keySpecial, 'w-[54px] shrink-0', activeKey === 'Backspace' && keyActive)}
 						aria-label="Удалить"
 						onclick={() => {
-							flashKey({ keyId: 'Backspace' });
+							flashKey('Backspace');
 							onRemoveSymbol();
 						}}
 					>
@@ -309,7 +314,7 @@
 								type="button"
 								class={cn(keyNormal, activeKey === sym && keyActive)}
 								onclick={() => {
-									flashKey({ keyId: sym });
+									flashKey(sym);
 									onItemClick(sym);
 								}}
 							>
@@ -323,7 +328,7 @@
 						type="button"
 						class={cn(keySpecial, 'min-w-[60px] shrink-0 text-[15px]', activeKey === '123' && keyActive)}
 						onclick={() => {
-							flashKey({ keyId: '123' });
+							flashKey('123');
 							numberPadPage = 1;
 						}}
 					>
@@ -334,7 +339,7 @@
 							type="button"
 							class={cn(keyNormal, activeKey === sym && keyActive)}
 							onclick={() => {
-								flashKey({ keyId: sym });
+								flashKey(sym);
 								onItemClick(sym);
 							}}
 						>
@@ -346,7 +351,7 @@
 						class={cn(keySpecial, 'w-[54px] shrink-0', activeKey === 'Backspace' && keyActive)}
 						aria-label="Удалить"
 						onclick={() => {
-							flashKey({ keyId: 'Backspace' });
+							flashKey('Backspace');
 							onRemoveSymbol();
 						}}
 					>
@@ -362,7 +367,7 @@
 						type="button"
 						class={cn(keySpecial, 'min-w-[60px] shrink-0 text-[15px]', activeKey === 'mode-123' && keyActive)}
 						onclick={() => {
-							flashKey({ keyId: 'mode-123' });
+							flashKey('mode-123');
 							keyMode = 'numbers';
 							numberPadPage = 1;
 							shiftActive = false;
@@ -375,7 +380,7 @@
 						type="button"
 						class={cn(keySpecial, 'min-w-[60px] shrink-0 text-[13px] leading-tight', activeKey === 'АБВ' && keyActive)}
 						onclick={() => {
-							flashKey({ keyId: 'АБВ' });
+							flashKey('АБВ');
 							keyMode = 'letters';
 							numberPadPage = 1;
 						}}
@@ -388,7 +393,7 @@
 					class={cn(keySpace, activeKey === ' ' && keyActive)}
 					aria-label="Пробел"
 					onclick={() => {
-						flashKey({ keyId: ' ' });
+						flashKey(' ');
 						onItemClick(' ');
 					}}
 				>
@@ -398,8 +403,8 @@
 					type="button"
 					class={cn(keyOk, activeKey === 'OK' && 'ring-2 ring-primary-foreground/30')}
 					onclick={() => {
-						flashKey({ keyId: 'OK' });
-						onEnter?.();
+						flashKey('OK');
+						confirmAndClose();
 					}}
 				>
 					OK

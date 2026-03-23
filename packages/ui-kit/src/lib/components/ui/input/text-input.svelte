@@ -98,10 +98,9 @@
 
 	/**
 	 * Добавляет фрагмент текста в значение с учётом `maxLength`.
-	 * @param props — строка `fragment`
+	 * @param fragment — вставляемый символ или строка
 	 */
-	function appendFragment(props: { fragment: string }) {
-		const { fragment } = props;
+	function appendFragment(fragment: string) {
 		let next = value + fragment;
 		if (maxLength !== undefined && next.length > maxLength) {
 			next = next.slice(0, maxLength);
@@ -109,21 +108,13 @@
 		value = next;
 	}
 
-	/**
-	 * Удаляет последний символ значения.
-	 * @param props — без полей
-	 */
-	function removeLastSymbol(props: object) {
-		void props;
+	/** Удаляет последний символ значения. */
+	function removeLastSymbol() {
 		value = value.slice(0, -1);
 	}
 
-	/**
-	 * Закрывает оверлей клавиатуры.
-	 * @param props — без полей
-	 */
-	function closeKeyboard(props: object) {
-		void props;
+	/** Закрывает оверлей клавиатуры. */
+	function closeKeyboard() {
 		opened = false;
 	}
 </script>
@@ -181,9 +172,9 @@
 	{opened}
 	title={value || placeholder}
 	{onEnter}
-	onClose={() => closeKeyboard({})}
-	onItemClick={(s: string) => appendFragment({ fragment: s })}
-	onRemoveSymbol={() => removeLastSymbol({})}
+	onClose={closeKeyboard}
+	onItemClick={appendFragment}
+	onRemoveSymbol={removeLastSymbol}
 >
 	{#snippet children({ onClose })}
 		{@render footerSnippet?.({ onClose })}
