@@ -10,7 +10,8 @@
 		DrawerHeader,
 		DrawerTitle,
 		DrawerTrigger,
-		NumberInput
+		NumberInput,
+		TextInput
 	} from '@monesto/ui-kit';
 	import type { Snippet } from 'svelte';
 	import { stepStore } from '../model/model.svelte';
@@ -139,20 +140,19 @@
 								</div>
 							</div>
 						{:else}
-							<label class="flex min-w-0 flex-1 flex-col gap-1">
+							<div class="flex min-w-0 flex-1 flex-col gap-1">
 								<span class="text-xs text-slate-500 dark:text-slate-400">What</span>
-								<input
-									type="text"
-									bind:value={line.label}
-									placeholder="e.g. Rent"
-									class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
-								/>
-							</label>
+								<TextInput bind:value={line.label} placeholder="e.g. Rent" />
+							</div>
 							<div class="flex shrink-0 items-end gap-2 sm:w-40">
 								<div class="min-w-0 flex-1">
 									<span class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Amount</span>
 									<NumberInput bind:value={line.amount} prefix="₽">
-										<Button size="extraLg" class="w-full text-lg font-bold">OK</Button>
+										{#snippet children({ onClose })}
+											<Button size="extraLg" class="w-full text-lg font-bold" onclick={onClose}>
+												OK
+											</Button>
+										{/snippet}
 									</NumberInput>
 								</div>
 								<Button

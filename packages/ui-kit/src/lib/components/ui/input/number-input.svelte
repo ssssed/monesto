@@ -27,14 +27,14 @@
 	let {
 		value = $bindable(''),
 		ref = $bindable(null),
-		children,
+		children: footerSnippet,
 		onEnter,
 		label,
 		forAttribute,
 		prefix = $bindable('')
 	} = $props<{
 		value: string;
-		children?: Snippet;
+		children?: Snippet<[{ onClose: () => void }]>;
 		label?: string;
 		forAttribute?: string;
 		prefix?: string;
@@ -104,7 +104,12 @@
 				font-bold whitespace-nowrap text-slate-900 dark:text-white"
         style="transform: translateX({offset}px)"
       >
-        <span class:value-empty={!value} class="transition-colors">
+        <span
+          class={cn(
+            'transition-colors',
+            !value ? 'text-slate-200 dark:text-slate-700' : ''
+          )}
+        >
           {value || "0"}
         </span>
 
@@ -139,18 +144,12 @@
   }}
   onRemoveSymbol={() => (value = value.slice(0, -1))}
 >
-  {@render children?.()}
+  {#snippet children({ onClose })}
+    {@render footerSnippet?.({ onClose })}
+  {/snippet}
 </Keyboard>
 
 <style>
-	.value-empty {
-		color: rgb(226 232 240); /* slate-200 */
-	}
-
-	.dark .value-empty {
-		color: rgb(71 85 105); /* slate-700 */
-	}
-
 	@keyframes caret-blink {
 		0%,
 		49% {

@@ -6,7 +6,7 @@
 	import type { MouseEventHandler } from 'svelte/elements';
 
 	let { children, opened, onClose, onItemClick, onRemoveSymbol, title, onEnter } = $props<{
-		children: Snippet;
+		children?: Snippet<[{ onClose: () => void }]>;
 		ref?: HTMLElement | null;
 		opened: boolean;
 		title?: string;
@@ -20,20 +20,39 @@
 
 	let activeKey = $state<string | null>(null);
 
-	function pressKey(key: string) {
-		activeKey = key;
+	/**
+	 * Кратко подсвечивает нажатую клавишу.
+	 * @param props — строка `keyId` (код клавиши)
+	 */
+	function pressKey(props: { keyId: string }) {
+		const { keyId } = props;
+		activeKey = keyId;
 		setTimeout(() => (activeKey = null), 120);
 	}
 
+	/**
+	 * Предотвращает закрытие дроера при клике по области клавиатуры.
+	 * @param props — событие мыши `e`
+	 */
 	const handleClick: MouseEventHandler<HTMLDivElement> = (e) => {
 		e.stopPropagation();
 	};
 
-	function handleInput(symbol: string) {
+	/**
+	 * Пробрасывает ввод цифры или точки в родителя.
+	 * @param props — символ `symbol`
+	 */
+	function handleInput(props: { symbol: string }) {
+		const { symbol } = props;
 		onItemClick(symbol);
 	}
 
-	function handleBackspace() {
+	/**
+	 * Удаляет последний введённый символ.
+	 * @param props — без полей
+	 */
+	function handleBackspace(props: object) {
+		void props;
 		onRemoveSymbol();
 	}
 
@@ -41,25 +60,25 @@
 		if (!opened) return;
 
 		const onKeyDown = (e: KeyboardEvent) => {
-			pressKey(e.key);
+			pressKey({ keyId: e.key });
 			// цифры
 			if (/^[0-9]$/.test(e.key)) {
 				e.preventDefault();
-				handleInput(e.key);
+				handleInput({ symbol: e.key });
 				return;
 			}
 
 			// точка
 			if (e.key === '.') {
 				e.preventDefault();
-				handleInput('.');
+				handleInput({ symbol: '.' });
 				return;
 			}
 
 			// backspace
 			if (e.key === 'Backspace') {
 				e.preventDefault();
-				handleBackspace();
+				handleBackspace({});
 				return;
 			}
 
@@ -98,7 +117,7 @@
               "scale-95 bg-primary/10": activeKey === number,
             },
           )}
-          onclick={() => handleInput(number)}>{number}</button
+          onclick={() => handleInput({ symbol: number })}>{number}</button
         >
       {/each}
       <button
@@ -108,13 +127,13 @@
             "scale-95 bg-primary/10": activeKey === "Backspace",
           },
         )}
-        onclick={handleBackspace}
+        onclick={() => handleBackspace({})}
       >
         <Delete />
       </button>
     </div>
     <DrawerFooter>
-      {@render children?.()}
+      {@render children?.({ onClose })}
     </DrawerFooter>
   </DrawerContent>
 </Drawer>
