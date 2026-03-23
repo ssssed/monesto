@@ -112,24 +112,41 @@
 
 			<div class="flex flex-col gap-3">
 				<p class="text-sm font-medium text-slate-700 dark:text-slate-200">Breakdown</p>
-				{#each stepStore.mandatory.breakdown as line, index (line.id)}
+
+				<div
+					class="overflow-hidden rounded-2xl border border-slate-100 bg-surface-light shadow-sm dark:border-white/10 dark:bg-white/3"
+				>
 					<div
-						class="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 dark:border-white/10 sm:flex-row sm:items-end"
+						class="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 dark:border-white/10 dark:bg-white/5"
 					>
-						{#if line.kind === 'unallocated'}
-							<div class="flex min-w-0 flex-1 flex-col gap-1">
-								<span class="text-xs text-slate-500 dark:text-slate-400">What</span>
-								<p
-									class="rounded-lg border border-dashed border-slate-200 bg-slate-100/80 px-3 py-2 text-sm text-slate-700 dark:border-white/15 dark:bg-white/10 dark:text-slate-200"
-								>
-									{line.label}
-								</p>
-							</div>
-							<div class="flex shrink-0 items-end gap-2 sm:w-40">
+						<span
+							class="min-w-0 flex-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+						>
+							Item
+						</span>
+						<span
+							class="w-27 shrink-0 text-right text-[11px] font-semibold tracking-wide text-slate-500 uppercase sm:w-32 dark:text-slate-400"
+						>
+							Amount
+						</span>
+						<span class="size-10 shrink-0" aria-hidden="true"></span>
+					</div>
+
+					{#each stepStore.mandatory.breakdown as line, index (line.id)}
+						<div
+							class="flex min-w-0 items-center gap-2 border-b border-slate-100 px-2 py-2 last:border-b-0 dark:border-white/10"
+						>
+							{#if line.kind === 'unallocated'}
 								<div class="min-w-0 flex-1">
-									<span class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Amount</span>
 									<p
-										class="rounded-lg border border-dashed border-slate-200 bg-slate-100/80 px-3 py-2 text-right text-sm tabular-nums text-slate-900 dark:border-white/15 dark:bg-white/10 dark:text-white"
+										class="flex min-h-14 items-center rounded-xl border border-dashed border-slate-200/90 bg-white/90 px-3 text-sm text-slate-700 shadow-sm dark:border-white/15 dark:bg-white/10 dark:text-slate-200"
+									>
+										<span class="truncate">{line.label}</span>
+									</p>
+								</div>
+								<div class="w-27 shrink-0 sm:w-32">
+									<p
+										class="flex min-h-14 items-center justify-end rounded-xl border border-dashed border-slate-200/90 bg-white/90 px-2 text-sm tabular-nums text-slate-900 shadow-sm dark:border-white/15 dark:bg-white/10 dark:text-white"
 									>
 										{#if line.amount === ''}
 											—
@@ -138,16 +155,18 @@
 										{/if}
 									</p>
 								</div>
-							</div>
-						{:else}
-							<div class="flex min-w-0 flex-1 flex-col gap-1">
-								<span class="text-xs text-slate-500 dark:text-slate-400">What</span>
-								<TextInput bind:value={line.label} placeholder="e.g. Rent" size="sm" />
-							</div>
-							<div class="flex shrink-0 items-end gap-2 sm:w-40">
+								<div class="size-10 shrink-0" aria-hidden="true"></div>
+							{:else}
 								<div class="min-w-0 flex-1">
-									<span class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Amount</span>
-									<NumberInput bind:value={line.amount} prefix="₽" size="sm">
+									<TextInput
+										bind:value={line.label}
+										label="Item"
+										placeholder="e.g. Rent"
+										size="sm"
+									/>
+								</div>
+								<div class="w-27 shrink-0 sm:w-32">
+									<NumberInput class="text-xl" bind:value={line.amount} label="Amount" prefix="₽" size="sm">
 										{#snippet children({ onClose })}
 											<Button size="extraLg" class="w-full text-lg font-bold" onclick={onClose}>
 												OK
@@ -159,21 +178,21 @@
 									type="button"
 									variant="ghost"
 									size="icon"
-									class="shrink-0 text-slate-500 hover:text-red-600"
+									class="size-10 shrink-0 text-slate-400 hover:bg-slate-200/80 hover:text-red-600 dark:hover:bg-white/10"
 									onclick={() => removeBreakdownLine({ index })}
 									aria-label="Remove line"
 								>
-									<Trash2 class="size-5" />
+									<Trash2 class="size-4.5" />
 								</Button>
-							</div>
-						{/if}
-					</div>
-				{/each}
+							{/if}
+						</div>
+					{/each}
+				</div>
 
 				<Button
 					type="button"
 					variant="outline"
-					class="w-full border-dashed"
+					class="w-full border-dashed border-slate-200 dark:border-white/15"
 					onclick={() => addBreakdownLine({})}
 				>
 					<Plus class="mr-2 size-4" />

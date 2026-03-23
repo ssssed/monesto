@@ -50,7 +50,8 @@
 		placeholder = '',
 		maxLength,
 		onEnter,
-		size = 'default'
+		size = 'default',
+		class: className
 	} = $props<{
 		value: string;
 		children?: Snippet<[{ onClose: () => void }]>;
@@ -61,6 +62,7 @@
 		ref?: HTMLDivElement | null;
 		onEnter?: () => void;
 		size?: InputSize;
+		class?: string;
 	}>();
 
 	const sz = $derived(TEXT_INPUT_SIZES[(size ?? 'default') as InputSize]);
@@ -126,7 +128,7 @@
 	}
 </script>
 
-<div class={cn('relative', sz.rootMinH)}>
+<div class={cn('relative', sz.rootMinH, className)}>
 	{#if label}
 		<label class="sr-only" for={forAttribute}>{label}</label>
 	{/if}

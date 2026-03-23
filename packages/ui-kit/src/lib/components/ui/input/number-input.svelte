@@ -21,9 +21,9 @@
 			rootMinH: 'min-h-14',
 			viewportH: 'h-12',
 			prefixText: 'text-lg font-bold',
-			valueText: 'text-3xl font-bold',
-			caret: 'h-8 w-[2px]',
-			caretEmptyShift: '-translate-x-2',
+			valueText: 'text-xl font-bold',
+			caret: 'h-6 w-[2px]',
+			caretEmptyShift: '',
 			focusLine: 'h-1 w-12'
 		},
 		default: {
@@ -74,7 +74,8 @@
 		label,
 		forAttribute,
 		prefix = $bindable(''),
-		size = 'default'
+		size = 'default',
+		class: className
 	} = $props<{
 		value: string;
 		children?: Snippet<[{ onClose: () => void }]>;
@@ -85,6 +86,7 @@
 		onOpened?: (ref: HTMLDivElement, keyboardRef: HTMLElement) => void;
 		onEnter?: () => void;
 		size?: InputSize;
+		class?: string;
 	}>();
 
 	const sz = $derived(NUMBER_INPUT_SIZES[(size ?? 'default') as InputSize]);
@@ -121,87 +123,79 @@
 	});
 </script>
 
-<div class={cn('relative', sz.rootMinH)}>
-  {#if label}
-    <label class="sr-only" for={forAttribute}>{label}</label>
-  {/if}
-  <button
-    bind:this={ref}
-    role="textbox"
-    tabindex="0"
-    onclick={async () => {
-      opened = true;
-    }}
-    class="group relative flex w-full cursor-text items-center justify-center select-none"
-  >
-    <span
-      class={cn('mr-1 text-slate-400 dark:text-slate-600', sz.prefixText)}
-    >
-      {prefix}
-    </span>
+<div class={cn('relative', sz.rootMinH, className)}>
+	{#if label}
+		<label class="sr-only" for={forAttribute}>{label}</label>
+	{/if}
+	<button
+		bind:this={ref}
+		role="textbox"
+		tabindex="0"
+		onclick={async () => {
+			opened = true;
+		}}
+		class="group relative flex w-full cursor-text items-center justify-center select-none"
+	>
+		<span class={cn('mr-1 text-slate-400 dark:text-slate-600', sz.prefixText)}>
+			{prefix}
+		</span>
 
-    <!-- viewport -->
-    <div
-      bind:this={viewportEl}
-      class={cn('relative max-w-full overflow-hidden', sz.viewportH)}
-    >
-      <!-- content -->
-      <div
-        bind:this={contentEl}
-        class={cn(
-          'flex h-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white',
-          sz.valueText
-        )}
-        style="transform: translateX({offset}px)"
-      >
-        <span
-          class={cn(
-            'transition-colors',
-            !value ? 'text-slate-200 dark:text-slate-700' : ''
-          )}
-        >
-          {value || "0"}
-        </span>
+		<div
+			bind:this={viewportEl}
+			class={cn('relative max-w-full overflow-hidden', sz.viewportH)}
+		>
+			<div
+				bind:this={contentEl}
+				class={cn(
+					'flex h-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white',
+					sz.valueText
+				)}
+				style="transform: translateX({offset}px)"
+			>
+				<span
+					class={cn('transition-colors', !value ? 'text-slate-200 dark:text-slate-700' : '')}
+				>
+					{value || '0'}
+				</span>
 
-        {#if opened}
-          <span
-            class={cn(
-              'caret bg-primary',
-              sz.caret,
-              value === '' ? sz.caretEmptyShift : ''
-            )}
-          ></span>
-        {/if}
-      </div>
-    </div>
-  </button>
-  <!-- Decorative focus line -->
-  {#if opened}
-    <div
-      class={cn(
-        'mx-auto rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary',
-        sz.focusLine
-      )}
-    ></div>
-  {/if}
+				{#if opened}
+					<span
+						class={cn(
+							'caret bg-primary',
+							sz.caret,
+							value === '' ? sz.caretEmptyShift : ''
+						)}
+					></span>
+				{/if}
+			</div>
+		</div>
+	</button>
+	{#if opened}
+		<div
+			class={cn(
+				'mx-auto rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary',
+				sz.focusLine
+			)}
+		></div>
+	{/if}
 </div>
 
 <Keyboard
-  {opened}
-  {onEnter}
-  title={`${prefix}${value}`}
-  onClose={() => {
-    opened = false;
-  }}
-  onItemClick={(s: string) => {
-    const next = value + s;
-    if (isValidNumberInput(next)) value = next;
-  }}
-  onRemoveSymbol={() => (value = value.slice(0, -1))}
+	{opened}
+	{onEnter}
+	title={`${prefix}${value}`}
+	onClose={() => {
+		opened = false;
+	}}
+	onItemClick={(s: string) => {
+		const next = value + s;
+		if (isValidNumberInput(next)) value = next;
+	}}
+	onRemoveSymbol={() => (value = value.slice(0, -1))}
 >
-  {#snippet children({ onClose })}
-    {@render footerSnippet?.({ onClose })}
-  {/snippet}
+	{#snippet children({ onClose })}
+		{@render footerSnippet?.({ onClose })}
+	{/snippet}
 </Keyboard>
 
 <style>
