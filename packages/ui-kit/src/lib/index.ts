@@ -21,7 +21,13 @@ export {
   DrawerTitle,
   DrawerTrigger
 } from "./components/ui/drawer"
-export { NumberInput, TextInput, type InputSize } from './components/ui/input'
+export {
+  NumberInput,
+  TextInput,
+  type InputFocusUnderline,
+  type InputSize,
+  type NumberInputTextAlign
+} from './components/ui/input'
 export { Header, Page } from "./components/ui/layout"
 export { cn } from "./utils"
 /**

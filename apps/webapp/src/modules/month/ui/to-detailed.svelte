@@ -144,9 +144,9 @@
 										<span class="truncate">{line.label}</span>
 									</p>
 								</div>
-								<div class="w-27 shrink-0 sm:w-32">
+								<div class="w-1/2 shrink-0 sm:w-32">
 									<p
-										class="flex min-h-14 items-center justify-end rounded-xl border border-dashed border-slate-200/90 bg-white/90 px-2 text-sm tabular-nums text-slate-900 shadow-sm dark:border-white/15 dark:bg-white/10 dark:text-white"
+										class="flex w-full min-h-14 items-center justify-end rounded-xl border border-dashed border-slate-200/90 bg-white/90 px-2 text-sm tabular-nums text-slate-900 shadow-sm dark:border-white/15 dark:bg-white/10 dark:text-white"
 									>
 										{#if line.amount === ''}
 											—
@@ -155,18 +155,27 @@
 										{/if}
 									</p>
 								</div>
-								<div class="size-10 shrink-0" aria-hidden="true"></div>
+								<div class="size-10 shrink-0 hidden" aria-hidden="true"></div>
 							{:else}
-								<div class="min-w-0 flex-1">
+								<div class="min-w-0 flex-1 ml-3">
 									<TextInput
 										bind:value={line.label}
 										label="Item"
 										placeholder="e.g. Rent"
 										size="sm"
+										focusUnderline="full"
 									/>
 								</div>
 								<div class="w-27 shrink-0 sm:w-32">
-									<NumberInput class="text-xl" bind:value={line.amount} label="Amount" prefix="₽" size="sm">
+									<NumberInput
+										class="text-xl"
+										bind:value={line.amount}
+										label="Amount"
+										prefix="₽"
+										size="sm"
+										textAlign="left"
+										focusUnderline="full"
+									>
 										{#snippet children({ onClose })}
 											<Button size="extraLg" class="w-full text-lg font-bold" onclick={onClose}>
 												OK
@@ -178,7 +187,7 @@
 									type="button"
 									variant="ghost"
 									size="icon"
-									class="size-10 shrink-0 text-slate-400 hover:bg-slate-200/80 hover:text-red-600 dark:hover:bg-white/10"
+									class="size-10 shrink-0 text-slate-400 hover:bg-slate-200/80 hover:text-red-600 dark:hover:bg-white/10 mr-3"
 									onclick={() => removeBreakdownLine({ index })}
 									aria-label="Remove line"
 								>

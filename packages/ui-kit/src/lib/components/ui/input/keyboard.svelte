@@ -123,7 +123,10 @@
 				<button
 					type="button"
 					class={cn(keyNormal, activeKey === number && keyActive)}
-					onclick={() => handleInput({ symbol: number })}
+					onclick={() => {
+						pressKey({ keyId: number });
+						handleInput({ symbol: number });
+					}}
 				>
 					{number}
 				</button>
@@ -132,7 +135,10 @@
 				type="button"
 				class={cn(keySpecial, activeKey === 'Backspace' && keyActive)}
 				aria-label="Удалить"
-				onclick={() => handleBackspace({})}
+				onclick={() => {
+					pressKey({ keyId: 'Backspace' });
+					handleBackspace({});
+				}}
 			>
 				<Delete class="size-[22px]" />
 			</button>

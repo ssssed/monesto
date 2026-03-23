@@ -2,7 +2,7 @@
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 	import TextKeyboard from './text-keyboard.svelte';
-	import type { InputSize } from './types';
+	import type { InputFocusUnderline, InputSize } from './types';
 
 	const TEXT_INPUT_SIZES: Record<
 		InputSize,
@@ -12,7 +12,8 @@
 			valueText: string;
 			caret: string;
 			caretEmptyShift: string;
-			focusLine: string;
+			underlineH: string;
+			underlineWCenter: string;
 		}
 	> = {
 		sm: {
@@ -21,7 +22,8 @@
 			valueText: 'text-xl font-bold',
 			caret: 'h-6 w-[2px]',
 			caretEmptyShift: '',
-			focusLine: 'h-1 w-12'
+			underlineH: 'h-1',
+			underlineWCenter: 'w-12'
 		},
 		default: {
 			rootMinH: 'min-h-20',
@@ -29,7 +31,8 @@
 			valueText: 'text-3xl font-bold',
 			caret: 'h-10 w-[2px]',
 			caretEmptyShift: '-translate-x-0.5',
-			focusLine: 'h-1.5 w-14'
+			underlineH: 'h-1.5',
+			underlineWCenter: 'w-14'
 		},
 		lg: {
 			rootMinH: 'min-h-25.5',
@@ -37,7 +40,8 @@
 			valueText: 'text-5xl font-bold',
 			caret: 'h-14 w-[2px]',
 			caretEmptyShift: '-translate-x-1',
-			focusLine: 'h-1.5 w-16'
+			underlineH: 'h-1.5',
+			underlineWCenter: 'w-16'
 		}
 	};
 
@@ -51,6 +55,7 @@
 		maxLength,
 		onEnter,
 		size = 'default',
+		focusUnderline = 'center',
 		class: className
 	} = $props<{
 		value: string;
@@ -62,6 +67,8 @@
 		ref?: HTMLDivElement | null;
 		onEnter?: () => void;
 		size?: InputSize;
+		/** Полоска под полем: `center` — узкая по центру и растягивается при фокусе; `full` — сразу на всю ширину. */
+		focusUnderline?: InputFocusUnderline;
 		class?: string;
 	}>();
 
@@ -119,66 +126,78 @@
 	}
 </script>
 
-<div class={cn('relative', sz.rootMinH, className)}>
-	{#if label}
-		<label class="sr-only" for={forAttribute}>{label}</label>
-	{/if}
-	<button
-		bind:this={ref}
-		role="textbox"
-		tabindex="0"
-		onclick={() => {
-			opened = true;
-		}}
-		class="group relative flex w-full cursor-text items-center justify-center select-none"
-	>
-		<div bind:this={viewportEl} class={cn('relative max-w-full overflow-hidden', sz.viewportH)}>
-			<div
-				bind:this={contentEl}
-				class={cn(
-					'flex h-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white',
-					sz.valueText
-				)}
-				style="transform: translateX({offset}px)"
-			>
-				<span
-					class={cn(
-						'transition-colors',
-						value === ''
-							? 'text-slate-400 dark:text-slate-600'
-							: 'text-slate-900 dark:text-white'
-					)}
-				>
-					{value === '' ? placeholder || ' ' : value}
-				</span>
+<div class={cn("group relative", sz.rootMinH, className)}>
+  {#if label}
+    <label class="sr-only" for={forAttribute}>{label}</label>
+  {/if}
+  <button
+    bind:this={ref}
+    role="textbox"
+    tabindex="0"
+    onclick={() => {
+      opened = true;
+    }}
+    class="relative flex w-full min-w-0 cursor-text items-center justify-center select-none"
+  >
+    <div
+      bind:this={viewportEl}
+      class={cn("relative min-w-0 w-full flex-1 overflow-hidden", sz.viewportH)}
+    >
+      <div
+        bind:this={contentEl}
+        class={cn(
+          "flex h-full w-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white",
+          sz.valueText,
+        )}
+        style="transform: translateX({offset}px)"
+      >
+        <span
+          class={cn(
+            "transition-colors",
+            value === ""
+              ? "text-slate-400 dark:text-slate-600"
+              : "text-slate-900 dark:text-white",
+          )}
+        >
+          {value === "" ? placeholder || " " : value}
+        </span>
 
-				{#if opened}
-					<span class={cn('caret bg-primary', sz.caret, value === '' ? sz.caretEmptyShift : '')}></span>
-				{/if}
-			</div>
-		</div>
-	</button>
-	{#if opened}
-		<div
-			class={cn(
-				'mx-auto rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary',
-				sz.focusLine
-			)}
-		></div>
-	{/if}
+        {#if opened}
+          <span
+            class={cn(
+              "caret bg-primary",
+              sz.caret,
+              value === "" ? sz.caretEmptyShift : "",
+            )}
+          ></span>
+        {/if}
+      </div>
+    </div>
+  </button>
+  {#if opened}
+    <div
+      class={cn(
+        "rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:bg-primary/30",
+        sz.underlineH,
+        focusUnderline === "full"
+          ? "w-full"
+          : cn("mx-auto", sz.underlineWCenter, "group-focus-within:w-full"),
+      )}
+    ></div>
+  {/if}
 </div>
 
 <TextKeyboard
-	{opened}
-	title={value || placeholder}
-	{onEnter}
-	onClose={closeKeyboard}
-	onItemClick={appendFragment}
-	onRemoveSymbol={removeLastSymbol}
+  {opened}
+  title={value || placeholder}
+  {onEnter}
+  onClose={closeKeyboard}
+  onItemClick={appendFragment}
+  onRemoveSymbol={removeLastSymbol}
 >
-	{#snippet children({ onClose })}
-		{@render footerSnippet?.({ onClose })}
-	{/snippet}
+  {#snippet children({ onClose })}
+    {@render footerSnippet?.({ onClose })}
+  {/snippet}
 </TextKeyboard>
 
 <style>

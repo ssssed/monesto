@@ -1,3 +1,3 @@
 export { default as NumberInput } from './number-input.svelte'
 export { default as TextInput } from './text-input.svelte'
-export type { InputSize } from './types'
+export type { InputFocusUnderline, InputSize, NumberInputTextAlign } from './types'
