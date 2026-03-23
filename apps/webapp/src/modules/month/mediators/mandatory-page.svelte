@@ -20,7 +20,7 @@
 	>
 		Your regular monthly costs
 	</p>
-	<NumberInput bind:value={stepStore.mandatory.value} onEnter={onNext} prefix="₽">
+	<NumberInput bind:value={stepStore.mandatory.value} onEnter={onNext} prefix="₽" size="lg">
 		<ContinueButton disabled={stepStore.mandatory.value.length === 0} onclick={onNext} />
 	</NumberInput>
 	<div class="flex w-full max-w-xs flex-wrap justify-center gap-2">

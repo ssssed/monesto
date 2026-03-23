@@ -2,6 +2,44 @@
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 	import TextKeyboard from './text-keyboard.svelte';
+	import type { InputSize } from './types';
+
+	const TEXT_INPUT_SIZES: Record<
+		InputSize,
+		{
+			rootMinH: string;
+			viewportH: string;
+			valueText: string;
+			caret: string;
+			caretEmptyShift: string;
+			focusLine: string;
+		}
+	> = {
+		sm: {
+			rootMinH: 'min-h-14',
+			viewportH: 'h-12',
+			valueText: 'text-xl font-bold',
+			caret: 'h-6 w-[2px]',
+			caretEmptyShift: '',
+			focusLine: 'h-1 w-12'
+		},
+		default: {
+			rootMinH: 'min-h-20',
+			viewportH: 'h-16',
+			valueText: 'text-3xl font-bold',
+			caret: 'h-10 w-[2px]',
+			caretEmptyShift: '-translate-x-0.5',
+			focusLine: 'h-1.5 w-14'
+		},
+		lg: {
+			rootMinH: 'min-h-25.5',
+			viewportH: 'h-24',
+			valueText: 'text-5xl font-bold',
+			caret: 'h-14 w-[2px]',
+			caretEmptyShift: '-translate-x-1',
+			focusLine: 'h-1.5 w-16'
+		}
+	};
 
 	let {
 		value = $bindable(''),
@@ -11,7 +49,8 @@
 		forAttribute,
 		placeholder = '',
 		maxLength,
-		onEnter
+		onEnter,
+		size = 'default'
 	} = $props<{
 		value: string;
 		children?: Snippet<[{ onClose: () => void }]>;
@@ -21,7 +60,10 @@
 		maxLength?: number;
 		ref?: HTMLDivElement | null;
 		onEnter?: () => void;
+		size?: InputSize;
 	}>();
+
+	const sz = $derived(TEXT_INPUT_SIZES[(size ?? 'default') as InputSize]);
 
 	let opened = $state(false);
 
@@ -84,7 +126,7 @@
 	}
 </script>
 
-<div class="relative min-h-25.5">
+<div class={cn('relative', sz.rootMinH)}>
 	{#if label}
 		<label class="sr-only" for={forAttribute}>{label}</label>
 	{/if}
@@ -97,10 +139,13 @@
 		}}
 		class="group relative flex w-full cursor-text items-center justify-center select-none"
 	>
-		<div bind:this={viewportEl} class="relative h-24 max-w-full overflow-hidden">
+		<div bind:this={viewportEl} class={cn('relative max-w-full overflow-hidden', sz.viewportH)}>
 			<div
 				bind:this={contentEl}
-				class="flex h-full items-center gap-1 text-5xl font-bold whitespace-nowrap text-slate-900 dark:text-white"
+				class={cn(
+					'flex h-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white',
+					sz.valueText
+				)}
 				style="transform: translateX({offset}px)"
 			>
 				<span
@@ -115,14 +160,17 @@
 				</span>
 
 				{#if opened}
-					<span class={cn('caret h-14 w-[2px] bg-primary', { '-translate-x-1': value === '' })}></span>
+					<span class={cn('caret bg-primary', sz.caret, value === '' ? sz.caretEmptyShift : '')}></span>
 				{/if}
 			</div>
 		</div>
 	</button>
 	{#if opened}
 		<div
-			class="mx-auto h-1.5 w-16 rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary"
+			class={cn(
+				'mx-auto rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary',
+				sz.focusLine
+			)}
 		></div>
 	{/if}
 </div>

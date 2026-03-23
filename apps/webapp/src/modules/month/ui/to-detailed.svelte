@@ -142,12 +142,12 @@
 						{:else}
 							<div class="flex min-w-0 flex-1 flex-col gap-1">
 								<span class="text-xs text-slate-500 dark:text-slate-400">What</span>
-								<TextInput bind:value={line.label} placeholder="e.g. Rent" />
+								<TextInput bind:value={line.label} placeholder="e.g. Rent" size="sm" />
 							</div>
 							<div class="flex shrink-0 items-end gap-2 sm:w-40">
 								<div class="min-w-0 flex-1">
 									<span class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Amount</span>
-									<NumberInput bind:value={line.amount} prefix="₽">
+									<NumberInput bind:value={line.amount} prefix="₽" size="sm">
 										{#snippet children({ onClose })}
 											<Button size="extraLg" class="w-full text-lg font-bold" onclick={onClose}>
 												OK

@@ -3,6 +3,48 @@
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 	import Keyboard from './keyboard.svelte';
+	import type { InputSize } from './types';
+
+	const NUMBER_INPUT_SIZES: Record<
+		InputSize,
+		{
+			rootMinH: string;
+			viewportH: string;
+			prefixText: string;
+			valueText: string;
+			caret: string;
+			caretEmptyShift: string;
+			focusLine: string;
+		}
+	> = {
+		sm: {
+			rootMinH: 'min-h-14',
+			viewportH: 'h-12',
+			prefixText: 'text-lg font-bold',
+			valueText: 'text-3xl font-bold',
+			caret: 'h-8 w-[2px]',
+			caretEmptyShift: '-translate-x-2',
+			focusLine: 'h-1 w-12'
+		},
+		default: {
+			rootMinH: 'min-h-20',
+			viewportH: 'h-16',
+			prefixText: 'text-2xl font-bold',
+			valueText: 'text-5xl font-bold',
+			caret: 'h-10 w-[2px]',
+			caretEmptyShift: '-translate-x-3',
+			focusLine: 'h-1.5 w-14'
+		},
+		lg: {
+			rootMinH: 'min-h-25.5',
+			viewportH: 'h-24',
+			prefixText: 'text-5xl font-bold',
+			valueText: 'text-7xl font-bold',
+			caret: 'h-16 w-[2px]',
+			caretEmptyShift: '-translate-x-[25px]',
+			focusLine: 'h-1.5 w-16'
+		}
+	};
 
 	// Валидное float-значение: одна точка, не начинается с '.', без ведущего 0 кроме "0" и "0.xxx"
 	const numberInputSchema = z
@@ -31,7 +73,8 @@
 		onEnter,
 		label,
 		forAttribute,
-		prefix = $bindable('')
+		prefix = $bindable(''),
+		size = 'default'
 	} = $props<{
 		value: string;
 		children?: Snippet<[{ onClose: () => void }]>;
@@ -41,7 +84,10 @@
 		ref?: HTMLDivElement | null;
 		onOpened?: (ref: HTMLDivElement, keyboardRef: HTMLElement) => void;
 		onEnter?: () => void;
+		size?: InputSize;
 	}>();
+
+	const sz = $derived(NUMBER_INPUT_SIZES[(size ?? 'default') as InputSize]);
 
 	let opened = $state(false);
 
@@ -75,7 +121,7 @@
 	});
 </script>
 
-<div class="relative min-h-25.5">
+<div class={cn('relative', sz.rootMinH)}>
   {#if label}
     <label class="sr-only" for={forAttribute}>{label}</label>
   {/if}
@@ -88,20 +134,24 @@
     }}
     class="group relative flex w-full cursor-text items-center justify-center select-none"
   >
-    <span class="mr-1 text-5xl font-bold text-slate-400 dark:text-slate-600">
+    <span
+      class={cn('mr-1 text-slate-400 dark:text-slate-600', sz.prefixText)}
+    >
       {prefix}
     </span>
 
     <!-- viewport -->
     <div
       bind:this={viewportEl}
-      class="relative h-24 max-w-full overflow-hidden"
+      class={cn('relative max-w-full overflow-hidden', sz.viewportH)}
     >
       <!-- content -->
       <div
         bind:this={contentEl}
-        class="flex h-full items-center gap-1 text-7xl
-				font-bold whitespace-nowrap text-slate-900 dark:text-white"
+        class={cn(
+          'flex h-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white',
+          sz.valueText
+        )}
         style="transform: translateX({offset}px)"
       >
         <span
@@ -115,9 +165,11 @@
 
         {#if opened}
           <span
-            class={cn("caret h-16 w-[2px] bg-primary", {
-              "-translate-x-[25px]": value === "",
-            })}
+            class={cn(
+              'caret bg-primary',
+              sz.caret,
+              value === '' ? sz.caretEmptyShift : ''
+            )}
           ></span>
         {/if}
       </div>
@@ -126,7 +178,10 @@
   <!-- Decorative focus line -->
   {#if opened}
     <div
-      class="mx-auto h-1.5 w-16 rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary"
+      class={cn(
+        'mx-auto rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:w-full group-focus-within:bg-primary',
+        sz.focusLine
+      )}
     ></div>
   {/if}
 </div>
