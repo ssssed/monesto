@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
-	import { z } from 'zod';
-	import Keyboard from './keyboard.svelte';
+	import TextKeyboard from './text-keyboard.svelte';
 	import { subscribeElementActuallyVisibleToUser } from './input-viewport-visibility';
-	import type { InputFocusUnderline, InputSize, NumberInputTextAlign } from './types';
+	import type { InputFocusUnderline, InputSize } from './types';
 
-	const NUMBER_INPUT_SIZES: Record<
+	const TEXT_INPUT_SIZES: Record<
 		InputSize,
 		{
 			rootMinH: string;
 			viewportH: string;
-			prefixText: string;
 			valueText: string;
 			caret: string;
 			caretEmptyShift: string;
@@ -22,7 +20,6 @@
 		sm: {
 			rootMinH: 'min-h-14',
 			viewportH: 'h-12',
-			prefixText: 'text-lg font-bold',
 			valueText: 'text-xl font-bold',
 			caret: 'h-6 w-[2px]',
 			caretEmptyShift: '',
@@ -32,77 +29,54 @@
 		default: {
 			rootMinH: 'min-h-20',
 			viewportH: 'h-16',
-			prefixText: 'text-2xl font-bold',
-			valueText: 'text-5xl font-bold',
+			valueText: 'text-3xl font-bold',
 			caret: 'h-10 w-[2px]',
-			caretEmptyShift: '-translate-x-3',
+			caretEmptyShift: '-translate-x-0.5',
 			underlineH: 'h-1.5',
 			underlineWCenter: 'w-14'
 		},
 		lg: {
 			rootMinH: 'min-h-25.5',
 			viewportH: 'h-24',
-			prefixText: 'text-5xl font-bold',
-			valueText: 'text-7xl font-bold',
-			caret: 'h-16 w-[2px]',
-			caretEmptyShift: '-translate-x-[25px]',
+			valueText: 'text-5xl font-bold',
+			caret: 'h-14 w-[2px]',
+			caretEmptyShift: '-translate-x-1',
 			underlineH: 'h-1.5',
 			underlineWCenter: 'w-16'
 		}
 	};
 
-	// Валидное float-значение: одна точка, не начинается с '.', без ведущего 0 кроме "0" и "0.xxx"
-	const numberInputSchema = z
-		.string()
-		.refine((s) => (s.match(/\./g) || []).length <= 1, { message: '' }) // не более одной точки в целом
-		.refine((s) => s === '' || s[0] !== '.', { message: '' }) // перед точкой должна быть цифра
-		.refine(
-			(s) =>
-				s === '' ||
-				s === '0' ||
-				s[0] !== '0' ||
-				(s.length > 1 && s[1] === '.'),
-			{ message: '' }
-		)
-		.refine((s) => /^\d*\.?\d*$/.test(s), { message: '' });
-
-	function isValidNumberInput(s: string): boolean {
-		const result = numberInputSchema.safeParse(s);
-		return result.success;
-	}
-
 	let {
 		value = $bindable(''),
 		ref = $bindable(null),
 		children: footerSnippet,
-		onEnter,
 		label,
 		forAttribute,
-		prefix = $bindable(''),
+		placeholder = '',
+		maxLength,
+		onEnter,
 		size = 'default',
 		focusUnderline = 'center',
-		textAlign = 'center',
 		class: className
 	} = $props<{
 		value: string;
 		children?: Snippet<[{ onClose: () => void }]>;
 		label?: string;
 		forAttribute?: string;
-		prefix?: string;
-		ref?: HTMLDivElement | null;
-		onOpened?: (ref: HTMLDivElement, keyboardRef: HTMLElement) => void;
+		placeholder?: string;
+		maxLength?: number;
+		ref?: HTMLButtonElement | null;
 		onEnter?: () => void;
 		size?: InputSize;
 		/** Полоска под полем: `center` — узкая по центру и растягивается при фокусе; `full` — сразу на всю ширину. */
 		focusUnderline?: InputFocusUnderline;
-		/** Выравнивание префикса и числа по горизонтали. */
-		textAlign?: NumberInputTextAlign;
 		class?: string;
 	}>();
 
-	const sz = $derived(NUMBER_INPUT_SIZES[(size ?? 'default') as InputSize]);
+	const sz = $derived(TEXT_INPUT_SIZES[(size ?? 'default') as InputSize]);
 
 	let opened = $state(false);
+	/** Поле реально видно пользователю (не перекрыто модалкой) — заголовок на клавиатуре не дублируем. */
 	let inputActuallyVisible = $state(false);
 
 	let viewportEl: HTMLDivElement;
@@ -113,7 +87,7 @@
 	$effect(() => {
 		if (!opened || !viewportEl) return;
 
-		// Даем немного времени рендеру клавиатуры
+		// Даём немного времени рендеру клавиатуры
 		setTimeout(() => {
 			viewportEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		}, 50);
@@ -134,6 +108,7 @@
 		return () => ro.disconnect();
 	});
 
+	// Как number-input: `ref` на кнопку (ширина поля для геометрии); перекрытие клавиатурой в модалке — в `input-viewport-visibility`.
 	$effect(() => {
 		if (!opened || !ref) return;
 		return subscribeElementActuallyVisibleToUser(ref, (visible) => {
@@ -141,14 +116,32 @@
 		});
 	});
 
-	/** Как в поле: не показывать на клавиатуре один только prefix при пустом value — всегда с числом (в т.ч. «0»). */
+	/** Как в number-input: при реально видимом поле заголовок на клавиатуре пустой (не дублируем значение). */
 	const keyboardTitle = $derived(
-		opened && inputActuallyVisible
-			? ''
-			: prefix
-				? `${prefix}${value || '0'}`
-				: value
+		opened && inputActuallyVisible ? '' : value || placeholder
 	);
+
+	/**
+	 * Добавляет фрагмент текста в значение с учётом `maxLength`.
+	 * @param fragment — вставляемый символ или строка
+	 */
+	function appendFragment(fragment: string) {
+		let next = value + fragment;
+		if (maxLength !== undefined && next.length > maxLength) {
+			next = next.slice(0, maxLength);
+		}
+		value = next;
+	}
+
+	/** Удаляет последний символ значения. */
+	function removeLastSymbol() {
+		value = value.slice(0, -1);
+	}
+
+	/** Закрывает оверлей клавиатуры. */
+	function closeKeyboard() {
+		opened = false;
+	}
 </script>
 
 <div class={cn("group relative", sz.rootMinH, className)}>
@@ -164,21 +157,12 @@
     }}
     class={cn(
       "relative flex w-full min-w-0 cursor-text items-center select-none",
-      textAlign === "center" ? "justify-center" : "justify-start",
+      "justify-center",
     )}
   >
     <div
-      class={cn(
-        "flex min-w-0 items-center gap-1",
-        textAlign === "center" ? "max-w-full" : "w-full",
-      )}
+      class={cn("flex min-w-0 items-center gap-1", "max-w-full")}
     >
-      <span
-        class={cn("shrink-0 text-slate-400 dark:text-slate-600", sz.prefixText)}
-      >
-        {prefix}
-      </span>
-
       <div
         bind:this={viewportEl}
         class={cn("relative min-w-0 flex-1 overflow-hidden", sz.viewportH)}
@@ -186,19 +170,20 @@
         <div
           bind:this={contentEl}
           class={cn(
-            "flex h-full w-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white",
+            "flex h-full w-full items-center gap-1 justify-center whitespace-nowrap text-slate-900 dark:text-white",
             sz.valueText,
-            textAlign === "center" ? "justify-center" : "justify-start",
           )}
           style="transform: translateX({offset}px)"
         >
           <span
             class={cn(
               "transition-colors",
-              !value ? "text-slate-200 dark:text-slate-700" : "",
+              value === ""
+                ? "text-slate-400 dark:text-slate-600"
+                : "text-slate-900 dark:text-white",
             )}
           >
-            {value || "0"}
+            {value === "" ? placeholder || " " : value}
           </span>
 
           {#if opened}
@@ -227,23 +212,18 @@
   {/if}
 </div>
 
-<Keyboard
+<TextKeyboard
   {opened}
-  {onEnter}
   title={keyboardTitle}
-  onClose={() => {
-    opened = false;
-  }}
-  onItemClick={(s: string) => {
-    const next = value + s;
-    if (isValidNumberInput(next)) value = next;
-  }}
-  onRemoveSymbol={() => (value = value.slice(0, -1))}
+  {onEnter}
+  onClose={closeKeyboard}
+  onItemClick={appendFragment}
+  onRemoveSymbol={removeLastSymbol}
 >
   {#snippet children({ onClose })}
     {@render footerSnippet?.({ onClose })}
   {/snippet}
-</Keyboard>
+</TextKeyboard>
 
 <style>
 	@keyframes caret-blink {

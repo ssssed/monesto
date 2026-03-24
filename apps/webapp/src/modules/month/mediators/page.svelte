@@ -1,24 +1,43 @@
 <script lang="ts">
 	import { Page } from '@monesto/ui-kit';
-	import { defineMonthStateMachine, stepStore } from '../model/model.svelte';
+	import { DEFAULT_STEP_NAME, STEPS, type StepName } from '../model/model.svelte';
 	import Header from '../ui/header.svelte';
 
-	const { currentStep, handleNext, handlePrev, maxSteps } = defineMonthStateMachine();
+	let step = $state<StepName>(DEFAULT_STEP_NAME);
+	const currentStep = $derived(STEPS[step] ?? STEPS[DEFAULT_STEP_NAME]);
+	const maxSteps = Object.keys(STEPS).length;
 
-	$inspect(stepStore);
+	const handleNext = () => {
+		if (!currentStep.next) return;
+
+		currentStep.onNext?.();
+		step = currentStep.next;
+	};
+
+	const handlePrev = () => {
+		if (!currentStep.prev) return;
+
+		currentStep.onPrev?.();
+		step = currentStep.prev;
+	};
 </script>
 
 <Page>
 	<Header title={currentStep.header?.title} step={currentStep.step} {maxSteps}>
-		{#if currentStep.header?.leftIcon}
-			<currentStep.header.leftIcon onclick={handlePrev} />
-		{/if}
+		<div>
+			{#if currentStep.header}
+				{@const LeftIcon = currentStep.header.leftIcon}
+				{#if LeftIcon}
+					<LeftIcon onclick={handlePrev} />
+				{/if}
+			{/if}
+		</div>
 	</Header>
 
 	<currentStep.component
 		onNext={handleNext}
 		onPrev={handlePrev}
-		hasNext={currentStep.hasNext}
-		hasPrev={currentStep.hasPrev}
+		hasNext={currentStep.next != null}
+		hasPrev={currentStep.prev != null}
 	/>
 </Page>
