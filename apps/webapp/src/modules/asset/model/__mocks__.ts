@@ -1,0 +1,55 @@
+import type { AssetType } from './model.svelte';
+
+export const __ASSETS_MOCK__: AssetType[] = [
+	{
+		id: '1',
+		name: 'Сбережения',
+		type: 'base',
+		symbol: '₽',
+		price: 350000,
+		icon: {
+			name: 'banknote',
+			backgroundColor: '#DBEAFE',
+			color: '#3B82F6'
+		}
+	},
+	{
+		id: '2',
+		name: 'Золото',
+		type: 'priced',
+		symbol: '₽',
+		price: 185000,
+		priceChange: 15.2,
+		icon: {
+			name: 'gem',
+			backgroundColor: '#FEF3C7',
+			color: '#B45309'
+		}
+	},
+	{
+		id: '3',
+		name: 'USD',
+		type: 'priced',
+		symbol: '₽',
+		price: 92400,
+		priceChange: 8.4,
+		icon: {
+			name: 'dollar',
+			backgroundColor: '#DCFCE7',
+			color: '#16A34A'
+		}
+	},
+	{
+		id: '4',
+		name: 'CS Инвентарь',
+		type: 'priced',
+		symbol: '₽',
+		price: 45000,
+		priceChange: -3.1,
+		icon: {
+			name: 'gamepad',
+			backgroundColor: '#EDE9FE',
+			color: '#7C3AED'
+		}
+	}
+];

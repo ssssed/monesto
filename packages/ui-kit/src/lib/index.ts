@@ -1,3 +1,4 @@
+export { Badge, TrendBadge, type BadgeColor, type BadgeSize } from "./components/ui/badge"
 export { Button, type ButtonProps } from "./components/ui/button"
 export {
   Carousel,

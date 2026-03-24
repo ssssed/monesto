@@ -6,7 +6,6 @@
 		CarouselContent,
 		CarouselItem,
 		CarouselPagination,
-		Page,
 		type CarouselAPI
 	} from '@monesto/ui-kit';
 
@@ -39,44 +38,42 @@
 	</form>
 </nav>
 
-<Page>
-	<Carousel
-		class="flex w-full max-w-md flex-1 flex-col"
-		opts={{
-			align: 'start'
-		}}
-		setApi={(emblaApi: CarouselAPI | undefined) => (api = emblaApi)}
-	>
-		<CarouselContent class="h-full">
-			{#each ONBOARDING_STEPS as step (step.title)}
-				<CarouselItem>
-					<OnboardingCard title={step.title} description={step.description} image={step.image} />
-				</CarouselItem>
-			{/each}
-		</CarouselContent>
+<Carousel
+	class="flex w-full max-w-md flex-1 flex-col"
+	opts={{
+		align: 'start'
+	}}
+	setApi={(emblaApi: CarouselAPI | undefined) => (api = emblaApi)}
+>
+	<CarouselContent class="h-full">
+		{#each ONBOARDING_STEPS as step (step.title)}
+			<CarouselItem>
+				<OnboardingCard title={step.title} description={step.description} image={step.image} />
+			</CarouselItem>
+		{/each}
+	</CarouselContent>
 
-		<div class="z-10 mt-auto flex w-full flex-col items-center bg-transparent px-6 py-4">
-			<CarouselPagination length={ONBOARDING_STEPS.length} />
-			{#if currentStep.isFinal}
-				<form method="POST" class="w-full">
-					<Button
-						type="submit"
-						class="w-full text-lg font-bold tracking-wide text-[#053314]"
-						size="extraLg"
-					>
-						{currentStep.buttonText}
-						<currentStep.buttonIcon color="#053314" strokeWidth="3" />
-					</Button>
-				</form>
-			{:else}
+	<div class="z-10 mt-auto flex w-full flex-col items-center bg-transparent px-6 py-4">
+		<CarouselPagination length={ONBOARDING_STEPS.length} />
+		{#if currentStep.isFinal}
+			<form method="POST" class="w-full">
 				<Button
+					type="submit"
 					class="w-full text-lg font-bold tracking-wide text-[#053314]"
 					size="extraLg"
-					onclick={next}
 				>
 					{currentStep.buttonText}
+					<currentStep.buttonIcon color="#053314" strokeWidth="3" />
 				</Button>
-			{/if}
-		</div>
-	</Carousel>
-</Page>
+			</form>
+		{:else}
+			<Button
+				class="w-full text-lg font-bold tracking-wide text-[#053314]"
+				size="extraLg"
+				onclick={next}
+			>
+				{currentStep.buttonText}
+			</Button>
+		{/if}
+	</div>
+</Carousel>
