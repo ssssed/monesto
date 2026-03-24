@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Page } from '@monesto/ui-kit';
-	import { STEPS, type StepName } from '../model/model.svelte';
+	import { DEFAULT_STEP_NAME, STEPS, type StepName } from '../model/model.svelte';
 	import Header from '../ui/header.svelte';
 
-	let step = $state<StepName>('mandatory');
-	const currentStep = $derived(STEPS[step] ?? STEPS.incoming);
+	let step = $state<StepName>(DEFAULT_STEP_NAME);
+	const currentStep = $derived(STEPS[step] ?? STEPS[DEFAULT_STEP_NAME]);
 	const maxSteps = Object.keys(STEPS).length;
 
 	const handleNext = () => {

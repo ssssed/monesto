@@ -33,12 +33,6 @@ export const STEPS: Record<StepName, Step> = {
 		component: MonthIncomePage,
 		next: 'mandatory',
 		prev: null,
-		onNext: () => {
-			console.log(stepStore.incoming);
-		},
-		onPrev: () => {
-			console.log(stepStore.incoming);
-		},
 		header: {
 			title: 'New month'
 		}
@@ -101,3 +95,5 @@ export let stepStore = $state<{ [K in StepName]: StepDataMap[K] }>({
 		breakdown: []
 	}
 });
+
+export const DEFAULT_STEP_NAME: StepName = 'incoming';
