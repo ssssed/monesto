@@ -1,18 +1,22 @@
 <script lang="ts">
+	import { cn } from '@monesto/ui-kit';
+
 	let {
 		currentColor = $bindable<string>(),
 		colors = $bindable<string[]>([]),
 		title,
-		selectedItemBorderColor
+		selectedItemBorderColor,
+		class: className
 	} = $props<{
 		currentColor: string;
 		colors: string[];
 		title: string;
 		selectedItemBorderColor: string;
+		class?: string;
 	}>();
 </script>
 
-<section class="flex flex-col gap-2.5">
+<section class={cn('flex flex-col gap-2.5', className)}>
 	<p class="text-[#64748B] text-[13px] font-medium">{title}</p>
 	<div class="flex items-center gap-2">
 		{#each colors as color}

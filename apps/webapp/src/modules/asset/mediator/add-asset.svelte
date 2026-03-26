@@ -52,24 +52,22 @@
 	<DrawerTrigger>
 		{@render children?.()}
 	</DrawerTrigger>
-	<DrawerContent>
+	<DrawerContent class="max-h-[85vh]!">
 		<DrawerHeader>
 			<DrawerTitle class="text-xl font-bold px-[7px]">Новый актив</DrawerTitle>
 		</DrawerHeader>
-		<div class="px-5 flex flex-col gap-4">
-			<Tabs bind:value={type}>
-				<TabsList class="w-full">
-					<TabsTrigger value="base">В моей валюте</TabsTrigger>
-					<TabsTrigger value="priced">В другой валюте</TabsTrigger>
-				</TabsList>
-				<TabsContent value="base">
-					<BaseAssetForm />
-				</TabsContent>
-				<TabsContent value="priced">
-					<PricedAssetForm />
-				</TabsContent>
-			</Tabs>
-		</div>
+		<Tabs bind:value={type} class="px-5">
+			<TabsList class="w-full">
+				<TabsTrigger value="base">В моей валюте</TabsTrigger>
+				<TabsTrigger value="priced">В другой валюте</TabsTrigger>
+			</TabsList>
+			<TabsContent value="base" class="flex flex-col gap-4">
+				<BaseAssetForm />
+			</TabsContent>
+			<TabsContent value="priced" class="flex flex-col gap-4">
+				<PricedAssetForm />
+			</TabsContent>
+		</Tabs>
 		<DrawerFooter class="mt-[126px]">
 			<Button size="extraLg" class="font-semibold text-lg" onclick={onClose}>
 				<CheckIcon size={20} />

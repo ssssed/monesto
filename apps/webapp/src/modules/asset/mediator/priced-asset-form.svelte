@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { backgroundColors, colors } from '$shared/config/colors';
 	import { accessibleIcons, type AccessibleIconType } from '$shared/config/icons';
+	import Label from '$shared/ui/label.svelte';
 	import { TextInput } from '@monesto/ui-kit';
 	import type { Component } from 'svelte';
 	import ColorPicker from '../ui/color-picker.svelte';
@@ -14,8 +15,7 @@
 	let assetName = $state<string>('');
 </script>
 
-<div class="flex flex-col gap-1.5">
-	<p class="text-[#64748B] text-[13px] font-medium">Название</p>
+<Label name="Название">
 	<TextInput
 		variant="secondary"
 		label="Название"
@@ -25,7 +25,18 @@
 		focusUnderline="none"
 		textAlign="left"
 	/>
-</div>
+</Label>
+<Label name="Единица измерения" description="Например: грамм, $, штука">
+	<TextInput
+		variant="secondary"
+		label="Единица измерения"
+		placeholder="Название"
+		bind:value={assetName}
+		size="sm"
+		focusUnderline="none"
+		textAlign="left"
+	/>
+</Label>
 <IconSection {selectedIcon} backgroundColor={selectedBackgroundColor} color={selectedColor} />
 <ColorPicker
 	bind:currentColor={selectedBackgroundColor}
