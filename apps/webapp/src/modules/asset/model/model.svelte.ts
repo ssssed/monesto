@@ -1,5 +1,6 @@
 import { backgroundColors, colors } from '$shared/config/colors';
 import type { AccessibleIconType } from '$shared/config/icons';
+import { __ASSETS_MOCK__ } from './__mocks__';
 
 type Base = {
 	id: string;
@@ -59,3 +60,11 @@ export const defaultPricedAsset: CreatePricedAssetType = {
 	unit: '',
 	type: 'priced'
 };
+
+export class AssetsStore {
+	assets: AssetType[] = $state(__ASSETS_MOCK__);
+
+	addAsset(asset: AssetType) {
+		this.assets.push(asset);
+	}
+}

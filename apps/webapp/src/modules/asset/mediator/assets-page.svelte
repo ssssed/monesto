@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { PlusIcon, TrendingUp } from '@lucide/svelte';
 	import { Button } from '@monesto/ui-kit';
-	import { __ASSETS_MOCK__ } from '../model/__mocks__';
+	import { AssetsStore } from '../model/model.svelte';
 	import AssetsList from '../ui/assets-list.svelte';
 	import TotalAssets from '../ui/total-assets.svelte';
 	import AddAsset from './add-asset.svelte';
+
+	let assetsStore = new AssetsStore();
+	let total = $derived(assetsStore.assets.reduce((acc, asset) => (acc += asset.price), 0));
 </script>
 
 <div class="flex flex-col gap-3 items-center justify-center max-w-[280px] mx-auto text-center mb-6">
@@ -15,13 +18,38 @@
 	<p class="text-[#64748B] text-[15px]">Отслеживайте свои активы и их доходность</p>
 </div>
 
-<TotalAssets total={672400} prefix="₽" />
+<TotalAssets {total} prefix="₽" />
 
-<AssetsList assets={__ASSETS_MOCK__} />
+<AssetsList bind:assets={assetsStore.assets} />
 
 <AddAsset
 	onSubmit={(asset, onClose) => {
-		console.log(asset);
+		switch (asset.type) {
+			case 'base': {
+				assetsStore.addAsset({
+					icon: asset.icon,
+					name: asset.name,
+					id: crypto.randomUUID(),
+					symbol: '₽',
+					type: 'base',
+					price: 0
+				});
+				break;
+			}
+			case 'priced': {
+				assetsStore.addAsset({
+					icon: asset.icon,
+					name: asset.name,
+					id: crypto.randomUUID(),
+					symbol: '₽',
+					type: 'priced',
+					priceChange: 1,
+					price: 0
+				});
+				break;
+			}
+		}
+
 		onClose();
 	}}
 >

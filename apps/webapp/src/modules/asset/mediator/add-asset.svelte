@@ -74,7 +74,7 @@
 		{@render children?.()}
 	</DrawerTrigger>
 	<form onsubmit={handleSubmit}>
-		<DrawerContent class="max-h-[85vh]!">
+		<DrawerContent class="!max-h-[90vh]">
 			<DrawerHeader>
 				<DrawerTitle class="text-xl font-bold px-[7px]">Новый актив</DrawerTitle>
 			</DrawerHeader>
@@ -91,7 +91,7 @@
 				</TabsContent>
 			</Tabs>
 			<DrawerFooter class="mt-[126px]">
-				<Button type="submit" size="extraLg" class="font-semibold text-lg" onclick={onClose}>
+				<Button type="submit" size="extraLg" class="font-semibold text-lg" onclick={handleSubmit}>
 					<CheckIcon size={20} />
 					Создать
 				</Button>

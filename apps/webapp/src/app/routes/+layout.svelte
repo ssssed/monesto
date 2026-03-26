@@ -2,13 +2,17 @@
 	import { page } from '$app/state';
 	import { isNavBarVisible, ROUTER } from '$shared/config/router';
 	import { LayoutDashboard, Settings } from '@lucide/svelte';
-	import { NavMenu, Page } from '@monesto/ui-kit';
+	import { cn, NavMenu, Page } from '@monesto/ui-kit';
 	import '../app.css';
 
 	let { children } = $props();
 </script>
 
-<Page>
+<Page
+	class={cn({
+		['mb-[82px]']: isNavBarVisible(page.url.pathname)
+	})}
+>
 	{@render children()}
 	{#if isNavBarVisible(page.url.pathname)}
 		<NavMenu
