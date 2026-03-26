@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { TrendingUp } from '@lucide/svelte';
+	import { PlusIcon, TrendingUp } from '@lucide/svelte';
 	import { Button } from '@monesto/ui-kit';
 	import { __ASSETS_MOCK__ } from '../model/__mocks__';
 	import AssetsList from '../ui/assets-list.svelte';
 	import TotalAssets from '../ui/total-assets.svelte';
+	import AddAsset from './add-asset.svelte';
 </script>
 
 <div class="flex flex-col gap-3 items-center justify-center max-w-[280px] mx-auto text-center mb-6">
@@ -18,4 +19,14 @@
 
 <AssetsList assets={__ASSETS_MOCK__} />
 
-<Button class="mt-3" variant="outline" size="extraLg">Добавить актив</Button>
+<AddAsset
+	onSubmit={(asset, onClose) => {
+		console.log(asset);
+		onClose();
+	}}
+>
+	<Button class="mt-3 w-full text-[#64748B]" variant="outline" size="extraLg">
+		<PlusIcon size={20} color="#64748B" />
+		Добавить актив
+	</Button>
+</AddAsset>
