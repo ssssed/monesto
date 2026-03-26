@@ -1,18 +1,16 @@
 <script lang="ts">
 	import { backgroundColors, colors } from '$shared/config/colors';
-	import { accessibleIcons, type AccessibleIconType } from '$shared/config/icons';
 	import Label from '$shared/ui/label.svelte';
 	import { TextInput } from '@monesto/ui-kit';
-	import type { Component } from 'svelte';
+	import { defaultPricedAsset, type CreatePricedAssetType } from '../model/model.svelte';
 	import ColorPicker from '../ui/color-picker.svelte';
 	import IconSection from '../ui/icon-section.svelte';
 
-	let selectedIcon = $state<[AccessibleIconType, Component]>(
-		Object.entries(accessibleIcons)[0]! as [AccessibleIconType, Component]
-	);
-	let selectedBackgroundColor = $state<string>(backgroundColors[0]);
-	let selectedColor = $state<string>(colors[0]);
-	let assetName = $state<string>('');
+	let {
+		data = $bindable(defaultPricedAsset)
+	}: {
+		data: CreatePricedAssetType;
+	} = $props();
 </script>
 
 <Label name="Название">
@@ -20,7 +18,7 @@
 		variant="secondary"
 		label="Название"
 		placeholder="Название"
-		bind:value={assetName}
+		bind:value={data.name}
 		size="sm"
 		focusUnderline="none"
 		textAlign="left"
@@ -30,22 +28,26 @@
 	<TextInput
 		variant="secondary"
 		label="Единица измерения"
-		placeholder="Название"
-		bind:value={assetName}
+		placeholder="Единица измерения"
+		bind:value={data.unit}
 		size="sm"
 		focusUnderline="none"
 		textAlign="left"
 	/>
 </Label>
-<IconSection {selectedIcon} backgroundColor={selectedBackgroundColor} color={selectedColor} />
+<IconSection
+	bind:selectedIcon={data.icon.name}
+	backgroundColor={data.icon.backgroundColor}
+	color={data.icon.color}
+/>
 <ColorPicker
-	bind:currentColor={selectedBackgroundColor}
+	bind:currentColor={data.icon.backgroundColor}
 	colors={backgroundColors}
 	title="Цвет фона"
 	selectedItemBorderColor="#3B82F6"
 />
 <ColorPicker
-	bind:currentColor={selectedColor}
+	bind:currentColor={data.icon.color}
 	{colors}
 	title="Цвет иконки"
 	selectedItemBorderColor="#0F172A"

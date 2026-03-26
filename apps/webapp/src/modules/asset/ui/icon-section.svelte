@@ -1,18 +1,17 @@
 <script lang="ts">
 	import { accessibleIcons, type AccessibleIconType } from '$shared/config/icons';
-	import type { Component } from 'svelte';
 
 	let {
-		selectedIcon = $bindable<[AccessibleIconType, Component]>(),
+		selectedIcon = $bindable<AccessibleIconType>(),
 		backgroundColor = $bindable('#DBEAFE'),
 		color = $bindable('#3B82F6')
 	} = $props<{
-		selectedIcon: [AccessibleIconType, Component];
+		selectedIcon: AccessibleIconType;
 		backgroundColor: string;
 		color: string;
 	}>();
 
-	let [selectedName, SelectedIcon] = $derived(selectedIcon);
+	let SelectedIcon = $derived(accessibleIcons[selectedIcon as AccessibleIconType]);
 </script>
 
 <div class="flex flex-col gap-2.5">
@@ -25,13 +24,12 @@
 			<button
 				type="button"
 				class="p-[9px] rounded-[10px] outline-2 bg-[#F1F5F9]"
-				style={`outline-color: ${selectedName === name ? '#3B82F6' : 'transparent'}`}
+				style={`outline-color: ${selectedIcon === name ? '#3B82F6' : 'transparent'}`}
 				onclick={() => {
-					selectedName = name as AccessibleIconType;
-					SelectedIcon = Icon;
+					selectedIcon = name as AccessibleIconType;
 				}}
 			>
-				<Icon size={18} color={selectedName === name ? '#3B82F6' : '#64748B'} />
+				<Icon size={18} color={selectedIcon === name ? '#3B82F6' : '#64748B'} />
 			</button>
 		{/each}
 	</div>
