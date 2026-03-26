@@ -30,6 +30,7 @@ export {
   type NumberInputTextAlign
 } from './components/ui/input'
 export { Header, NavMenu, Page } from "./components/ui/layout"
+export { Tabs, TabsContent, TabsList, tabsListVariants, TabsTrigger, type TabsListVariant } from "./components/ui/tabs"
 export { cn } from "./utils"
 /**
  * Точка входа для сборки app.css (импорт только ради включения в бандл).
