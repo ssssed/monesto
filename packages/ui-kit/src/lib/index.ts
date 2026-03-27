@@ -1,4 +1,5 @@
-export { Button, type ButtonProps } from "./components/ui/button"
+export { Badge, TrendBadge, type BadgeColor, type BadgeSize } from "./components/ui/badge"
+export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./components/ui/button"
 export {
   Carousel,
   CarouselContent,
@@ -28,7 +29,8 @@ export {
   type InputSize,
   type NumberInputTextAlign
 } from './components/ui/input'
-export { Header, Page } from "./components/ui/layout"
+export { Header, NavMenu, Page } from "./components/ui/layout"
+export { Tabs, TabsContent, TabsList, tabsListVariants, TabsTrigger, type TabsListVariant } from "./components/ui/tabs"
 export { cn } from "./utils"
 /**
  * Точка входа для сборки app.css (импорт только ради включения в бандл).

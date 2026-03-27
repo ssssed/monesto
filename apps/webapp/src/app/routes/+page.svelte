@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MonthPage } from '$modules/month';
+	import { AssetsPage } from '$modules/asset';
 </script>
 
-<MonthPage />
+<AssetsPage />

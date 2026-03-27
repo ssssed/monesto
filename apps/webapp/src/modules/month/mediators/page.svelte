@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Page } from '@monesto/ui-kit';
 	import { DEFAULT_STEP_NAME, STEPS, type StepName } from '../model/model.svelte';
 	import Header from '../ui/header.svelte';
 
@@ -22,22 +21,20 @@
 	};
 </script>
 
-<Page>
-	<Header title={currentStep.header?.title} step={currentStep.step} {maxSteps}>
-		<div>
-			{#if currentStep.header}
-				{@const LeftIcon = currentStep.header.leftIcon}
-				{#if LeftIcon}
-					<LeftIcon onclick={handlePrev} />
-				{/if}
+<Header title={currentStep.header?.title} step={currentStep.step} {maxSteps}>
+	<div>
+		{#if currentStep.header}
+			{@const LeftIcon = currentStep.header.leftIcon}
+			{#if LeftIcon}
+				<LeftIcon onclick={handlePrev} />
 			{/if}
-		</div>
-	</Header>
+		{/if}
+	</div>
+</Header>
 
-	<currentStep.component
-		onNext={handleNext}
-		onPrev={handlePrev}
-		hasNext={currentStep.next != null}
-		hasPrev={currentStep.prev != null}
-	/>
-</Page>
+<currentStep.component
+	onNext={handleNext}
+	onPrev={handlePrev}
+	hasNext={currentStep.next != null}
+	hasPrev={currentStep.prev != null}
+/>

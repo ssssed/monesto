@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
-	import TextKeyboard from './text-keyboard.svelte';
 	import { subscribeElementActuallyVisibleToUser } from './input-viewport-visibility';
-	import type { InputFocusUnderline, InputSize } from './types';
+	import TextKeyboard from './text-keyboard.svelte';
+	import type { InputFocusUnderline, InputSize, TextInputTextAlign } from './types';
 
 	const TEXT_INPUT_SIZES: Record<
 		InputSize,
@@ -46,6 +46,13 @@
 		}
 	};
 
+	const TEXT_INPUT_VARIANTS = {
+		primary: '',
+		secondary: 'rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC] h-12'
+	} as const;
+
+	type TextInputVariant = keyof typeof TEXT_INPUT_VARIANTS;
+
 	let {
 		value = $bindable(''),
 		ref = $bindable(null),
@@ -57,6 +64,8 @@
 		onEnter,
 		size = 'default',
 		focusUnderline = 'center',
+		variant = 'primary',
+		textAlign = 'center',
 		class: className
 	} = $props<{
 		value: string;
@@ -70,10 +79,14 @@
 		size?: InputSize;
 		/** Полоска под полем: `center` — узкая по центру и растягивается при фокусе; `full` — сразу на всю ширину. */
 		focusUnderline?: InputFocusUnderline;
+		variant?: TextInputVariant;
+		/** Горизонтальное выравнивание текста. */
+		textAlign?: TextInputTextAlign;
 		class?: string;
 	}>();
 
 	const sz = $derived(TEXT_INPUT_SIZES[(size ?? 'default') as InputSize]);
+	const variantClass = $derived(TEXT_INPUT_VARIANTS[(variant ?? 'primary') as TextInputVariant]);
 
 	let opened = $state(false);
 	/** Поле реально видно пользователю (не перекрыто модалкой) — заголовок на клавиатуре не дублируем. */
@@ -157,11 +170,15 @@
     }}
     class={cn(
       "relative flex w-full min-w-0 cursor-text items-center select-none",
-      "justify-center",
+      textAlign === "center" ? "justify-center" : "justify-start",
+      variantClass,
     )}
   >
     <div
-      class={cn("flex min-w-0 items-center gap-1", "max-w-full")}
+      class={cn(
+        "flex min-w-0 items-center gap-1",
+        textAlign === "center" ? "max-w-full" : "w-full",
+      )}
     >
       <div
         bind:this={viewportEl}
@@ -170,17 +187,21 @@
         <div
           bind:this={contentEl}
           class={cn(
-            "flex h-full w-full items-center gap-1 justify-center whitespace-nowrap text-slate-900 dark:text-white",
+            "flex h-full w-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white",
             sz.valueText,
+            textAlign === "center" ? "justify-center" : "justify-start",
           )}
           style="transform: translateX({offset}px)"
         >
           <span
             class={cn(
-              "transition-colors",
+              "ml-3.5 transition-colors",
               value === ""
                 ? "text-slate-400 dark:text-slate-600"
                 : "text-slate-900 dark:text-white",
+              {
+                "text-base font-medium": variant === "secondary",
+              },
             )}
           >
             {value === "" ? placeholder || " " : value}
@@ -199,7 +220,7 @@
       </div>
     </div>
   </button>
-  {#if opened}
+  {#if opened && focusUnderline !== "none"}
     <div
       class={cn(
         "rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:bg-primary/30",
