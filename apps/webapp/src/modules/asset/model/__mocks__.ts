@@ -1,9 +1,11 @@
-import type { AssetType } from './model.svelte';
+import { generateSlug } from '$shared/lib/slug';
+import type { AssetType, HistoryType } from './model.svelte';
 
 export const __ASSETS_MOCK__: AssetType[] = [
 	{
 		id: '1',
 		name: 'Сбережения',
+		slug: generateSlug('Сбережения'),
 		type: 'base',
 		symbol: '₽',
 		price: 350000,
@@ -16,6 +18,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 	{
 		id: '2',
 		name: 'Золото',
+		slug: generateSlug('Золото'),
 		type: 'priced',
 		symbol: '₽',
 		price: 185000,
@@ -29,6 +32,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 	{
 		id: '3',
 		name: 'USD',
+		slug: generateSlug('USD'),
 		type: 'priced',
 		symbol: '₽',
 		price: 92400,
@@ -42,6 +46,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 	{
 		id: '4',
 		name: 'CS Инвентарь',
+		slug: generateSlug('CS Инвентарь'),
 		type: 'priced',
 		symbol: '₽',
 		price: 45000,
@@ -51,5 +56,40 @@ export const __ASSETS_MOCK__: AssetType[] = [
 			backgroundColor: '#EDE9FE',
 			color: '#7C3AED'
 		}
+	}
+];
+
+export const __HISTORY_OPERATIONS__: HistoryType[] = [
+	{
+		id: '1',
+		type: 'buy',
+		date: new Date(2026, 3, 15),
+		price: 6200,
+		count: 10,
+		unit: 'г'
+	},
+	{
+		id: '2',
+		type: 'sell',
+		date: new Date(2026, 2, 2),
+		price: 6800,
+		count: 5,
+		unit: 'г'
+	},
+	{
+		id: '3',
+		type: 'buy',
+		date: new Date(2025, 12, 18),
+		price: 5400,
+		count: 10,
+		unit: 'г'
+	},
+	{
+		id: '4',
+		type: 'buy',
+		date: new Date(2025, 12, 18),
+		price: 4800,
+		count: 15,
+		unit: 'г'
 	}
 ];

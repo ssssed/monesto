@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { generateSlug } from '$shared/lib/slug';
 	import { PlusIcon, TrendingUp } from '@lucide/svelte';
 	import { Button } from '@monesto/ui-kit';
 	import { AssetsStore } from '../model/model.svelte';
@@ -29,6 +30,7 @@
 				assetsStore.addAsset({
 					icon: asset.icon,
 					name: asset.name,
+					slug: generateSlug(asset.name),
 					id: crypto.randomUUID(),
 					symbol: '₽',
 					type: 'base',
@@ -40,6 +42,7 @@
 				assetsStore.addAsset({
 					icon: asset.icon,
 					name: asset.name,
+					slug: generateSlug(asset.name),
 					id: crypto.randomUUID(),
 					symbol: '₽',
 					type: 'priced',

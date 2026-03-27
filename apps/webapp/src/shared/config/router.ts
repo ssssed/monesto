@@ -1,7 +1,8 @@
 export const ROUTER = {
 	home: '/',
 	onboarding: '/onboarding',
-	settings: '/settings'
+	settings: '/settings',
+	asset: (slug: string) => `/asset/${slug}`
 };
 
 const NAV_BAR_VISIBLE_PATHS = [ROUTER.home, ROUTER.settings];

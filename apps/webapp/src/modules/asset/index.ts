@@ -1,1 +1,2 @@
+export { default as AssetPage } from './mediator/asset-page.svelte';
 export { default as AssetsPage } from './mediator/assets-page.svelte';
