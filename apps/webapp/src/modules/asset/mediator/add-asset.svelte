@@ -15,6 +15,7 @@
 		TabsTrigger
 	} from '@monesto/ui-kit';
 	import type { Snippet } from 'svelte';
+	import { getCreateAssetDataByType, isDisabledSubmit } from '../model/domain';
 	import {
 		defaultBaseAsset,
 		defaultPricedAsset,
@@ -91,7 +92,13 @@
 				</TabsContent>
 			</Tabs>
 			<DrawerFooter class="mt-[126px]">
-				<Button type="submit" size="extraLg" class="font-semibold text-lg" onclick={handleSubmit}>
+				<Button
+					type="submit"
+					size="extraLg"
+					class="font-semibold text-lg"
+					onclick={handleSubmit}
+					disabled={isDisabledSubmit(getCreateAssetDataByType(type, baseData, pricedData))}
+				>
 					<CheckIcon size={20} />
 					Создать
 				</Button>
