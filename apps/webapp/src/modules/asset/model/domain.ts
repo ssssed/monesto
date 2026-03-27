@@ -5,7 +5,7 @@ export function isDisabledSubmit(data: CreateBaseAssetType | CreatePricedAssetTy
 		case 'base':
 			return data.name.length <= 0;
 		case 'priced':
-			return data.name.length <= 0 && data.unit.length <= 0;
+			return data.name.length <= 0 || data.unit.length <= 0;
 		default:
 			return true;
 	}
