@@ -22,7 +22,7 @@
 		<h3 class="text-[16px] text-[#0F172A] font-bold">{asset.name}</h3>
 	</div>
 	<div class="flex items-center gap-2">
-		<span class="text-[#0F172A] text-lg font-bold">{formatMoney(asset.price, asset.symbol)}</span>
+		<span class="text-[#0F172A] text-lg font-bold">{formatMoney(asset.price)}</span>
 		{#if asset.type === 'priced'}
 			<TrendBadge percent={asset.priceChange} />
 		{/if}

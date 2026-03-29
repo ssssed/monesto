@@ -24,6 +24,7 @@ type AssetBaseType = {
 type AssetPricedType = {
 	type: 'priced';
 	priceChange: number;
+	count: number;
 };
 
 export type AssetType = Base & (AssetBaseType | AssetPricedType);

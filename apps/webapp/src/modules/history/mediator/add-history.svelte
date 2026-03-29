@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { AssetType } from '$modules/asset';
 	import { formatMoney } from '$shared/lib/money';
 	import Label from '$shared/ui/label.svelte';
 	import { ArrowDownLeft, ArrowUpRight, Check } from '@lucide/svelte';
 	import {
 		Button,
+		cn,
 		Drawer,
 		DrawerClose,
 		DrawerContent,
@@ -17,32 +19,31 @@
 		TabsTrigger
 	} from '@monesto/ui-kit';
 	import type { Snippet } from 'svelte';
+	import { calculateTotal, isCreateHistoryEventDisabled } from '../model/domain';
+	import type { HistoryEventDataType } from '../model/model.svelte';
 
 	let {
 		children,
 		class: className,
-		onAddHistory
+		onAddHistory,
+		mode
 	}: {
 		children: Snippet;
 		class?: string;
-		onAddHistory: (event: HistoryEventType, onClose: () => void) => Promise<void> | void;
+		mode: AssetType['type'];
+		onAddHistory: (event: HistoryEventDataType, onClose: () => void) => Promise<void> | void;
 	} = $props();
 
 	let open = $state<boolean>(false);
 
-	type HistoryEventType = {
-		type: 'sell' | 'buy';
-		count: string;
-		price: string;
-	};
-
-	let formData = $state<HistoryEventType>({
+	let formData = $state<HistoryEventDataType>({
 		type: 'buy',
 		count: '',
 		price: ''
 	});
 
-	let total = $derived(parseFloat(formData.price || '0') * parseFloat(formData.count || '0'));
+	let total = $derived(calculateTotal(mode, formData));
+	let disabled = $derived(isCreateHistoryEventDisabled(mode, formData));
 
 	function onClose() {
 		open = false;
@@ -69,7 +70,12 @@
 				</TabsTrigger>
 			</TabsList>
 			<div class="pt-4 flex flex-col gap-4">
-				<div class="grid grid-cols-2 gap-3">
+				<div
+					class={cn('grid gap-3', {
+						['grid-cols-2']: mode === 'priced',
+						['grid-cols-1']: mode === 'base'
+					})}
+				>
 					<Label name="Цена за ед. ₽">
 						<NumberInput
 							size="sm"
@@ -83,19 +89,21 @@
 							{/snippet}
 						</NumberInput>
 					</Label>
-					<Label name="Количество">
-						<NumberInput
-							size="sm"
-							variant="secondary"
-							textAlign="left"
-							focusUnderline="none"
-							bind:value={formData.count}
-						>
-							{#snippet children({ onClose })}
-								<Button onclick={onClose} size="extraLg">ОК</Button>
-							{/snippet}
-						</NumberInput>
-					</Label>
+					{#if mode === 'priced'}
+						<Label name="Количество">
+							<NumberInput
+								size="sm"
+								variant="secondary"
+								textAlign="left"
+								focusUnderline="none"
+								bind:value={formData.count}
+							>
+								{#snippet children({ onClose })}
+									<Button onclick={onClose} size="extraLg">ОК</Button>
+								{/snippet}
+							</NumberInput>
+						</Label>
+					{/if}
 				</div>
 				<div class="mb-22.5 flex justify-between items-center">
 					<span class="text-[#64748B] text-[15px] font-medium">Итого:</span>
@@ -108,6 +116,7 @@
 				size="extraLg"
 				class="font-semibold text-lg"
 				onclick={() => onAddHistory(formData, onClose)}
+				{disabled}
 			>
 				<Check strokeWidth={3} />
 				Добавить

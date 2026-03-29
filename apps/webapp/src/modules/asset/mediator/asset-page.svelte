@@ -4,22 +4,15 @@
 	import { formatMoney } from '$shared/lib/money';
 	import { ChevronLeft, Plus } from '@lucide/svelte';
 	import { Button, Header, TrendBadge } from '@monesto/ui-kit';
+	import type { AssetType } from '../model/model.svelte';
 
 	let {
-		title,
-		price,
-		count,
-		unit,
-		percent
+		asset
 	}: {
-		title: string;
-		unit: string;
-		count: number;
-		price: number;
-		percent: number;
+		asset: AssetType;
 	} = $props();
 
-	const historyStore = new HistoryStore();
+	const historyStore = new HistoryStore(asset);
 </script>
 
 <Header>
@@ -30,19 +23,13 @@
 			</Button>
 		</a>
 	{/snippet}
-	<h1 class="text-center text-[#0F172A] font-bold">{title}</h1>
+	<h1 class="text-center text-[#0F172A] font-bold">{asset.name}</h1>
 	{#snippet right()}
 		<AddHistory
+			mode={asset.type}
 			class="ml-auto"
 			onAddHistory={(data, onClose) => {
-				historyStore.histories.push({
-					id: crypto.randomUUID(),
-					date: new Date(),
-					unit: '',
-					count: +data.count,
-					price: +data.price,
-					type: data.type
-				});
+				historyStore.addHistory(data);
 				onClose();
 			}}
 		>
@@ -55,14 +42,22 @@
 
 <section class="mt-[40px] mb-5 flex flex-col gap-1 justify-center">
 	<div class="flex items-end gap-2 justify-center">
-		<p class="text-[#0F172A] font-bold text-4xl">{formatMoney(price)}</p>
-		<TrendBadge size="sm" {percent} />
+		<p class="text-[#0F172A] font-bold text-4xl">{formatMoney(asset.price)}</p>
+		{#if asset.type === 'priced'}
+			<TrendBadge size="sm" percent={asset.priceChange} />
+		{/if}
 	</div>
-	<div class="flex items-end justify-center gap-2 text-[#94A3B8] text-[13px]">
-		<span>Всего: {count} {unit}</span>
-		<span>•</span>
-		<span>Средняя: {formatMoney(price / count)}/{unit}</span>
-	</div>
+	{#if asset.type === 'priced'}
+		<div class="flex items-end justify-center gap-2 text-[#94A3B8] text-[13px]">
+			<span>Всего: {formatMoney(asset.count, asset.symbol, { symbolPosition: 'right' })}</span>
+			<span>•</span>
+			<span
+				>Средняя: {formatMoney(asset.price / asset.count, asset.symbol, {
+					symbolPosition: 'right'
+				})}</span
+			>
+		</div>
+	{/if}
 </section>
 
 <HistoryChart />

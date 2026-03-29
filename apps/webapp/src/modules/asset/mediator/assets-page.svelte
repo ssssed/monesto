@@ -47,6 +47,7 @@
 					symbol: '₽',
 					type: 'priced',
 					priceChange: 1,
+					count: 1,
 					price: 0
 				});
 				break;

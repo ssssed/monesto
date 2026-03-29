@@ -10,14 +10,4 @@
 	if (!asset) throw new Error();
 </script>
 
-{#if asset?.type === 'base'}
-	<div></div>
-{:else}
-	<AssetPage
-		title={asset.name}
-		count={1}
-		percent={asset.priceChange}
-		price={asset.price}
-		unit={asset.symbol}
-	/>
-{/if}
+<AssetPage {asset} />
