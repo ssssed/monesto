@@ -5,6 +5,7 @@ import { __ASSETS_MOCK__ } from './__mocks__';
 type Base = {
 	id: string;
 	name: string;
+	slug: string;
 	symbol: string;
 	price: number;
 	icon: IconType;
@@ -23,6 +24,7 @@ type AssetBaseType = {
 type AssetPricedType = {
 	type: 'priced';
 	priceChange: number;
+	count: number;
 };
 
 export type AssetType = Base & (AssetBaseType | AssetPricedType);

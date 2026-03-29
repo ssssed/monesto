@@ -1,8 +1,8 @@
 <script lang="ts" module>
   import { cn, type WithElementRef } from "$lib/utils";
   import type {
-    HTMLAnchorAttributes,
-    HTMLButtonAttributes,
+      HTMLAnchorAttributes,
+      HTMLButtonAttributes,
   } from "svelte/elements";
   import { tv, type VariantProps } from "tailwind-variants";
 
@@ -21,6 +21,7 @@
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        green: "bg-primary/25 border border-solid border-[#F1F5F9]"
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

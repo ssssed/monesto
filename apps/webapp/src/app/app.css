@@ -4,3 +4,7 @@
 
 /* Сканировать файлы приложения */
 @source "./**/*.{svelte,ts,js}";
+
+body {
+	font-family: 'Inter', sans-serif;
+}
