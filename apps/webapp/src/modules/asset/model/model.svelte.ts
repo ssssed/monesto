@@ -1,6 +1,6 @@
 import { backgroundColors, colors } from '$shared/config/colors';
 import type { AccessibleIconType } from '$shared/config/icons';
-import { __ASSETS_MOCK__, __HISTORY_OPERATIONS__ } from './__mocks__';
+import { __ASSETS_MOCK__ } from './__mocks__';
 
 type Base = {
 	id: string;
@@ -69,16 +69,3 @@ export class AssetsStore {
 		this.assets.push(asset);
 	}
 }
-
-export class HistoryStore {
-	histories: HistoryType[] = $state(__HISTORY_OPERATIONS__);
-}
-
-export type HistoryType = {
-	id: string;
-	type: 'sell' | 'buy';
-	date: Date;
-	price: number;
-	unit: string;
-	count: number;
-};

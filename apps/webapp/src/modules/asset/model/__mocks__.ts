@@ -1,5 +1,5 @@
 import { generateSlug } from '$shared/lib/slug';
-import type { AssetType, HistoryType } from './model.svelte';
+import type { AssetType } from './model.svelte';
 
 export const __ASSETS_MOCK__: AssetType[] = [
 	{
@@ -56,40 +56,5 @@ export const __ASSETS_MOCK__: AssetType[] = [
 			backgroundColor: '#EDE9FE',
 			color: '#7C3AED'
 		}
-	}
-];
-
-export const __HISTORY_OPERATIONS__: HistoryType[] = [
-	{
-		id: '1',
-		type: 'buy',
-		date: new Date(2026, 3, 15),
-		price: 6200,
-		count: 10,
-		unit: 'г'
-	},
-	{
-		id: '2',
-		type: 'sell',
-		date: new Date(2026, 2, 2),
-		price: 6800,
-		count: 5,
-		unit: 'г'
-	},
-	{
-		id: '3',
-		type: 'buy',
-		date: new Date(2025, 12, 18),
-		price: 5400,
-		count: 10,
-		unit: 'г'
-	},
-	{
-		id: '4',
-		type: 'buy',
-		date: new Date(2025, 12, 18),
-		price: 4800,
-		count: 15,
-		unit: 'г'
 	}
 ];

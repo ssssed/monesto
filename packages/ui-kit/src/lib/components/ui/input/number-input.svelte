@@ -2,9 +2,16 @@
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 	import { z } from 'zod';
-	import Keyboard from './keyboard.svelte';
 	import { subscribeElementActuallyVisibleToUser } from './input-viewport-visibility';
+	import Keyboard from './keyboard.svelte';
 	import type { InputFocusUnderline, InputSize, NumberInputTextAlign } from './types';
+
+	const NUMBER_INPUT_VARIANTS = {
+		primary: '',
+		secondary: 'rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC] h-12'
+	} as const;
+
+	type NumberInputVariant = keyof typeof NUMBER_INPUT_VARIANTS;
 
 	const NUMBER_INPUT_SIZES: Record<
 		InputSize,
@@ -82,7 +89,8 @@
 		size = 'default',
 		focusUnderline = 'center',
 		textAlign = 'center',
-		class: className
+		class: className,
+		variant = 'primary'
 	} = $props<{
 		value: string;
 		children?: Snippet<[{ onClose: () => void }]>;
@@ -98,9 +106,11 @@
 		/** Выравнивание префикса и числа по горизонтали. */
 		textAlign?: NumberInputTextAlign;
 		class?: string;
+		variant?: NumberInputVariant
 	}>();
 
 	const sz = $derived(NUMBER_INPUT_SIZES[(size ?? 'default') as InputSize]);
+	const variantClass = $derived(NUMBER_INPUT_VARIANTS[(variant ?? 'primary') as NumberInputVariant]);
 
 	let opened = $state(false);
 	let inputActuallyVisible = $state(false);
@@ -165,6 +175,7 @@
     class={cn(
       "relative flex w-full min-w-0 cursor-text items-center select-none",
       textAlign === "center" ? "justify-center" : "justify-start",
+      variantClass,
     )}
   >
     <div
@@ -189,6 +200,9 @@
             "flex h-full w-full items-center gap-1 whitespace-nowrap text-slate-900 dark:text-white",
             sz.valueText,
             textAlign === "center" ? "justify-center" : "justify-start",
+            {
+              ["ml-2"]: textAlign === "left" && variant === "secondary",
+            },
           )}
           style="transform: translateX({offset}px)"
         >
@@ -214,7 +228,7 @@
       </div>
     </div>
   </button>
-  {#if opened}
+  {#if opened && focusUnderline !== "none"}
     <div
       class={cn(
         "rounded-full bg-primary/30 transition-all duration-300 ease-out group-focus-within:bg-primary/30",

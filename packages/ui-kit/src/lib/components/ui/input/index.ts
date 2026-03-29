@@ -4,5 +4,5 @@ export type {
 	InputFocusUnderline,
 	InputSize,
 	NumberInputTextAlign,
-	TextInputTextAlign
+	TextInputTextAlign,
 } from './types'

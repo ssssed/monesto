@@ -6,6 +6,18 @@
 	let { params }: PageProps = $props();
 
 	const asset = $derived(__ASSETS_MOCK__.find((el) => el.slug === params.slug));
+
+	if (!asset) throw new Error();
 </script>
 
-<AssetPage title={asset!.name} />
+{#if asset?.type === 'base'}
+	<div></div>
+{:else}
+	<AssetPage
+		title={asset.name}
+		count={1}
+		percent={asset.priceChange}
+		price={asset.price}
+		unit={asset.symbol}
+	/>
+{/if}
