@@ -1,3 +1,3 @@
-import { config } from '@repo/eslint-config/index.js';
+import { config } from '@monesto/eslint-config/index.js';
 
 export default [{ ignores: ['dist/**'] }, ...config];

@@ -1,5 +1,5 @@
 {
-  "extends": "@repo/typescript-config/svelte.json",
+  "extends": "@monesto/typescript-config/svelte.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
