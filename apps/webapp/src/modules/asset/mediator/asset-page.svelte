@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { AddHistory, HistoryChart, HistorySection, HistoryStore } from '$modules/history';
+	import {
+		AddHistory,
+		HistoryChart,
+		HistorySection,
+		HistoryStore,
+		type HistoryType
+	} from '$modules/history';
 	import { ROUTER } from '$shared/config/router';
 	import { formatMoney } from '$shared/lib/money';
 	import { ChevronLeft, Plus } from '@lucide/svelte';
@@ -7,12 +13,14 @@
 	import type { AssetType } from '../model/model.svelte';
 
 	let {
-		asset
+		asset,
+		initialHistories
 	}: {
 		asset: AssetType;
+		initialHistories: HistoryType[];
 	} = $props();
 
-	const historyStore = new HistoryStore(asset);
+	const historyStore = new HistoryStore(asset, initialHistories);
 </script>
 
 <Header>

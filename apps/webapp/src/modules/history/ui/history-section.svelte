@@ -20,7 +20,9 @@
 
 	let { histories = $bindable([]) }: { histories: HistoryType[] } = $props();
 
-	let sortedHistories = $derived(histories.toSorted((a, b) => b.date.getTime() - a.date.getTime()));
+	let sortedHistories = $derived(
+		histories.toSorted((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+	);
 </script>
 
 <section class="flex flex-col gap-2.5">

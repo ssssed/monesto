@@ -1,0 +1,132 @@
+// Схема под webapp: активы, история операций, месячный план; User — минимально под Telegram.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Пользователь: идентификация через Telegram (остальное — из Telegram API при логине, без дублирования в БД).
+model User {
+  id         String   @id @default(cuid())
+  /// Стабильный id из Telegram (`user.id`), храним строкой — удобно в JSON/HTTP.
+  telegramId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  assets     Asset[]
+  monthPlans MonthPlan[]
+}
+
+enum AssetKind {
+  BASE
+  PRICED
+}
+
+/// Иконка актива: ключ и цвета как в `IconType` на фронте.
+model AssetIcon {
+  id                String @id @default(cuid())
+  name              String
+  backgroundColor   String
+  color             String
+
+  assetId String @unique
+  asset   Asset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+/// Актив из `$modules/asset`: базовый (одна сумма) или с количеством и единицей.
+model Asset {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind   AssetKind
+  name   String
+  slug   String
+  /// Подпись к сумме/цене в UI: ₽, $, г и т.п.
+  symbol String
+  /// Текущая оценка / баланс в одной валюте учёта (как `price` в модели фронта).
+  price  Decimal @db.Decimal(19, 4)
+
+  /// Только для PRICED: единица количества (например «г», «шт»).
+  unit  String?
+  /// Только для PRICED: количество (`count` на фронте).
+  count Decimal? @db.Decimal(24, 8)
+
+  /// Связь 1:1; в домене иконка у актива всегда есть — создавайте `AssetIcon` в одной транзакции с `Asset`.
+  icon AssetIcon?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions AssetTransaction[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+}
+
+enum TransactionType {
+  BUY
+  SELL
+}
+
+/// Операция по активу (`HistoryType` на фронте).
+model AssetTransaction {
+  id      String @id @default(cuid())
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  type       TransactionType
+  occurredAt DateTime        @default(now())
+  price      Decimal         @db.Decimal(19, 4)
+  /// Снимок единицы на момент операции.
+  unit       String
+  count      Decimal         @db.Decimal(24, 8)
+
+  @@index([assetId, occurredAt])
+}
+
+enum MandatoryBreakdownLineKind {
+  UNALLOCATED
+  CUSTOM
+}
+
+/// Сохранённый шаг «новый месяц»: доход + обязательные (`stepStore` в `$modules/month`).
+model MonthPlan {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  year  Int
+  month Int
+
+  incomingAmount Decimal? @db.Decimal(19, 4)
+
+  mandatoryAmount Decimal? @db.Decimal(19, 4)
+
+  mandatoryLines MonthPlanMandatoryLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, year, month])
+  @@index([userId])
+}
+
+/// Строка разбивки обязательных расходов за месяц (`MandatoryBreakdownLine` на фронте).
+model MonthPlanMandatoryLine {
+  id          String    @id @default(cuid())
+  monthPlanId String
+  monthPlan   MonthPlan @relation(fields: [monthPlanId], references: [id], onDelete: Cascade)
+
+  kind  MandatoryBreakdownLineKind
+  label String
+  /// Сумма строки (для unallocated — снимок на момент сохранения).
+  amount Decimal @db.Decimal(19, 4)
+  /// Порядок отображения в UI.
+  sortOrder Int @default(0)
+
+  @@index([monthPlanId])
+}

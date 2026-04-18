@@ -14,6 +14,5 @@
       "$infrastructures": ["src/infrastructures"],
       "$infrastructures/*": ["src/infrastructures/*"]
     }
-  },
-  "include": ["src/**/*"]
+  }
 }

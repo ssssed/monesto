@@ -1,13 +1,16 @@
 <script lang="ts">
-	import { generateSlug } from '$shared/lib/slug';
 	import { PlusIcon, TrendingUp } from '@lucide/svelte';
 	import { Button } from '@monesto/ui-kit';
-	import { AssetsStore } from '../model/model.svelte';
+	import { AssetsStore, type AssetType } from '../model/model.svelte';
 	import AssetsList from '../ui/assets-list.svelte';
 	import TotalAssets from '../ui/total-assets.svelte';
 	import AddAsset from './add-asset.svelte';
 
-	let assetsStore = new AssetsStore();
+	let { initialAssets } = $props<{
+		initialAssets: AssetType[];
+	}>();
+
+	let assetsStore = new AssetsStore(initialAssets);
 	let total = $derived(assetsStore.assets.reduce((acc, asset) => (acc += asset.price), 0));
 </script>
 
@@ -24,36 +27,8 @@
 <AssetsList bind:assets={assetsStore.assets} />
 
 <AddAsset
-	onSubmit={(asset, onClose) => {
-		switch (asset.type) {
-			case 'base': {
-				assetsStore.addAsset({
-					icon: asset.icon,
-					name: asset.name,
-					slug: generateSlug(asset.name),
-					id: crypto.randomUUID(),
-					symbol: '₽',
-					type: 'base',
-					price: 0
-				});
-				break;
-			}
-			case 'priced': {
-				assetsStore.addAsset({
-					icon: asset.icon,
-					name: asset.name,
-					slug: generateSlug(asset.name),
-					id: crypto.randomUUID(),
-					symbol: '₽',
-					type: 'priced',
-					priceChange: 1,
-					count: 1,
-					price: 0
-				});
-				break;
-			}
-		}
-
+	onSubmit={async (asset, onClose) => {
+		await assetsStore.createAsset(asset);
 		onClose();
 	}}
 >
