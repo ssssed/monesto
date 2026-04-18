@@ -27,6 +27,16 @@ enum FinanceType {
   expense
 }
 
+enum SessionDeviceType {
+  ios
+  android
+  macos
+  windows
+  linux
+  web
+  unknown
+}
+
 model User {
   id           Int          @id @default(autoincrement())
   telegramId   String       @unique @map("telegram_id")
@@ -128,14 +138,16 @@ model FinanceRecord {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    Int
-  token     String   @unique
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+  id         String            @id @default(cuid())
+  userId     Int
+  deviceType SessionDeviceType @map("device_type")
+  token      String            @unique
+  createdAt  DateTime          @default(now())
+  expiresAt  DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, deviceType])
   @@index([userId])
   @@map("sessions")
 }

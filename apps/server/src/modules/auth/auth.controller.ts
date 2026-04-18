@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { Auth } from './decorators/auth.decorator';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
@@ -13,7 +14,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Authenticate user via Telegram WebApp initData',
     description:
-      'Validates Telegram initData, creates user if not exists, creates session and returns session token.',
+      'Проверяет initData, при необходимости создаёт пользователя. Сессия привязана к классу устройства по User-Agent (одна на пользователя на тип). Токен только в теле ответа — дальше передавать в Authorization: Bearer.',
   })
   @ApiResponse({
     status: 200,
@@ -34,8 +35,11 @@ export class AuthController {
     status: 401,
     description: 'Invalid Telegram initData',
   })
-  async telegramAuth(@Body() dto: TelegramAuthDto) {
-    return this.authService.telegramAuth(dto.initData);
+  async telegramAuth(@Body() dto: TelegramAuthDto, @Req() req: Request) {
+    return this.authService.telegramAuth(
+      dto.initData,
+      req.headers['user-agent'],
+    );
   }
 
   @Auth()
