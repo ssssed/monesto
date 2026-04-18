@@ -1,5 +1,3 @@
-// Схема под webapp: активы, история операций, месячный план; User — минимально под Telegram.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,125 +6,136 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Пользователь: идентификация через Telegram (остальное — из Telegram API при логине, без дублирования в БД).
-model User {
-  id         String   @id @default(cuid())
-  /// Стабильный id из Telegram (`user.id`), храним строкой — удобно в JSON/HTTP.
-  telegramId String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  assets     Asset[]
-  monthPlans MonthPlan[]
+enum LanguageCode {
+  ru
+  en
 }
 
-enum AssetKind {
-  BASE
-  PRICED
-}
-
-/// Иконка актива: ключ и цвета как в `IconType` на фронте.
-model AssetIcon {
-  id                String @id @default(cuid())
-  name              String
-  backgroundColor   String
-  color             String
-
-  assetId String @unique
-  asset   Asset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
-}
-
-/// Актив из `$modules/asset`: базовый (одна сумма) или с количеством и единицей.
-model Asset {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  kind   AssetKind
-  name   String
-  slug   String
-  /// Подпись к сумме/цене в UI: ₽, $, г и т.п.
-  symbol String
-  /// Текущая оценка / баланс в одной валюте учёта (как `price` в модели фронта).
-  price  Decimal @db.Decimal(19, 4)
-
-  /// Только для PRICED: единица количества (например «г», «шт»).
-  unit  String?
-  /// Только для PRICED: количество (`count` на фронте).
-  count Decimal? @db.Decimal(24, 8)
-
-  /// Связь 1:1; в домене иконка у актива всегда есть — создавайте `AssetIcon` в одной транзакции с `Asset`.
-  icon AssetIcon?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  transactions AssetTransaction[]
-
-  @@unique([userId, slug])
-  @@index([userId])
+enum Currency {
+  rub
+  usd
+  gold
 }
 
 enum TransactionType {
-  BUY
-  SELL
+  buy
+  sell
 }
 
-/// Операция по активу (`HistoryType` на фронте).
-model AssetTransaction {
-  id      String @id @default(cuid())
-  assetId String
-  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
-
-  type       TransactionType
-  occurredAt DateTime        @default(now())
-  price      Decimal         @db.Decimal(19, 4)
-  /// Снимок единицы на момент операции.
-  unit       String
-  count      Decimal         @db.Decimal(24, 8)
-
-  @@index([assetId, occurredAt])
+enum FinanceType {
+  income
+  expense
 }
 
-enum MandatoryBreakdownLineKind {
-  UNALLOCATED
-  CUSTOM
+model User {
+  id           Int          @id @default(autoincrement())
+  telegramId   String       @unique @map("telegram_id")
+  firstName    String       @map("first_name")
+  lastName     String       @map("last_name")
+  username     String
+  languageCode LanguageCode @map("language_code")
+  registerAt   DateTime     @default(now())
+  updateAt     DateTime     @updatedAt
+
+  transactions   Transaction[]
+  portfolios     Position[]
+  settings       UserSettings?
+  financeRecords FinanceRecord[]
+  sessions       Session[]
+
+  @@map("users")
 }
 
-/// Сохранённый шаг «новый месяц»: доход + обязательные (`stepStore` в `$modules/month`).
-model MonthPlan {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+model UserSettings {
+  id Int @id @default(autoincrement())
 
-  year  Int
+  baseCurrency Currency @default(usd) @map("base_currency")
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("user_settings")
+}
+
+model Asset {
+  id           Int           @id @default(autoincrement())
+  name         String
+  slug         String
+  currency     Currency      @default(usd)
+  transactions Transaction[]
+  portfolios   Position[]
+  assetIcon    AssetIcon?
+
+  @@map("assets")
+}
+
+model AssetIcon {
+  id              String @id @default(cuid())
+  name            String
+  backgroundColor String
+  color           String
+
+  assetId Int    @unique
+  asset   Asset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_icon")
+}
+
+model Transaction {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  assetId   Int
+  type      TransactionType
+  quantity  Decimal // всегда положительное число
+  price     Decimal // цена за 1 единицу
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id])
+  asset     Asset           @relation(fields: [assetId], references: [id])
+
+  @@index([userId, assetId])
+  @@map("transactions")
+}
+
+model Position {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  assetId  Int
+  quantity Decimal // текущее количество
+  invested Decimal // сколько вложено (для расчета %) (сумма фактически потраченных денег при покупках)
+  user     User    @relation(fields: [userId], references: [id])
+  asset    Asset   @relation(fields: [assetId], references: [id])
+
+  @@unique([userId, assetId])
+  @@map("positions")
+}
+
+model FinanceRecord {
+  id     Int @id @default(autoincrement())
+  userId Int
+
+  type     FinanceType // income | expense
+  name     String? // если null - значит это общий доход без указания детализации
+  amount   Decimal
+  currency Currency
+
   month Int
+  year  Int
 
-  incomingAmount Decimal? @db.Decimal(19, 4)
+  user User @relation(fields: [userId], references: [id])
 
-  mandatoryAmount Decimal? @db.Decimal(19, 4)
-
-  mandatoryLines MonthPlanMandatoryLine[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, year, month])
-  @@index([userId])
+  @@index([userId, year, month])
+  @@map("finance_records")
 }
 
-/// Строка разбивки обязательных расходов за месяц (`MandatoryBreakdownLine` на фронте).
-model MonthPlanMandatoryLine {
-  id          String    @id @default(cuid())
-  monthPlanId String
-  monthPlan   MonthPlan @relation(fields: [monthPlanId], references: [id], onDelete: Cascade)
+model Session {
+  id        String   @id @default(cuid())
+  userId    Int
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 
-  kind  MandatoryBreakdownLineKind
-  label String
-  /// Сумма строки (для unallocated — снимок на момент сохранения).
-  amount Decimal @db.Decimal(19, 4)
-  /// Порядок отображения в UI.
-  sortOrder Int @default(0)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([monthPlanId])
+  @@index([userId])
+  @@map("sessions")
 }
