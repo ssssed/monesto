@@ -33,15 +33,15 @@ async function bootstrap() {
       'REST API сервера Monesto. Эндпоинты `/assets/*` требуют заголовок `X-User-Id` (внутренний id пользователя).',
     )
     .setVersion('1.0')
-    .addApiKey(
+    .addBearerAuth(
       {
-        type: 'apiKey',
-        in: 'header',
-        name: 'X-User-Id',
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'UUID',
         description:
-          'Id пользователя из ответа `POST /api/users` (cuid). Обязателен для всех запросов к `/api/assets`.',
+          'Токен сессии из поля `sessionToken` ответа `POST /api/auth/telegram`. Заголовок: `Authorization: Bearer <token>`.',
       },
-      'X-User-Id',
+      'session',
     )
     .build();
 

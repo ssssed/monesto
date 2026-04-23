@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -116,6 +117,44 @@ export class AuthService {
       user,
       sessionToken: session.token,
     };
+  }
+
+  async getMe(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        telegramId: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        languageCode: true,
+        registerAt: true,
+        updateAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    return { user };
+  }
+
+  /** Удаляет только сессию, с которой пришёл запрос. */
+  async logout(sessionId: string, userId: number) {
+    await this.prisma.session.deleteMany({
+      where: { id: sessionId, userId },
+    });
+    return { ok: true as const };
+  }
+
+  /** Удаляет все сессии пользователя (все устройства). */
+  async logoutAll(userId: number) {
+    await this.prisma.session.deleteMany({
+      where: { userId },
+    });
+    return { ok: true as const };
   }
 
   private verifyInitData(initData: string, botToken: string): boolean {
