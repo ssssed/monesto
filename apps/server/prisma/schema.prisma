@@ -47,6 +47,7 @@ model User {
   registerAt   DateTime     @default(now())
   updateAt     DateTime     @updatedAt
 
+  assets         Asset[]
   transactions   Transaction[]
   portfolios     Position[]
   settings       UserSettings?
@@ -69,13 +70,17 @@ model UserSettings {
 
 model Asset {
   id           Int           @id @default(autoincrement())
+  userId       Int
   name         String
   slug         String
   currency     Currency      @default(usd)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   portfolios   Position[]
   assetIcon    AssetIcon?
 
+  @@unique([userId, slug])
+  @@index([userId])
   @@map("assets")
 }
 

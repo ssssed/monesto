@@ -6,7 +6,7 @@ const telegramMiddleware = defineMiddleware({
 	before(config) {
 		config.headers = {
 			...config.headers,
-			'X-User-Id': PUBLIC_TEST_TOKEN
+			Authorization: `Bearer ${PUBLIC_TEST_TOKEN}`
 		};
 		return config;
 	}

@@ -2,9 +2,25 @@ import { $api } from '$shared/lib/api';
 import type { RequestifyResponse } from 'requestify.js';
 import type { HistoryEventDataType, HistoryType } from '../model/model.svelte';
 
-export async function getTransactionHistories(slug: string) {
-	const { data } = await $api.get<RequestifyResponse<HistoryType[]>>(
-		`/assets/${slug}/transactions`
+export type HistoriesChartPoint = {
+	date: string;
+	value: number;
+};
+
+export type TransactionHistoriesResponse = {
+	histories: HistoryType[];
+	chart: HistoriesChartPoint[];
+};
+
+export async function getTransactionHistories(
+	slug: string,
+	period?: '1M' | '3M' | '6M' | '1Y' | 'ALL'
+) {
+	const { data } = await $api.get<RequestifyResponse<TransactionHistoriesResponse>>(
+		`/assets/${slug}/transactions`,
+		{
+			query: period ? { period } : undefined
+		}
 	);
 	return data;
 }

@@ -76,6 +76,9 @@ export class AuthService {
           lastName: userData.last_name || '',
           username: userData.username || '',
           languageCode,
+          settings: {
+            create: {},
+          },
         },
       });
     }
