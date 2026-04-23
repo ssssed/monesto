@@ -7,7 +7,7 @@ export async function getAssets(): Promise<AssetType[]> {
 		const { data } = await $api.get<RequestifyResponse<AssetType[]>>('/assets');
 
 		return data;
-	} catch (error) {
+	} catch {
 		return [];
 	}
 }
