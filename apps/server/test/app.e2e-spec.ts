@@ -52,8 +52,6 @@ describe('API (e2e)', () => {
   });
 
   it('GET /api/assets без X-User-Id → 401', () => {
-    return request(app.getHttpServer())
-      .get('/api/assets')
-      .expect(401);
+    return request(app.getHttpServer()).get('/api/assets').expect(401);
   });
 });

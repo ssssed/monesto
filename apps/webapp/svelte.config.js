@@ -5,7 +5,8 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Исходники ui-kit: компоненты импортируют `$lib/*`, иначе SvelteKit резолвит в `src/lib` webapp. */
-const uiKitLib = path.resolve(__dirname, '../../packages/ui-kit/src/lib');
+const uiKitRoot = path.resolve(__dirname, '../../packages/ui-kit');
+const uiKitLib = path.resolve(uiKitRoot, 'src/lib');
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -22,6 +23,14 @@ const config = {
 			appTemplate: 'src/app/app.html',
 			/** Иначе `$lib` в компонентах ui-kit резолвится в `src/lib` webapp. */
 			lib: uiKitLib
+		},
+		/** Алиасы для Vite и для `.svelte-kit/tsconfig.json` (без `paths` в корневом tsconfig). */
+		alias: {
+			$shared: path.resolve(__dirname, 'src/shared'),
+			$modules: path.resolve(__dirname, 'src/modules'),
+			$infrastructures: path.resolve(__dirname, 'src/infrastructures'),
+			'@monesto/ui-kit': uiKitLib,
+			'@monesto/ui-kit/theme.css': path.resolve(uiKitRoot, 'src/theme.css')
 		}
 	},
 };

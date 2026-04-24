@@ -33,7 +33,10 @@ export class AssetController {
 
   @Get(':slug')
   @ApiOperation({ summary: 'Актив по slug' })
-  findOne(@Param('slug') slug: string, @AuthSession() session: AuthSessionPayload) {
+  findOne(
+    @Param('slug') slug: string,
+    @AuthSession() session: AuthSessionPayload,
+  ) {
     return this.assetService.findOneBySlug(slug, session.userId);
   }
 
@@ -58,7 +61,10 @@ export class AssetController {
 
   @Delete(':slug')
   @ApiOperation({ summary: 'Удалить актив' })
-  remove(@Param('slug') slug: string, @AuthSession() session: AuthSessionPayload) {
+  remove(
+    @Param('slug') slug: string,
+    @AuthSession() session: AuthSessionPayload,
+  ) {
     return this.assetService.remove(slug, session.userId);
   }
 
@@ -69,7 +75,11 @@ export class AssetController {
     @Query() query: GetAssetTransactionsQueryDto,
     @AuthSession() session: AuthSessionPayload,
   ) {
-    return this.assetService.getTransactionsBySlug(slug, session.userId, query.period);
+    return this.assetService.getTransactionsBySlug(
+      slug,
+      session.userId,
+      query.period,
+    );
   }
 
   @Post(':slug/transactions')

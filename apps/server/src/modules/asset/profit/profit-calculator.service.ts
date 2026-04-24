@@ -41,14 +41,6 @@ export class ProfitCalculatorService {
       baseCurrency,
     );
 
-    console.log('[ProfitCalculator]', {
-      to: { value: input.to.value, currency: input.to.currency },
-      from: { value: input.from.value, currency: input.from.currency },
-      baseCurrency,
-      currentValueInBase,
-      investedInBase,
-    });
-
     const amount = currentValueInBase - investedInBase;
     const percent = investedInBase === 0 ? 0 : (amount / investedInBase) * 100;
 

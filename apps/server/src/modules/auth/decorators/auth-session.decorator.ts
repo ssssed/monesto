@@ -13,7 +13,9 @@ export const AuthSession = createParamDecorator(
       req as Request & { [AUTH_SESSION_KEY]?: AuthSessionPayload }
     )[AUTH_SESSION_KEY];
     if (!payload) {
-      throw new Error('AuthSession: отсутствует payload — проверьте порядок guards');
+      throw new Error(
+        'AuthSession: отсутствует payload — проверьте порядок guards',
+      );
     }
     return payload;
   },
