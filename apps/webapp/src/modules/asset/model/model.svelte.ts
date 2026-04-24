@@ -2,12 +2,17 @@ import { backgroundColors, colors } from '$shared/config/colors';
 import type { AccessibleIconType } from '$shared/config/icons';
 import { createAsset } from '../api';
 
-type Base = {
+export type AssetType = {
 	id: string;
 	name: string;
 	slug: string;
 	symbol: string;
 	price: number;
+	profit: {
+		amount: number;
+		percent: number;
+	};
+	count: number;
 	icon: IconType;
 };
 
@@ -16,18 +21,6 @@ type IconType = {
 	backgroundColor: string;
 	color: string;
 };
-
-type AssetBaseType = {
-	type: 'base';
-};
-
-type AssetPricedType = {
-	type: 'priced';
-	priceChange: number;
-	count: number;
-};
-
-export type AssetType = Base & (AssetBaseType | AssetPricedType);
 
 export type CreateBaseAssetType = {
 	type: 'base';

@@ -1,9 +1,7 @@
 {
-  "extends": [
-    "@monesto/typescript-config/svelte.json",
-    "./.svelte-kit/tsconfig.json"
-  ],
-  "compilerOptions": {
-    "strictNullChecks": true
-  }
+	"extends": ["@monesto/typescript-config/svelte.json", "./.svelte-kit/tsconfig.json"],
+	"compilerOptions": {
+		"strictNullChecks": true,
+		"types": ["node", "telegram-web-app"]
+	}
 }

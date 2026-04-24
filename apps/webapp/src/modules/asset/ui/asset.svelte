@@ -23,8 +23,8 @@
 	</div>
 	<div class="flex items-center gap-2">
 		<span class="text-[#0F172A] text-lg font-bold">{formatMoney(asset.price)}</span>
-		{#if asset.type === 'priced'}
-			<TrendBadge percent={asset.priceChange.toFixed(2)} />
+		{#if asset.profit.percent !== 0}
+			<TrendBadge percent={asset.profit.percent.toFixed(2)} />
 		{/if}
 	</div>
 </a>

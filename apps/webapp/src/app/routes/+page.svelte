@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { AssetsPage } from '$modules/asset';
-	import type { PageProps } from './$types';
-
-	let { data }: PageProps = $props();
-	console.log('data', data);
+	import { AssetsPage, getAssets } from '$modules/asset';
 </script>
 
-<AssetsPage initialAssets={data.assets} />
+{#await getAssets()}
+	loading...
+{:then assets}
+	<AssetsPage initialAssets={assets} />
+{/await}
