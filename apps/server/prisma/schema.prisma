@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LanguageCode {
+  ru
+  en
+}
+
+enum Currency {
+  rub
+  usd
+  gold
+}
+
+enum TransactionType {
+  buy
+  sell
+}
+
+enum FinanceType {
+  income
+  expense
+}
+
+enum SessionDeviceType {
+  ios
+  android
+  macos
+  windows
+  linux
+  web
+  unknown
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  telegramId   String       @unique @map("telegram_id")
+  firstName    String       @map("first_name")
+  lastName     String       @map("last_name")
+  username     String
+  languageCode LanguageCode @map("language_code")
+  registerAt   DateTime     @default(now())
+  updateAt     DateTime     @updatedAt
+
+  assets         Asset[]
+  transactions   Transaction[]
+  portfolios     Position[]
+  settings       UserSettings?
+  financeRecords FinanceRecord[]
+  sessions       Session[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id Int @id @default(autoincrement())
+
+  baseCurrency Currency @default(usd) @map("base_currency")
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("user_settings")
+}
+
+model Asset {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  name         String
+  slug         String
+  currency     Currency      @default(usd)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  portfolios   Position[]
+  assetIcon    AssetIcon?
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@map("assets")
+}
+
+model AssetIcon {
+  id              String @id @default(cuid())
+  name            String
+  backgroundColor String
+  color           String
+
+  assetId Int    @unique
+  asset   Asset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_icon")
+}
+
+model Transaction {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  assetId   Int
+  type      TransactionType
+  quantity  Decimal // всегда положительное число
+  price     Decimal // цена за 1 единицу
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id])
+  asset     Asset           @relation(fields: [assetId], references: [id])
+
+  @@index([userId, assetId])
+  @@map("transactions")
+}
+
+model Position {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  assetId  Int
+  quantity Decimal // текущее количество
+  invested Decimal // сколько вложено (для расчета %) (сумма фактически потраченных денег при покупках)
+  user     User    @relation(fields: [userId], references: [id])
+  asset    Asset   @relation(fields: [assetId], references: [id])
+
+  @@unique([userId, assetId])
+  @@map("positions")
+}
+
+model FinanceRecord {
+  id     Int @id @default(autoincrement())
+  userId Int
+
+  type     FinanceType // income | expense
+  name     String? // если null - значит это общий доход без указания детализации
+  amount   Decimal
+  currency Currency
+
+  month Int
+  year  Int
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, year, month])
+  @@map("finance_records")
+}
+
+model Session {
+  id         String            @id @default(cuid())
+  userId     Int
+  deviceType SessionDeviceType @map("device_type")
+  token      String            @unique
+  createdAt  DateTime          @default(now())
+  expiresAt  DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceType])
+  @@index([userId])
+  @@map("sessions")
+}

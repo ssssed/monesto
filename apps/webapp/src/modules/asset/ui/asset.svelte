@@ -6,7 +6,7 @@
 	import type { Component } from 'svelte';
 	import type { AssetType } from '../model/model.svelte';
 
-	let { asset = $bindable<AssetType>() } = $props<{ asset: AssetType }>();
+	let { asset = $bindable<AssetType>() } = $props();
 
 	const Icon = accessibleIcons?.[asset.icon.name as AccessibleIconType] as Component;
 </script>
@@ -24,7 +24,7 @@
 	<div class="flex items-center gap-2">
 		<span class="text-[#0F172A] text-lg font-bold">{formatMoney(asset.price)}</span>
 		{#if asset.type === 'priced'}
-			<TrendBadge percent={asset.priceChange} />
+			<TrendBadge percent={asset.priceChange.toFixed(2)} />
 		{/if}
 	</div>
 </a>

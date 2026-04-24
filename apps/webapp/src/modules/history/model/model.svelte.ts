@@ -1,20 +1,23 @@
 import type { AssetType } from '$modules/asset';
-import { __HISTORY_OPERATIONS__ } from './__mocks__';
+import { createTransactionHistory } from '../api';
 
 export class HistoryStore {
-	constructor(private readonly asset: AssetType) {}
+	constructor(
+		private readonly asset: AssetType,
+		initialHistories: HistoryType[]
+	) {
+		this.histories = structuredClone(initialHistories);
+	}
 
-	histories: HistoryType[] = $state(__HISTORY_OPERATIONS__);
+	histories: HistoryType[] = $state([]);
 
-	addHistory(data: HistoryEventDataType) {
-		this.histories.push({
-			id: crypto.randomUUID(),
-			date: new Date(),
-			unit: this.asset.symbol,
-			count: this.asset.type === 'priced' ? +data.count : 1,
-			price: parseFloat(data.price),
-			type: data.type
-		});
+	async addHistory(data: HistoryEventDataType) {
+		try {
+			const history = await createTransactionHistory(this.asset.slug, data);
+			this.histories.push(history);
+		} catch (error) {
+			console.error(error);
+		}
 	}
 }
 

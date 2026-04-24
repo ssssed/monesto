@@ -1,6 +1,6 @@
 import { backgroundColors, colors } from '$shared/config/colors';
 import type { AccessibleIconType } from '$shared/config/icons';
-import { __ASSETS_MOCK__ } from './__mocks__';
+import { createAsset } from '../api';
 
 type Base = {
 	id: string;
@@ -64,9 +64,22 @@ export const defaultPricedAsset: CreatePricedAssetType = {
 };
 
 export class AssetsStore {
-	assets: AssetType[] = $state(__ASSETS_MOCK__);
+	constructor(initialAssets: AssetType[]) {
+		this.assets = structuredClone(initialAssets);
+	}
 
-	addAsset(asset: AssetType) {
+	assets: AssetType[] = $state([]);
+
+	async createAsset(data: CreateBaseAssetType | CreatePricedAssetType) {
+		try {
+			const asset = await createAsset(data);
+			this.addAsset(asset);
+		} catch (error) {
+			console.error(error);
+		}
+	}
+
+	private addAsset(asset: AssetType) {
 		this.assets.push(asset);
 	}
 }
