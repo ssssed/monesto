@@ -158,6 +158,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Секреты в репозитории: WEBAPP_<имя переменной как в .env> → строка в apps/webapp/.env
+      # (сейчас: WEBAPP_PUBLIC_API_URL, WEBAPP_PUBLIC_TEST_TOKEN — см. apps/webapp/.env.example).
+      # Нужны до typecheck/build: svelte-kit sync читает .env и генерирует типы $env/static/public.
+      - name: Webapp .env из GitHub Secrets
+        env:
+          PUBLIC_API_URL: ${{ secrets.WEBAPP_PUBLIC_API_URL }}
+          PUBLIC_TEST_TOKEN: ${{ secrets.WEBAPP_PUBLIC_TEST_TOKEN }}
+        run: |
+          set -e
+          umask 077
+          printf '%s\n' \
+            "PUBLIC_API_URL=${WEBAPP_PUBLIC_API_URL}" \
+            "PUBLIC_TEST_TOKEN=${WEBAPP_PUBLIC_TEST_TOKEN}" \
+            > apps/webapp/.env
+
       - name: Lint
         run: npx turbo run lint
 
