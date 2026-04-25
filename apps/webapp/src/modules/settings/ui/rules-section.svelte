@@ -15,11 +15,7 @@
 		</Button>
 	</div>
 	<p class="my-3 text-[#94a3b8] text-[13px]">Правила автоматической покупки активов</p>
-	<Empty
-		class="flex flex-col items-center justify-center"
-		title="Нет правил"
-		description="Настройте авто-покупку активов при получении дохода"
-	>
+	<Empty title="Нет правил" description="Настройте авто-покупку активов при получении дохода">
 		{#snippet icon()}
 			<div
 				class="h-14 w-14 mb-2.5 flex items-center rounded-full justify-center bg-[linear-gradient(135deg,_#f0fdf4_0%,_#dcfce7_100%)]"

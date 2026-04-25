@@ -14,7 +14,7 @@ let {icon, title, description, children, class: className} = $props<{
 
 <div
   class={cn(
-    "bg-[#f8fafc] border border-solid border-[#e2e8f0] rounded-[12px] py-6 px-4",
+    "bg-[#f8fafc] border border-solid border-[#e2e8f0] rounded-[12px] py-6 px-4 flex flex-col items-center justify-center",
     className,
   )}
 >

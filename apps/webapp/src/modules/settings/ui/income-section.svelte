@@ -10,13 +10,12 @@
 <section class={className}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-[#0f172a] text-lg font-bold">Доходы</h2>
-		<Button size="icon-sm">
-			<Plus size={16} color="#fff" />
+		<Button size="icon-sm" variant="secondary">
+			<Plus size={16} color="#15803d" />
 		</Button>
 	</div>
 	<p class="my-3 text-[#94a3b8] text-[13px]">Источники дохода и график поступлений</p>
 	<Empty
-		class="flex flex-col items-center justify-center"
 		title="Нет источников дохода"
 		description="Добавьте доходы для авто-распределения по активам"
 	>
@@ -27,8 +26,8 @@
 				<Banknote size={24} color="#22c55e" />
 			</div>
 		{/snippet}
-		<Button class="text-white font-semibold mt-2">
-			<Plus size={16} color="#fff" />
+		<Button variant="secondary" class="font-semibold mt-2">
+			<Plus size={16} color="#15803d" />
 			Добавить доход
 		</Button>
 	</Empty>

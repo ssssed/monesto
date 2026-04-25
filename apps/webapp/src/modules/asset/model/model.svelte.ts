@@ -66,3 +66,5 @@ export class AssetsStore {
 		this.assets.push(asset);
 	}
 }
+
+export const ASSET_STORE_CONTEXT = '@monesto/asset-store-context';
