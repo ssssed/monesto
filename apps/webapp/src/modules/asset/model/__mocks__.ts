@@ -6,6 +6,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '1',
 		name: 'Сбережения',
 		slug: generateSlug('Сбережения'),
+		currency: 'rub',
 		symbol: '₽',
 		price: 350000, // текущая стоимость
 		profit: {
@@ -23,6 +24,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '2',
 		name: 'Золото',
 		slug: generateSlug('Золото'),
+		currency: 'rub',
 		symbol: 'г',
 		price: 185000, // текущая стоимость
 		profit: {
@@ -40,6 +42,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '3',
 		name: 'USD',
 		slug: generateSlug('USD'),
+		currency: 'usd',
 		symbol: '$',
 		price: 92400, // текущая стоимость (1150 * ~80.35)
 		profit: {
@@ -57,6 +60,7 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '4',
 		name: 'CS Инвентарь',
 		slug: generateSlug('CS Инвентарь'),
+		currency: 'usd',
 		symbol: '$',
 		price: 45000,
 		profit: {
