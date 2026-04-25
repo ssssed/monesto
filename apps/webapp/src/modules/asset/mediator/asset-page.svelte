@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		AddHistory,
+		HISTORY_STORE_CONTEXT,
 		HistoryChart,
 		HistorySection,
 		HistoryStore,
@@ -11,6 +12,7 @@
 	import { formatMoney } from '$shared/lib/money';
 	import { ChevronLeft, Plus } from '@lucide/svelte';
 	import { Button, Header, TrendBadge } from '@monesto/ui-kit';
+	import { setContext } from 'svelte';
 	import { isLocalCurrency } from '../model/domain';
 	import type { AssetType } from '../model/model.svelte';
 
@@ -26,6 +28,8 @@
 
 	const historyStore = new HistoryStore(asset, initialHistories, initialChartData);
 	const isLocal = $derived(isLocalCurrency(asset.currency));
+
+	setContext(HISTORY_STORE_CONTEXT, historyStore);
 </script>
 
 <Header>

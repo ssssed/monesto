@@ -73,3 +73,5 @@ export type HistoryEventDataType = {
 	count: string;
 	price: string;
 };
+
+export const HISTORY_STORE_CONTEXT = '@monesto/history-store-context';

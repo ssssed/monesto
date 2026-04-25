@@ -1,6 +1,7 @@
 export { default as AddHistory } from './mediator/add-history.svelte';
 export {
 	CHART_PERIOD_FILTERS,
+	HISTORY_STORE_CONTEXT,
 	HistoryStore,
 	type ChartPeriod,
 	type ChartType,
