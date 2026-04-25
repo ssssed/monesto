@@ -16,7 +16,7 @@
 
 <main
   class={cn(
-    "font-display flex flex-1 flex-col overflow-y-auto bg-background antialiased transition-colors duration-300",
+    "font-display flex flex-1 flex-col overflow-y-auto bg-white antialiased transition-colors duration-300",
     className,
   )}
   {...props}

@@ -1,14 +1,7 @@
-import { getAssetBySlug } from '$modules/asset';
-import { getTransactionHistories } from '$modules/history';
+import { browser } from '$app/environment';
+import type { PageLoad } from './$types';
 
-export const load = async ({ params }: { params: { slug: string } }) => {
-	const [asset, histories] = await Promise.all([
-		getAssetBySlug(params.slug),
-		getTransactionHistories(params.slug)
-	]);
-
-	return {
-		asset,
-		histories
-	};
+export const load: PageLoad = async ({ parent }) => {
+	if (!browser) return;
+	await parent();
 };

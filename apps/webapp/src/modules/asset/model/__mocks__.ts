@@ -6,9 +6,14 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '1',
 		name: 'Сбережения',
 		slug: generateSlug('Сбережения'),
-		type: 'base',
+		currency: 'rub',
 		symbol: '₽',
-		price: 350000,
+		price: 350000, // текущая стоимость
+		profit: {
+			amount: 0,
+			percent: 0
+		},
+		count: 350000,
 		icon: {
 			name: 'banknote',
 			backgroundColor: '#DBEAFE',
@@ -19,10 +24,13 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '2',
 		name: 'Золото',
 		slug: generateSlug('Золото'),
-		type: 'priced',
+		currency: 'rub',
 		symbol: 'г',
-		price: 185000,
-		priceChange: 15.2,
+		price: 185000, // текущая стоимость
+		profit: {
+			amount: 24400, // 185000 - 160600
+			percent: 15.2
+		},
 		count: 1000,
 		icon: {
 			name: 'gem',
@@ -34,10 +42,13 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '3',
 		name: 'USD',
 		slug: generateSlug('USD'),
-		type: 'priced',
+		currency: 'usd',
 		symbol: '$',
-		price: 92400,
-		priceChange: 8.4,
+		price: 92400, // текущая стоимость (1150 * ~80.35)
+		profit: {
+			amount: 7160, // 92400 - 85240
+			percent: 8.4
+		},
 		count: 1150,
 		icon: {
 			name: 'dollar',
@@ -49,10 +60,13 @@ export const __ASSETS_MOCK__: AssetType[] = [
 		id: '4',
 		name: 'CS Инвентарь',
 		slug: generateSlug('CS Инвентарь'),
-		type: 'priced',
+		currency: 'usd',
 		symbol: '$',
 		price: 45000,
-		priceChange: -3.1,
+		profit: {
+			amount: -1440, // 45000 - 46440
+			percent: -3.1
+		},
 		count: 562.5,
 		icon: {
 			name: 'gamepad',

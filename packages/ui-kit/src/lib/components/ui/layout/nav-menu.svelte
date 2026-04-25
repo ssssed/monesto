@@ -13,7 +13,9 @@
 
 </script>
 
-<nav class="bg-white fixed bottom-6 rounded-[36px] stroke-1 stroke-[#e2e8f0]">
+<nav
+  class="bg-white fixed bottom-6 rounded-[36px] border border-solid border-[#e2e8f0]"
+>
   <div class="p-1 grid grid-cols-2 items-center justify-between">
     {#each items as item}
       <NavItem

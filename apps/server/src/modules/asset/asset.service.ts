@@ -363,6 +363,7 @@ export class AssetService {
       id: String(asset.id),
       name: asset.name,
       slug: asset.slug,
+      currency: asset.currency,
       symbol: this.currencyToSymbol(asset.currency),
       price: Number(profit.currentValueInBase.toFixed(2)),
       profit: {
@@ -384,6 +385,10 @@ export class AssetService {
       select: { baseCurrency: true },
     });
     return settings?.baseCurrency ?? Currency.usd;
+  }
+
+  getCurrencySymbol(currency: Currency) {
+    return this.currencyToSymbol(currency);
   }
 
   private currencyToSymbol(currency: Currency) {

@@ -1,3 +1,4 @@
+/// <reference types="telegram-web-app" />
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 declare global {
@@ -7,6 +8,8 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 	}
+
+	var __APP_VERSION__: string;
 }
 
 export {};

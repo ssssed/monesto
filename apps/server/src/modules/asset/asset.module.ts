@@ -11,6 +11,7 @@ import { UsdCurrencyConversionStrategy } from './profit/strategies/usd-currency-
 @Module({
   imports: [AuthModule],
   controllers: [AssetController],
+  exports: [AssetService],
   providers: [
     AssetService,
     RubCurrencyConversionStrategy,

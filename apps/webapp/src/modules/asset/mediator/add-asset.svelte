@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { userStore } from '$modules/user';
 	import { CheckIcon } from '@lucide/svelte';
 	import {
 		Button,
@@ -15,58 +16,50 @@
 		TabsTrigger
 	} from '@monesto/ui-kit';
 	import type { Snippet } from 'svelte';
-	import { getCreateAssetDataByType, isDisabledSubmit } from '../model/domain';
+	import { isDisabledSubmit } from '../model/domain';
 	import {
-		defaultBaseAsset,
-		defaultPricedAsset,
-		type AssetType,
-		type CreateBaseAssetType,
-		type CreatePricedAssetType
+		DEFAULT_ASSET_ICON,
+		type AssetInAnotherCurrency,
+		type AssetInUserCurrency,
+		type CreateAssetType
 	} from '../model/model.svelte';
-	import BaseAssetForm from './base-asset-form.svelte';
-	import PricedAssetForm from './priced-asset-form.svelte';
+	import AnotherAssetForm from './another-asset-form.svelte';
+	import LocalAssetForm from './local-asset-form.svelte';
 
 	let {
 		children,
 		onSubmit
 	}: {
 		children: Snippet;
-		onSubmit: (
-			data: CreateBaseAssetType | CreatePricedAssetType,
-			onClose: () => void
-		) => Promise<void> | void;
+		onSubmit: (data: CreateAssetType, onClose: () => void) => Promise<void> | void;
 	} = $props();
 
-	let type = $state<AssetType['type']>('base');
-	let open = $state(false);
-	let baseData: CreateBaseAssetType = $state(defaultBaseAsset);
-	let pricedData: CreatePricedAssetType = $state(defaultPricedAsset);
+	const defaultFormData = {
+		name: '',
+		icon: DEFAULT_ASSET_ICON,
+		currency: userStore.userSettings?.currency ?? 'usd'
+	};
 
-	function onTabChange(tab: string) {
-		switch (tab) {
-			case 'base':
-				return (pricedData = defaultPricedAsset);
-			case 'priced':
-				return (baseData = defaultBaseAsset);
-			default:
-				throw new Error(`${tab} не обработан`);
-		}
-	}
+	let type = $state<AssetInUserCurrency | AssetInAnotherCurrency>('local');
+	let open = $state(false);
+
+	let formData = $state<CreateAssetType>(defaultFormData);
 
 	function onClose() {
 		open = false;
 	}
 
-	async function handleSubmit(e: SubmitEvent) {
+	function onTabChange() {
+		formData = defaultFormData;
+	}
+
+	async function handleSubmitForm() {
+		onSubmit(formData, onClose);
+	}
+
+	function onFormSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		switch (type) {
-			case 'base':
-				return onSubmit(baseData, onClose);
-			case 'priced':
-				return onSubmit(pricedData, onClose);
-			default:
-				throw new Error(`${type} не обработан`);
-		}
+		handleSubmitForm();
 	}
 </script>
 
@@ -74,21 +67,21 @@
 	<DrawerTrigger>
 		{@render children?.()}
 	</DrawerTrigger>
-	<form onsubmit={handleSubmit}>
+	<form onsubmit={onFormSubmit}>
 		<DrawerContent class="!max-h-[90vh]">
 			<DrawerHeader>
 				<DrawerTitle class="text-xl font-bold px-[7px]">Новый актив</DrawerTitle>
 			</DrawerHeader>
 			<Tabs bind:value={type} onValueChange={onTabChange} class="px-5">
 				<TabsList class="w-full">
-					<TabsTrigger value="base">В моей валюте</TabsTrigger>
-					<TabsTrigger value="priced">В другой валюте</TabsTrigger>
+					<TabsTrigger value="local">В моей валюте</TabsTrigger>
+					<TabsTrigger value="another">В другой валюте</TabsTrigger>
 				</TabsList>
-				<TabsContent value="base" class="flex flex-col gap-4">
-					<BaseAssetForm bind:data={baseData} />
+				<TabsContent value="local" class="flex flex-col gap-4">
+					<LocalAssetForm bind:data={formData} />
 				</TabsContent>
-				<TabsContent value="priced" class="flex flex-col gap-4">
-					<PricedAssetForm bind:data={pricedData} />
+				<TabsContent value="another" class="flex flex-col gap-4">
+					<AnotherAssetForm bind:data={formData} />
 				</TabsContent>
 			</Tabs>
 			<DrawerFooter class="mt-[126px]">
@@ -96,8 +89,8 @@
 					type="submit"
 					size="extraLg"
 					class="font-semibold text-lg"
-					onclick={handleSubmit}
-					disabled={isDisabledSubmit(getCreateAssetDataByType(type, baseData, pricedData))}
+					onclick={handleSubmitForm}
+					disabled={isDisabledSubmit(formData)}
 				>
 					<CheckIcon size={20} />
 					Создать

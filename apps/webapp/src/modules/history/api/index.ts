@@ -1,4 +1,4 @@
-import { $api } from '$shared/lib/api';
+import { api } from '$shared/lib/api';
 import type { RequestifyResponse } from 'requestify.js';
 import type { HistoryEventDataType, HistoryType } from '../model/model.svelte';
 
@@ -16,7 +16,7 @@ export async function getTransactionHistories(
 	slug: string,
 	period?: '1M' | '3M' | '6M' | '1Y' | 'ALL'
 ) {
-	const { data } = await $api.get<RequestifyResponse<TransactionHistoriesResponse>>(
+	const { data } = await api.get<RequestifyResponse<TransactionHistoriesResponse>>(
 		`/assets/${slug}/transactions`,
 		{
 			query: period ? { period } : undefined
@@ -26,7 +26,7 @@ export async function getTransactionHistories(
 }
 
 export async function createTransactionHistory(slug: string, body: HistoryEventDataType) {
-	const { data } = await $api.post<HistoryEventDataType, RequestifyResponse<HistoryType>>(
+	const { data } = await api.post<HistoryEventDataType, RequestifyResponse<HistoryType>>(
 		`/assets/${slug}/transactions`,
 		body
 	);

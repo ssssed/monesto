@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { AssetsPage } from '$modules/asset';
-	import type { PageProps } from './$types';
-
-	let { data }: PageProps = $props();
-	console.log('data', data);
+	import { getAssets } from '$modules/asset';
+	import AssetsPage from '$modules/asset/mediator/assets-page.svelte';
+	import Loader from '$shared/ui/loader.svelte';
 </script>
 
-<AssetsPage initialAssets={data.assets} />
+{#await getAssets()}
+	<Loader class="my-auto" overlay title="Monesto" message="Загружаем ваши активы..."></Loader>
+{:then assets}
+	<AssetsPage initialAssets={assets} />
+{/await}

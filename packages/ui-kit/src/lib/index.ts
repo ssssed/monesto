@@ -22,6 +22,7 @@ export {
   DrawerTitle,
   DrawerTrigger
 } from "./components/ui/drawer"
+export { Empty } from './components/ui/empty'
 export {
   NumberInput,
   TextInput,

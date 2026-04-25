@@ -2,12 +2,20 @@ import { backgroundColors, colors } from '$shared/config/colors';
 import type { AccessibleIconType } from '$shared/config/icons';
 import { createAsset } from '../api';
 
-type Base = {
+export type CurrencyType = 'rub' | 'usd';
+
+export type AssetType = {
 	id: string;
 	name: string;
 	slug: string;
+	currency: CurrencyType;
 	symbol: string;
 	price: number;
+	profit: {
+		amount: number;
+		percent: number;
+	};
+	count: number;
 	icon: IconType;
 };
 
@@ -17,50 +25,25 @@ type IconType = {
 	color: string;
 };
 
-type AssetBaseType = {
-	type: 'base';
-};
+export type AssetInUserCurrency = 'local';
+export type AssetInAnotherCurrency = 'another';
 
-type AssetPricedType = {
-	type: 'priced';
-	priceChange: number;
-	count: number;
-};
-
-export type AssetType = Base & (AssetBaseType | AssetPricedType);
-
-export type CreateBaseAssetType = {
-	type: 'base';
+export type CreateAssetType = {
 	name: string;
+	currency: CurrencyType;
 	icon: IconType;
 };
 
-export type CreatePricedAssetType = {
-	type: 'priced';
-	name: string;
-	unit: string;
-	icon: IconType;
-};
+export const DEFAULT_ASSET_ICON = {
+	name: 'banknote' as AccessibleIconType,
+	color: colors[0],
+	backgroundColor: backgroundColors[0]
+} as const;
 
-export const defaultBaseAsset: CreateBaseAssetType = {
-	icon: {
-		name: 'banknote',
-		color: colors[0],
-		backgroundColor: backgroundColors[0]
-	},
+export const DEFAULT_CREATE_ASSET = {
 	name: '',
-	type: 'base'
-};
-
-export const defaultPricedAsset: CreatePricedAssetType = {
-	icon: {
-		name: 'banknote',
-		color: colors[0],
-		backgroundColor: backgroundColors[0]
-	},
-	name: '',
-	unit: '',
-	type: 'priced'
+	icon: DEFAULT_ASSET_ICON,
+	currency: 'usd'
 };
 
 export class AssetsStore {
@@ -70,7 +53,7 @@ export class AssetsStore {
 
 	assets: AssetType[] = $state([]);
 
-	async createAsset(data: CreateBaseAssetType | CreatePricedAssetType) {
+	async createAsset(data: CreateAssetType) {
 		try {
 			const asset = await createAsset(data);
 			this.addAsset(asset);
@@ -83,3 +66,5 @@ export class AssetsStore {
 		this.assets.push(asset);
 	}
 }
+
+export const ASSET_STORE_CONTEXT = '@monesto/asset-store-context';
