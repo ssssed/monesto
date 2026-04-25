@@ -14,7 +14,7 @@
 <script lang="ts">
 	import { formatMoney } from '$shared/lib/money';
 	import { formatDate } from '$shared/lib/time';
-	import { ArrowDownLeft, ArrowUpRight } from '@lucide/svelte';
+	import { ArrowDownLeft, ArrowUpRight, History } from '@lucide/svelte';
 	import { cn, Empty } from '@monesto/ui-kit';
 	import Button from '@monesto/ui-kit/components/ui/button/button.svelte';
 	import { getContext, type Component } from 'svelte';
@@ -69,9 +69,15 @@
 		</div>
 	{:else}
 		<Empty
+			class="bg-white"
 			title="История пуста"
 			description="Нажмите +, чтобы добавить первую операцию по этому активу"
 		>
+			{#snippet icon()}
+				<div class="h-14 w-14 mb-2.5 flex items-center rounded-full justify-center bg-[#f1f5f9]">
+					<History size={24} color="#94a3b8" />
+				</div>
+			{/snippet}
 			<AddHistory
 				class="mt-2"
 				onAddHistory={(data, onClose) => {
