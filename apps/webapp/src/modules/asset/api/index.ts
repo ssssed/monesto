@@ -1,6 +1,6 @@
 import { api } from '$shared/lib/api';
 import type { RequestifyResponse } from 'requestify.js';
-import type { AssetType, CreateBaseAssetType, CreatePricedAssetType } from '../model/model.svelte';
+import type { AssetType, CreateAssetType } from '../model/model.svelte';
 
 export async function getAssets(): Promise<AssetType[]> {
 	try {
@@ -13,13 +13,8 @@ export async function getAssets(): Promise<AssetType[]> {
 	}
 }
 
-export async function createAsset(
-	asset: CreateBaseAssetType | CreatePricedAssetType
-): Promise<AssetType> {
-	const { data } = await api.post<
-		CreateBaseAssetType | CreatePricedAssetType,
-		RequestifyResponse<AssetType>
-	>('/assets', asset);
+export async function createAsset(asset: CreateAssetType): Promise<AssetType> {
+	const { data } = await api.post<CreateAssetType, RequestifyResponse<AssetType>>('/assets', asset);
 
 	return data;
 }

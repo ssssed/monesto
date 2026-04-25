@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Currency } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AssetService } from '../asset/asset.service';
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly assetService: AssetService,
+  ) {}
 
   async updateBaseCurrency(userId: number, baseCurrency: Currency) {
     return this.prisma.userSettings.upsert({
@@ -37,5 +41,21 @@ export class SettingsService {
         },
       };
     });
+  }
+
+  async getUserSettings(userId: number) {
+    const data = await this.prisma.userSettings.findFirst({
+      where: { userId },
+      select: {
+        baseCurrency: true,
+      },
+    });
+
+    const currency = data?.baseCurrency ?? Currency.usd;
+
+    return {
+      currency,
+      symbol: this.assetService.getCurrencySymbol(currency),
+    };
   }
 }

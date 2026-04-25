@@ -1,15 +1,20 @@
 <script lang="ts">
+	import { userStore } from '$modules/user';
 	import { backgroundColors, colors } from '$shared/config/colors';
 	import Label from '$shared/ui/label.svelte';
 	import { TextInput } from '@monesto/ui-kit';
-	import { defaultBaseAsset, type CreateBaseAssetType } from '../model/model.svelte';
+	import { DEFAULT_ASSET_ICON, type CreateAssetType } from '../model/model.svelte';
 	import ColorPicker from '../ui/color-picker.svelte';
 	import IconSection from '../ui/icon-section.svelte';
 
 	let {
-		data = $bindable(defaultBaseAsset)
+		data = $bindable({
+			name: '',
+			icon: DEFAULT_ASSET_ICON,
+			currency: userStore.userSettings?.currency ?? 'usd'
+		})
 	}: {
-		data: CreateBaseAssetType;
+		data: CreateAssetType;
 	} = $props();
 </script>
 

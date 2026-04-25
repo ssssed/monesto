@@ -2,14 +2,18 @@
 	import { backgroundColors, colors } from '$shared/config/colors';
 	import Label from '$shared/ui/label.svelte';
 	import { TextInput } from '@monesto/ui-kit';
-	import { defaultPricedAsset, type CreatePricedAssetType } from '../model/model.svelte';
+	import { DEFAULT_ASSET_ICON, type CreateAssetType } from '../model/model.svelte';
 	import ColorPicker from '../ui/color-picker.svelte';
 	import IconSection from '../ui/icon-section.svelte';
 
 	let {
-		data = $bindable(defaultPricedAsset)
+		data = $bindable({
+			name: '',
+			icon: DEFAULT_ASSET_ICON,
+			currency: 'rub'
+		})
 	}: {
-		data: CreatePricedAssetType;
+		data: CreateAssetType;
 	} = $props();
 </script>
 
@@ -29,7 +33,7 @@
 		variant="secondary"
 		label="Единица измерения"
 		placeholder="Единица измерения"
-		bind:value={data.unit}
+		bind:value={data.currency}
 		size="sm"
 		focusUnderline="none"
 		textAlign="left"

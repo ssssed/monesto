@@ -1,7 +1,7 @@
-import { Body, Controller, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Auth } from '../auth/decorators/auth.decorator';
 import { AuthSession } from '../auth/decorators/auth-session.decorator';
+import { Auth } from '../auth/decorators/auth.decorator';
 import type { AuthSessionPayload } from '../auth/guards/session.guard';
 import { UpdateBaseCurrencyDto } from './dto/update-base-currency.dto';
 import { SettingsService } from './settings.service';
@@ -32,5 +32,11 @@ export class SettingsController {
   })
   clearAssetsPortfolio(@AuthSession() session: AuthSessionPayload) {
     return this.settingsService.clearAssetsPortfolio(session.userId);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Получить настройки пользователя' })
+  getUserSettings(@AuthSession() session: AuthSessionPayload) {
+    return this.settingsService.getUserSettings(session.userId);
   }
 }

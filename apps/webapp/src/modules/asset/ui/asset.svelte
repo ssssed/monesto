@@ -4,6 +4,7 @@
 	import { formatMoney } from '$shared/lib/money';
 	import { TrendBadge } from '@monesto/ui-kit';
 	import type { Component } from 'svelte';
+	import { isLocalCurrency } from '../model/domain';
 	import type { AssetType } from '../model/model.svelte';
 
 	let { asset = $bindable<AssetType>() } = $props();
@@ -23,7 +24,7 @@
 	</div>
 	<div class="flex items-center gap-2">
 		<span class="text-[#0F172A] text-lg font-bold">{formatMoney(asset.price)}</span>
-		{#if asset.profit.percent !== 0}
+		{#if !isLocalCurrency(asset.currency)}
 			<TrendBadge percent={asset.profit.percent.toFixed(2)} />
 		{/if}
 	</div>

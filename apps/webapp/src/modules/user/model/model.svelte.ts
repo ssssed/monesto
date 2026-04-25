@@ -1,5 +1,6 @@
+import type { CurrencyType } from '$modules/asset';
 import { SESSION_TOKEN_KEY } from '$shared/lib/api';
-import { getUserInfo, startSession } from '../api';
+import { getUserInfo, getUserSettings, startSession } from '../api';
 
 type LanguageCode = 'ru' | 'en';
 
@@ -25,6 +26,10 @@ function saveSessionToken(sessionToken: string) {
 
 class UserStore {
 	user = $state<UserType>();
+	userSettings = $state<{
+		currency: CurrencyType;
+		symbol: string;
+	}>();
 	sessionToken = $state<string>();
 
 	async startSession(initData: string) {
@@ -33,8 +38,9 @@ class UserStore {
 			this.sessionToken = session.sessionToken;
 			saveSessionToken(session.sessionToken);
 
-			const user = await getUserInfo();
+			const [user, userSettings] = await Promise.all([getUserInfo(), getUserSettings()]);
 			this.user = user;
+			this.userSettings = userSettings;
 		} catch (error) {
 			console.error(error);
 		}
