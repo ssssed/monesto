@@ -18,7 +18,10 @@
 	import type { Component } from 'svelte';
 	import type { HistoryType } from '../model/model.svelte';
 
-	let { histories = $bindable([]) }: { histories: HistoryType[] } = $props();
+	let {
+		histories = $bindable([]),
+		isLocalCurrency
+	}: { histories: HistoryType[]; isLocalCurrency: boolean } = $props();
 
 	let sortedHistories = $derived(
 		histories.toSorted((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -43,7 +46,7 @@
 					<h3 class="text-[#0F172A]">{text[history.type]}</h3>
 					<p class="text-[#94A3B8] text-[13px]">
 						{formatDate(history.date)} • {history.count}
-						{history.unit} × {formatMoney(history.price)}
+						{`${history.unit} ${!isLocalCurrency ? '× ' + formatMoney(history.price) : ''}`}
 					</p>
 				</div>
 				<span

@@ -8,6 +8,8 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 	}
+
+	var __APP_VERSION__: string;
 }
 
 export {};

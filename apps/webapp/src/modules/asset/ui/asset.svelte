@@ -13,7 +13,7 @@
 </script>
 
 <a
-	class="p-4 bg-white rounded-lg stroke-1 stroke-[#F1F5F9] flex justify-between items-center"
+	class="p-4 bg-white rounded-lg border border-solid border-[#F1F5F9] flex justify-between items-center"
 	href={ROUTER.asset(asset.slug)}
 >
 	<div class="flex items-center gap-2.5">

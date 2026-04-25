@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { Page } from '@monesto/ui-kit';
+	import { SettingsPage } from '$modules/settings';
 </script>
 
-<Page>
-	<h1>Settings page</h1>
-</Page>
+<SettingsPage />

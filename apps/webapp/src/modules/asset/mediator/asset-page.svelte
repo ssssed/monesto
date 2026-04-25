@@ -79,4 +79,4 @@
 	onChangePeriod={historyStore.setChartPeriod.bind(historyStore)}
 />
 
-<HistorySection histories={historyStore.histories} />
+<HistorySection histories={historyStore.histories} isLocalCurrency={isLocal} />

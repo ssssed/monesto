@@ -21,7 +21,8 @@
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
-        green: "bg-primary/25 border border-solid border-[#F1F5F9]"
+        green: "bg-primary/25 border border-solid border-[#F1F5F9]",
+        danger: "bg-transparent border border-solid border-[#fecaca] text-[#dc2626]"
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
