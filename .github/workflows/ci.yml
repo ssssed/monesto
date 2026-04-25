@@ -152,7 +152,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
           cache: npm
 
       - name: Install dependencies
@@ -165,6 +165,8 @@ jobs:
         env:
           PUBLIC_API_URL: ${{ secrets.WEBAPP_PUBLIC_API_URL }}
           PUBLIC_TEST_TOKEN: ${{ secrets.WEBAPP_PUBLIC_TEST_TOKEN }}
+          PUBLIC_BOT_URL: ${{secrets.WEBAPP_PUBLIC_BOT_URL}}
+          PUBLIC_BOT_NAME: ${{ secrets.WEBAPP_PUBLIC_BOT_NAME }}
         run: |
           set -e
           umask 077
