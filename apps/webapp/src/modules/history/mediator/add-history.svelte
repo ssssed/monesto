@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { AssetType } from '$modules/asset';
 	import { formatMoney } from '$shared/lib/money';
 	import Label from '$shared/ui/label.svelte';
 	import { ArrowDownLeft, ArrowUpRight, Check } from '@lucide/svelte';
@@ -26,24 +25,23 @@
 		children,
 		class: className,
 		onAddHistory,
-		mode
+		isLocalCurrency
 	}: {
 		children: Snippet;
 		class?: string;
-		mode: AssetType['type'];
 		onAddHistory: (event: HistoryEventDataType, onClose: () => void) => Promise<void> | void;
+		isLocalCurrency: boolean;
 	} = $props();
 
 	let open = $state<boolean>(false);
-
 	let formData = $state<HistoryEventDataType>({
 		type: 'buy',
-		count: '',
-		price: ''
+		price: isLocalCurrency ? '1' : '',
+		count: ''
 	});
 
-	let total = $derived(calculateTotal(mode, formData));
-	let disabled = $derived(isCreateHistoryEventDisabled(mode, formData));
+	let total = $derived(calculateTotal(formData));
+	let disabled = $derived(isCreateHistoryEventDisabled(formData));
 
 	function onClose() {
 		open = false;
@@ -72,31 +70,18 @@
 			<div class="pt-4 flex flex-col gap-4">
 				<div
 					class={cn('grid gap-3', {
-						['grid-cols-2']: mode === 'priced',
-						['grid-cols-1']: mode === 'base'
+						['grid-cols-2']: !isLocalCurrency,
+						['grid-cols-1']: isLocalCurrency
 					})}
 				>
-					<Label name="Цена за ед. ₽">
-						<NumberInput
-							size="sm"
-							variant="secondary"
-							textAlign="left"
-							focusUnderline="none"
-							bind:value={formData.price}
-						>
-							{#snippet children({ onClose })}
-								<Button onclick={onClose} size="extraLg">ОК</Button>
-							{/snippet}
-						</NumberInput>
-					</Label>
-					{#if mode === 'priced'}
-						<Label name="Количество">
+					{#if !isLocalCurrency}
+						<Label name="Цена за ед. ₽">
 							<NumberInput
 								size="sm"
 								variant="secondary"
 								textAlign="left"
 								focusUnderline="none"
-								bind:value={formData.count}
+								bind:value={formData.price}
 							>
 								{#snippet children({ onClose })}
 									<Button onclick={onClose} size="extraLg">ОК</Button>
@@ -104,6 +89,19 @@
 							</NumberInput>
 						</Label>
 					{/if}
+					<Label name="Количество">
+						<NumberInput
+							size="sm"
+							variant="secondary"
+							textAlign="left"
+							focusUnderline="none"
+							bind:value={formData.count}
+						>
+							{#snippet children({ onClose })}
+								<Button onclick={onClose} size="extraLg">ОК</Button>
+							{/snippet}
+						</NumberInput>
+					</Label>
 				</div>
 				<div class="mb-22.5 flex justify-between items-center">
 					<span class="text-[#64748B] text-[15px] font-medium">Итого:</span>
