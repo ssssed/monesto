@@ -15,7 +15,7 @@
 </script>
 
 <div class="flex flex-col gap-3 items-center justify-center max-w-[280px] mx-auto text-center mb-6">
-	<div class="p-3.5 rounded-full bg-[#F1F5F9] stroke-1 stroke-[#F1F5F9]">
+	<div class="p-3.5 rounded-full bg-[#F1F5F9] border border-solid border-[#F1F5F9]">
 		<TrendingUp size={28} color="#3B82F6" />
 	</div>
 	<h1 class="text-[#0F172A] text-3xl font-bold">Ваши активы</h1>
