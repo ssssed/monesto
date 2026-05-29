@@ -6,12 +6,20 @@
 	import '../app.css';
 
 	let { children } = $props();
+
+	const onboardingPage =
+		page.url.pathname === ROUTER.onboarding
+			? 'h-full min-h-0 !overflow-hidden !overflow-y-hidden'
+			: '';
 </script>
 
 <Page
-	class={cn({
-		['mb-[82px]']: isNavBarVisible(page.url.pathname)
-	})}
+	class={cn(
+		{
+			['mb-[82px]']: isNavBarVisible(page.url.pathname)
+		},
+		onboardingPage
+	)}
 >
 	{@render children()}
 	{#if isNavBarVisible(page.url.pathname)}
