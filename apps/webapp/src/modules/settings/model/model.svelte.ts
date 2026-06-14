@@ -1,7 +1,7 @@
 import type { AssetType } from '$modules/asset';
 import type { DatepickerRangeValue, DatepickerValue } from '@monesto/ui-kit';
 import { getContext, setContext } from 'svelte';
-import { createRule } from '../api';
+import { createRule, deleteRule as deleteRuleApi } from '../api';
 
 export type IncomePayoutFrequency = 'monthly' | 'semimonthly' | 'daily';
 
@@ -83,6 +83,16 @@ export class AllocateRulesStore {
 
 	private addRule(rule: RuleType) {
 		this.rules.push(rule);
+	}
+
+	async deleteRule(id: string) {
+		try {
+			await deleteRuleApi(id);
+
+			this.rules = this.rules.filter((rule) => rule.id !== id);
+		} catch (error) {
+			console.error(error);
+		}
 	}
 
 	saveToContext() {

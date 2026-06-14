@@ -10,6 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -19,10 +20,9 @@ import {
   ApiParam,
   ApiTags,
   ApiUnauthorizedResponse,
-  ApiBadRequestResponse,
 } from '@nestjs/swagger';
-import { Auth } from '../auth/decorators/auth.decorator';
 import { AuthSession } from '../auth/decorators/auth-session.decorator';
+import { Auth } from '../auth/decorators/auth.decorator';
 import type { AuthSessionPayload } from '../auth/guards/session.guard';
 import { AllocationRulesService } from './allocation-rules.service';
 import { AllocationRuleResponseDto } from './dto/allocation-rule-response.dto';
@@ -33,7 +33,9 @@ import { CreateAllocationRuleDto } from './dto/create-allocation-rule.dto';
 @ApiBearerAuth('session')
 @Controller('allocation-rules')
 export class AllocationRulesController {
-  constructor(private readonly allocationRulesService: AllocationRulesService) {}
+  constructor(
+    private readonly allocationRulesService: AllocationRulesService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -72,7 +74,7 @@ export class AllocationRulesController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Удалить правило авто-распределения' })
   @ApiParam({
     name: 'id',
@@ -86,6 +88,6 @@ export class AllocationRulesController {
     @AuthSession() session: AuthSessionPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    await this.allocationRulesService.remove(session.userId, id);
+    return await this.allocationRulesService.remove(session.userId, id);
   }
 }

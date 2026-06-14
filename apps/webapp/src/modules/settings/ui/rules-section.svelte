@@ -2,14 +2,14 @@
 	import { Plus, Settings2 } from '@lucide/svelte';
 	import { Button, Empty } from '@monesto/ui-kit';
 	import AddRule from '../mediator/add-rule.svelte';
-	import { AllocateRulesStore } from '../model/model.svelte';
+	import { type RuleType } from '../model/model.svelte';
 	import Rule from './rule.svelte';
 
-	let { class: className } = $props<{
+	let { class: className, rules = $bindable() } = $props<{
 		class?: string;
+		rules: RuleType[];
 	}>();
 
-	const rulesStore = AllocateRulesStore.getContext();
 </script>
 
 <section class={className}>
@@ -22,9 +22,9 @@
 		</AddRule>
 	</div>
 	<p class="my-3 text-[#94a3b8] text-[13px]">Правила автоматической покупки активов</p>
-	{#if rulesStore.rules.length > 0}
+	{#if rules.length > 0}
 		<div class="flex flex-col gap-2.5">
-			{#each rulesStore.rules as rule (rule.id)}
+			{#each rules as rule (rule.id)}
 				<Rule {...rule} />
 			{/each}
 		</div>

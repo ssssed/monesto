@@ -17,3 +17,7 @@ export async function createRule(data: CreateRuleType) {
 	return (await api.post<CreateRuleType, RequestifyResponse<RuleType>>('/allocation-rules', data))
 		.data;
 }
+
+export async function deleteRule(id: string) {
+	return api.delete<RequestifyResponse<void>>(`/allocation-rules/${id}`);
+}
