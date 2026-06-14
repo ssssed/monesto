@@ -1,5 +1,7 @@
 import type { AssetType } from '$modules/asset';
 import type { DatepickerRangeValue, DatepickerValue } from '@monesto/ui-kit';
+import { getContext, setContext } from 'svelte';
+import { createRule } from '../api';
 
 export type IncomePayoutFrequency = 'monthly' | 'semimonthly' | 'daily';
 
@@ -52,3 +54,43 @@ export type RuleType = {
 	topUpType: TopUpType;
 	value: number;
 };
+
+export type CreateRuleType = {
+	assetSlug: string;
+	topUpType: TopUpType;
+	value: number;
+	executionDate: string;
+};
+
+const ALLOCATE_RULES_STORE_CONTEXT_KEY = '@monesto/allocate-rules-store-context';
+
+export class AllocateRulesStore {
+	constructor(initial: RuleType[]) {
+		this.rules = structuredClone(initial);
+	}
+
+	rules: RuleType[] = $state([]);
+
+	async createRule(data: CreateRuleType) {
+		try {
+			const rule = await createRule(data);
+
+			this.addRule(rule);
+		} catch (error) {
+			console.error(error);
+		}
+	}
+
+	private addRule(rule: RuleType) {
+		this.rules.push(rule);
+	}
+
+	saveToContext() {
+		setContext(ALLOCATE_RULES_STORE_CONTEXT_KEY, this);
+		return this;
+	}
+
+	static getContext() {
+		return getContext(ALLOCATE_RULES_STORE_CONTEXT_KEY) as AllocateRulesStore;
+	}
+}

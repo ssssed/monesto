@@ -3,11 +3,11 @@
 	import { Button, Empty } from '@monesto/ui-kit';
 	import { getContext } from 'svelte';
 	import AddAsset from '../mediator/add-asset.svelte';
-	import { ASSET_STORE_CONTEXT, AssetsStore, type AssetType } from '../model/model.svelte';
+	import { AssetsStore, type AssetType } from '../model/model.svelte';
 	import Asset from './asset.svelte';
 
 	let { assets = $bindable([]) } = $props<{ assets: AssetType[] }>();
-	let assetsStore: AssetsStore = getContext(ASSET_STORE_CONTEXT);
+	let assetsStore = AssetsStore.getContext();
 </script>
 
 {#if assets.length > 0}

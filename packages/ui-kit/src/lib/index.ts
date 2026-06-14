@@ -33,6 +33,13 @@ export {
 } from "./components/ui/datepicker"
 export { Empty } from './components/ui/empty'
 export {
+	Select,
+	type SelectItemSnippetProps,
+	type SelectLabelSnippetProps,
+	type SelectProps,
+	type SelectSize
+} from './components/ui/select'
+export {
   NumberInput,
   TextInput,
   type InputFocusUnderline,

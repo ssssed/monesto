@@ -1,6 +1,9 @@
 import type { CurrencyType } from '$modules/asset';
 import { SESSION_TOKEN_KEY } from '$shared/lib/api';
+import { setContext } from 'svelte'
 import { getUserInfo, getUserSettings, startSession } from '../api';
+
+const USER_SETTINGS_CONTEXT_KEY = '@monesto/settings-context';
 
 type LanguageCode = 'ru' | 'en';
 

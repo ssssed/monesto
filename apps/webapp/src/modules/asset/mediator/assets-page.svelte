@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { PlusIcon, TrendingUp } from '@lucide/svelte';
 	import { Button } from '@monesto/ui-kit';
-	import { setContext } from 'svelte';
-	import { ASSET_STORE_CONTEXT, AssetsStore, type AssetType } from '../model/model.svelte';
+	import { AssetsStore, type AssetType } from '../model/model.svelte';
 	import AssetsList from '../ui/assets-list.svelte';
 	import TotalAssets from '../ui/total-assets.svelte';
 	import AddAsset from './add-asset.svelte';
@@ -11,10 +10,8 @@
 		initialAssets: AssetType[];
 	}>();
 
-	let assetsStore = new AssetsStore(initialAssets);
+	let assetsStore = new AssetsStore(initialAssets).saveToContext();
 	let total = $derived(assetsStore.assets.reduce((acc, asset) => (acc += asset.price), 0));
-
-	setContext(ASSET_STORE_CONTEXT, assetsStore);
 </script>
 
 <div class="flex flex-col gap-3 items-center justify-center max-w-[280px] mx-auto text-center mb-6">

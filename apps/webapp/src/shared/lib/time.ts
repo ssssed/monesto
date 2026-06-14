@@ -4,3 +4,7 @@ import { ru } from 'date-fns/locale';
 export function formatDate(date: Date | string | number): string {
 	return format(new Date(date), 'd MMM yyyy', { locale: ru });
 }
+
+export function formatDateToServer(date: Date | string) {
+	return format(new Date(date), 'yyyy-MM-dd');
+}
