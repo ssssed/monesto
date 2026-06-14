@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Plus, Settings2 } from '@lucide/svelte';
 	import { Button, Empty } from '@monesto/ui-kit';
+	import AddRule from '../mediator/add-rule.svelte';
 
 	let { class: className } = $props<{
 		class?: string;
@@ -10,9 +11,11 @@
 <section class={className}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-[#0f172a] text-lg font-bold">Авто-распределение</h2>
-		<Button size="icon-sm">
-			<Plus size={16} color="#fff" />
-		</Button>
+		<AddRule>
+			<Button class="ml-auto" size="icon-sm">
+				<Plus size={16} color="#fff" />
+			</Button>
+		</AddRule>
 	</div>
 	<p class="my-3 text-[#94a3b8] text-[13px]">Правила автоматической покупки активов</p>
 	<Empty title="Нет правил" description="Настройте авто-покупку активов при получении дохода">
@@ -23,9 +26,11 @@
 				<Settings2 size={24} color="#22c55e" />
 			</div>
 		{/snippet}
-		<Button class="text-white font-semibold mt-2">
-			<Plus size={16} color="#fff" />
-			Создать правило
-		</Button>
+		<AddRule>
+			<Button class="text-white font-semibold mt-2">
+				<Plus size={16} color="#fff" />
+				Создать правило
+			</Button>
+		</AddRule>
 	</Empty>
 </section>

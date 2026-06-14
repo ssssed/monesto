@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Banknote, Plus } from '@lucide/svelte';
 	import { Button, Empty } from '@monesto/ui-kit';
+	import AddIncomeDetails from '../mediator/add-income-details.svelte';
 
 	let { class: className } = $props<{
 		class?: string;
@@ -10,9 +11,11 @@
 <section class={className}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-[#0f172a] text-lg font-bold">Доходы</h2>
-		<Button size="icon-sm" variant="secondary">
-			<Plus size={16} color="#15803d" />
-		</Button>
+		<AddIncomeDetails>
+			<Button class="ml-auto" size="icon-sm" variant="secondary">
+				<Plus size={16} color="#15803d" />
+			</Button>
+		</AddIncomeDetails>
 	</div>
 	<p class="my-3 text-[#94a3b8] text-[13px]">Источники дохода и график поступлений</p>
 	<Empty
@@ -26,9 +29,11 @@
 				<Banknote size={24} color="#22c55e" />
 			</div>
 		{/snippet}
-		<Button variant="secondary" class="font-semibold mt-2">
-			<Plus size={16} color="#15803d" />
-			Добавить доход
-		</Button>
+		<AddIncomeDetails>
+			<Button variant="secondary" class="font-semibold mt-2">
+				<Plus size={16} color="#15803d" />
+				Добавить доход
+			</Button>
+		</AddIncomeDetails>
 	</Empty>
 </section>

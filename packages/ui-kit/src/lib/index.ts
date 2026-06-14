@@ -22,6 +22,15 @@ export {
   DrawerTitle,
   DrawerTrigger
 } from "./components/ui/drawer"
+export {
+  Datepicker,
+  DatepickerRange,
+  type DatepickerProps,
+  type DatepickerRangeProps,
+  type DatepickerRangeValue,
+  type DatepickerSize,
+  type DatepickerValue
+} from "./components/ui/datepicker"
 export { Empty } from './components/ui/empty'
 export {
   NumberInput,
