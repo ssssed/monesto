@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { PlusIcon, Wallet } from '@lucide/svelte';
 	import { Button, Empty } from '@monesto/ui-kit';
-	import { getContext } from 'svelte';
 	import AddAsset from '../mediator/add-asset.svelte';
 	import { AssetsStore, type AssetType } from '../model/model.svelte';
 	import Asset from './asset.svelte';
