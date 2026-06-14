@@ -37,6 +37,12 @@ enum SessionDeviceType {
   unknown
 }
 
+enum AllocationTopUpType {
+  percent
+  fixed_amount
+  quantity
+}
+
 model User {
   id           Int          @id @default(autoincrement())
   telegramId   String       @unique @map("telegram_id")
@@ -51,8 +57,9 @@ model User {
   transactions   Transaction[]
   portfolios     Position[]
   settings       UserSettings?
-  financeRecords FinanceRecord[]
-  sessions       Session[]
+  financeRecords  FinanceRecord[]
+  allocationRules AllocationRule[]
+  sessions        Session[]
 
   @@map("users")
 }
@@ -76,8 +83,9 @@ model Asset {
   currency     Currency      @default(usd)
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
-  portfolios   Position[]
-  assetIcon    AssetIcon?
+  portfolios      Position[]
+  assetIcon       AssetIcon?
+  allocationRules AllocationRule[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -140,6 +148,26 @@ model FinanceRecord {
 
   @@index([userId, year, month])
   @@map("finance_records")
+}
+
+model AllocationRule {
+  id     Int @id @default(autoincrement())
+  userId Int
+  assetId Int
+
+  topUpType     AllocationTopUpType @map("top_up_type")
+  value         Decimal
+  executionDate DateTime            @map("execution_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, assetId])
+  @@map("allocation_rules")
 }
 
 model Session {

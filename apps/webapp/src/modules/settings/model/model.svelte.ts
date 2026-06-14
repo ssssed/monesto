@@ -1,3 +1,4 @@
+import type { AssetType } from '$modules/asset';
 import type { DatepickerRangeValue, DatepickerValue } from '@monesto/ui-kit';
 
 export type IncomePayoutFrequency = 'monthly' | 'semimonthly' | 'daily';
@@ -41,3 +42,13 @@ export function isIncomeDetailsFormValid(formData: IncomeDetailsFormData): boole
 			return true;
 	}
 }
+
+export type TopUpType = 'percent' | 'fixed_amount' | 'quantity';
+
+export type RuleType = {
+	id: string;
+	asset: Pick<AssetType, 'name' | 'icon' | 'currency' | 'symbol'>;
+	executionDate: string;
+	topUpType: TopUpType;
+	value: number;
+};
