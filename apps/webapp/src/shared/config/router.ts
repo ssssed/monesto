@@ -1,5 +1,6 @@
 export const ROUTER = {
 	home: '/',
+	month: '/month',
 	onboarding: '/onboarding',
 	settings: '/settings',
 	asset: (slug: string) => `/asset/${slug}`

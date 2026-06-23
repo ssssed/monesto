@@ -258,14 +258,48 @@ export class AssetService {
       throw new BadRequestException('count must be > 0');
     }
 
-    const transaction = await this.prisma.$transaction(async (tx) => {
+    const transaction = await this.recordTransaction({
+      userId,
+      assetId: asset.id,
+      type: dto.type,
+      quantity: parsedCount,
+      price: parsedPrice,
+    });
+
+    return {
+      id: String(transaction.id),
+      type: transaction.type,
+      date: transaction.createdAt,
+      price: Number(transaction.price),
+      count: Number(transaction.quantity),
+      unit: this.currencyToSymbol(asset.currency),
+    };
+  }
+
+  async recordTransaction(params: {
+    userId: number;
+    assetId: number;
+    type: TransactionType;
+    quantity: number;
+    price: number;
+  }) {
+    const { userId, assetId, type, quantity, price } = params;
+
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new BadRequestException('price must be > 0');
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new BadRequestException('count must be > 0');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
       const created = await tx.transaction.create({
         data: {
           userId,
-          assetId: asset.id,
-          type: dto.type,
-          price: new Prisma.Decimal(parsedPrice),
-          quantity: new Prisma.Decimal(parsedCount),
+          assetId,
+          type,
+          price: new Prisma.Decimal(price),
+          quantity: new Prisma.Decimal(quantity),
         },
       });
 
@@ -273,14 +307,14 @@ export class AssetService {
         where: {
           userId_assetId: {
             userId,
-            assetId: asset.id,
+            assetId,
           },
         },
       });
 
-      const amount = parsedPrice * parsedCount;
-      const signedQuantity = dto.type === 'buy' ? parsedCount : -parsedCount;
-      const signedInvested = dto.type === 'buy' ? amount : -amount;
+      const amount = price * quantity;
+      const signedQuantity = type === TransactionType.buy ? quantity : -quantity;
+      const signedInvested = type === TransactionType.buy ? amount : -amount;
 
       const baseQuantity = existingPosition
         ? Number(existingPosition.quantity)
@@ -300,7 +334,7 @@ export class AssetService {
         await tx.position.create({
           data: {
             userId,
-            assetId: asset.id,
+            assetId,
             ...positionData,
           },
         });
@@ -313,15 +347,6 @@ export class AssetService {
 
       return created;
     });
-
-    return {
-      id: String(transaction.id),
-      type: transaction.type,
-      date: transaction.createdAt,
-      price: Number(transaction.price),
-      count: Number(transaction.quantity),
-      unit: this.currencyToSymbol(asset.currency),
-    };
   }
 
   private async findAssetBySlug(slug: string, userId: number) {
