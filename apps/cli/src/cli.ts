@@ -14,9 +14,37 @@ interface CliOptions {
   imprestDate?: string;
   advanceStart?: string;
   advanceEnd?: string;
+  month?: string;
+  year?: string;
   gold?: string;
   usd?: string;
   rub?: string;
+}
+
+function resolveYearMonth(options: CliOptions): { year: number; month: number } {
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth() + 1;
+
+  if (options.year != null) {
+    const y = Number(options.year);
+    if (!Number.isInteger(y) || y < 1970 || y > 2100) {
+      console.error('Некорректный год (--year): укажите целое число, например 2026.');
+      process.exit(1);
+    }
+    year = y;
+  }
+
+  if (options.month != null) {
+    const m = Number(options.month);
+    if (!Number.isInteger(m) || m < 1 || m > 12) {
+      console.error('Некорректный месяц (--month): укажите число от 1 до 12.');
+      process.exit(1);
+    }
+    month = m;
+  }
+
+  return { year, month };
 }
 
 function optionsToParams(options: CliOptions): Partial<{
@@ -73,9 +101,7 @@ async function handleCalculate(options: CliOptions): Promise<void> {
     process.exit(1);
   }
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const { year, month } = resolveYearMonth(options);
 
   const gross = completed.money;
   const taxInput = completed.tax;
@@ -134,6 +160,8 @@ export async function main(argv: string[]): Promise<void> {
     .option('--imprest-date <day>', 'День месяца аванса (1-31).')
     .option('--advance-start <day>', 'Первый день периода аванса в текущем месяце (по умолчанию 1).', '1')
     .option('--advance-end <day>', 'Последний день периода аванса в текущем месяце (по умолчанию 15). Зарплата 10-го — за (advance-end+1)–конец прошлого месяца.', '15')
+    .option('--month <number>', 'Месяц расчёта (1–12). По умолчанию — текущий месяц.')
+    .option('--year <number>', 'Год расчёта. По умолчанию — текущий год.')
     .option('--gold <value>', 'Инвестиции в золото: процент (10%) или сумма в RUB (50000).')
     .option('--usd <value>', 'Инвестиции в USD: процент (10%) или сумма в USD (250).')
     .option('--rub <value>', 'Инвестиции в RUB: процент (10%) или сумма в RUB (50000).')
