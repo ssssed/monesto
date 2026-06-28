@@ -75,6 +75,10 @@ export class AssetsStore {
 	static getContext() {
 		return getContext(ASSET_STORE_CONTEXT) as AssetsStore;
 	}
+
+	clear() {
+		this.assets = [];
+	}
 }
 
 const ASSET_STORE_CONTEXT = '@monesto/asset-store-context';

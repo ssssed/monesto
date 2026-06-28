@@ -103,4 +103,8 @@ export class AllocateRulesStore {
 	static getContext() {
 		return getContext(ALLOCATE_RULES_STORE_CONTEXT_KEY) as AllocateRulesStore;
 	}
+
+	clear() {
+		this.rules = [];
+	}
 }
