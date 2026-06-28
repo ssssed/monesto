@@ -18,10 +18,12 @@ export const load: LayoutLoad = async ({ url }) => {
 		year: today.getFullYear()
 	});
 
-	console.log('month status', monthStatus);
-
 	applyMonthStatusToStepStore(monthStatus.data);
 	if (url.pathname !== ROUTER.month && monthStatus.data.status !== 'complete') {
 		return redirect(308, ROUTER.month);
+	}
+
+	if (url.pathname === ROUTER.month && monthStatus.data.status === 'complete') {
+		return redirect(308, ROUTER.home);
 	}
 };
