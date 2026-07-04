@@ -47,10 +47,11 @@
 				return 'Значение, %';
 			case 'fixed_amount':
 				return `Сумма, ${userStore.userSettings?.symbol}`;
-			case 'quantity':
+			case 'quantity': {
 				const asset = assetsStore.assets.find((a) => a.id === formData.assetId);
 
 				return asset ? `Количество, ${asset.symbol}` : 'Количество';
+			}
 			default:
 				return '';
 		}
@@ -62,27 +63,27 @@
 				return `${formData.value}% от (ЗП − обязательные расходы)`;
 			case 'fixed_amount':
 				return `Фиксированная сумма в рублях каждый месяц`;
-			case 'quantity':
+			case 'quantity': {
 				const asset = assetsStore.assets.find((a) => a.id === formData.assetId);
 
 				return asset && formData.value
 					? `${formatMoney(parseFloat(formData.value), asset.symbol)} каждый месяц`
 					: 'Количество которое вы будите откладывать каждый месяц';
+			}
 			default:
 				return '';
 		}
 	});
 
 	async function handleSubmit() {
-		try {
-			await rulesStore.createRule({
-				assetSlug: formData.assetId!,
-				topUpType: formData.topUpType,
-				value: parseFloat(formData.value),
-				executionDate: formatDateToServer(formData.executionDate?.toString()!)
-			});
-			open = false;
-		} catch {}
+		await rulesStore.createRule({
+			assetSlug: formData.assetId!,
+			topUpType: formData.topUpType,
+			value: parseFloat(formData.value),
+			// eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+			executionDate: formatDateToServer(formData.executionDate?.toString()!)
+		});
+		open = false;
 	}
 </script>
 
