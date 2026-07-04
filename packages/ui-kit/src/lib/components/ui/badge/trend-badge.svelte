@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { TrendingDownIcon, TrendingUpIcon } from '@lucide/svelte';
+  import TrendingDownIcon from '@lucide/svelte/icons/trending-down';
+  import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
   import Badge, { type BadgeSize } from './badge.svelte';
 
   let { percent = $bindable<number>(), size } = $props<{

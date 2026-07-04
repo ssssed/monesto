@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from '$lib/components/ui/drawer';
 	import { cn } from '$lib/utils';
-	import { Delete } from '@lucide/svelte';
+	import Delete from '@lucide/svelte/icons/delete';
 	import type { Snippet } from 'svelte';
 	import type { MouseEventHandler } from 'svelte/elements';
 

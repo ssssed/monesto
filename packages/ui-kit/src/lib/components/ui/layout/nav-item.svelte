@@ -1,15 +1,15 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
-  import { Component, type IconProps } from '@lucide/svelte';
+  import type { Component } from 'svelte';
 
 	let { icon, label, href, isActive = $bindable(false) } = $props<{
-		icon: IconProps['name'];
-		label: Component;
+		icon: Component;
+		label: string;
 		href: string;
 		isActive: boolean
 	}>();
 
-	const Icon = icon;
+	const Icon = $derived(icon);
 </script>
 
 <div

@@ -1,4 +1,4 @@
-import type { MandatoryBreakdownLine, MandatoryStore } from '../model.svelte';
+import type { BreakdownLine, MandatoryStore } from '../model.svelte';
 
 /**
  * Парсит строку суммы в число (пустая или невалидная строка → 0).
@@ -13,7 +13,7 @@ export function parseAmount(amount: string): number {
  * Суммирует суммы всех строк разбивки.
  * @param lines — строки breakdown
  */
-export function sumBreakdownLines(lines: MandatoryBreakdownLine[]): number {
+export function sumBreakdownLines(lines: BreakdownLine[]): number {
 	return lines.reduce((acc, line) => acc + parseAmount(line.amount), 0);
 }
 
@@ -21,7 +21,7 @@ export function sumBreakdownLines(lines: MandatoryBreakdownLine[]): number {
  * Сумма только по строкам `custom` (без «не распределено»).
  * @param lines — строки breakdown
  */
-export function sumCustomLines(lines: MandatoryBreakdownLine[]): number {
+export function sumCustomLines(lines: BreakdownLine[]): number {
 	return sumBreakdownLines(lines.filter((l) => l.kind === 'custom'));
 }
 

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { DEFAULT_STEP_NAME, STEPS, type StepName } from '../model/model.svelte';
+	import { DEFAULT_STEP_NAME, STEPS, stepStore, type StepName } from '../model/model.svelte';
 	import Header from '../ui/header.svelte';
 
 	let step = $state<StepName>(DEFAULT_STEP_NAME);
 	const currentStep = $derived(STEPS[step] ?? STEPS[DEFAULT_STEP_NAME]);
 	const maxSteps = Object.keys(STEPS).length;
 
-	const handleNext = () => {
+	const handleNext = async () => {
 		if (!currentStep.next) return;
 
-		currentStep.onNext?.();
+		await currentStep.onNext?.(stepStore);
 		step = currentStep.next;
 	};
 
@@ -18,6 +18,10 @@
 
 		currentStep.onPrev?.();
 		step = currentStep.prev;
+	};
+
+	const handleFinal = async () => {
+		await currentStep.onNext?.(stepStore);
 	};
 </script>
 
@@ -33,7 +37,7 @@
 </Header>
 
 <currentStep.component
-	onNext={handleNext}
+	onNext={currentStep.isFinal ? handleFinal : handleNext}
 	onPrev={handlePrev}
 	hasNext={currentStep.next != null}
 	hasPrev={currentStep.prev != null}

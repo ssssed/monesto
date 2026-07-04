@@ -1,5 +1,6 @@
 import { backgroundColors, colors } from '$shared/config/colors';
 import type { AccessibleIconType } from '$shared/config/icons';
+import { getContext, setContext } from 'svelte';
 import { createAsset } from '../api';
 
 export type CurrencyType = 'rub' | 'usd';
@@ -65,6 +66,19 @@ export class AssetsStore {
 	private addAsset(asset: AssetType) {
 		this.assets.push(asset);
 	}
+
+	saveToContext() {
+		setContext(ASSET_STORE_CONTEXT, this);
+		return this;
+	}
+
+	static getContext() {
+		return getContext(ASSET_STORE_CONTEXT) as AssetsStore;
+	}
+
+	clear() {
+		this.assets = [];
+	}
 }
 
-export const ASSET_STORE_CONTEXT = '@monesto/asset-store-context';
+const ASSET_STORE_CONTEXT = '@monesto/asset-store-context';

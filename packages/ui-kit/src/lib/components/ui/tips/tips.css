@@ -1,0 +1,131 @@
+/**
+ * Стили product tour (driver.js) в палитре monesto.
+ */
+
+.driver-overlay {
+	z-index: 9998 !important;
+}
+
+.monesto-tips-popover.driver-popover {
+	--monesto-tips-accent: #0f172a;
+	--monesto-tips-bg: #ffffff;
+	--monesto-tips-fg: #0f172a;
+	--monesto-tips-muted: #64748b;
+	--monesto-tips-destructive: #e5484d;
+	--monesto-tips-destructive-fg: #ffffff;
+
+	z-index: 9999 !important;
+	background-color: var(--monesto-tips-bg) !important;
+	color: var(--monesto-tips-fg) !important;
+	border-radius: 12px !important;
+	padding: 1.5rem !important;
+	box-shadow: 0 4px 30px rgba(15, 23, 42, 0.18) !important;
+	border: 1px solid #e2e8f0 !important;
+	max-width: min(320px, calc(100vw - 32px)) !important;
+}
+
+.dark .monesto-tips-popover.driver-popover {
+	--monesto-tips-accent: #13ec5b;
+	--monesto-tips-bg: #132a1c;
+	--monesto-tips-fg: #e0e0e0;
+	--monesto-tips-muted: #9bb8a6;
+	--monesto-tips-destructive: #ff6b6b;
+	--monesto-tips-destructive-fg: #102216;
+
+	border-color: rgba(224, 224, 224, 0.12) !important;
+	box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+.monesto-tips-popover .driver-popover-title {
+	color: var(--monesto-tips-fg) !important;
+	font-size: 1rem !important;
+	font-weight: 600 !important;
+	line-height: 1.4 !important;
+	letter-spacing: -0.01em !important;
+}
+
+.monesto-tips-popover .driver-popover-description {
+	color: var(--monesto-tips-muted) !important;
+	font-size: 0.875rem !important;
+	line-height: 1.5 !important;
+	margin-top: 0.5rem !important;
+}
+
+.monesto-tips-popover .driver-popover-close-btn {
+	background-color: transparent !important;
+	color: var(--monesto-tips-muted) !important;
+	width: 2rem !important;
+	height: 2rem !important;
+	top: 0.5rem !important;
+	right: 0.5rem !important;
+	border-radius: 9999px !important;
+	transition: color 150ms ease, background-color 150ms ease !important;
+}
+
+.monesto-tips-popover .driver-popover-close-btn:hover,
+.monesto-tips-popover .driver-popover-close-btn:focus-visible {
+	color: var(--monesto-tips-accent) !important;
+	background-color: #f1f5f9 !important;
+}
+
+.dark .monesto-tips-popover .driver-popover-close-btn:hover,
+.dark .monesto-tips-popover .driver-popover-close-btn:focus-visible {
+	background-color: rgba(224, 224, 224, 0.08) !important;
+}
+
+.monesto-tips-popover .driver-popover-footer {
+	margin-top: 2rem !important;
+	gap: 16px !important;
+	display: flex !important;
+	justify-content: flex-end !important;
+}
+
+.monesto-tips-popover .driver-popover-footer button {
+	all: unset;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 2.25rem;
+	padding: 0 1rem;
+	border-radius: 0.5rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+	transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.monesto-tips-popover .driver-popover-prev-btn {
+	background-color: var(--monesto-tips-destructive) !important;
+	color: var(--monesto-tips-destructive-fg) !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+.monesto-tips-popover .driver-popover-prev-btn:hover,
+.monesto-tips-popover .driver-popover-prev-btn:focus-visible {
+	opacity: 0.9 !important;
+}
+
+.monesto-tips-popover .driver-popover-next-btn {
+	background-color: var(--monesto-tips-accent) !important;
+	color: #ffffff !important;
+	box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12) !important;
+}
+
+.dark .monesto-tips-popover .driver-popover-next-btn {
+	color: #102216 !important;
+}
+
+.monesto-tips-popover .driver-popover-next-btn:hover,
+.monesto-tips-popover .driver-popover-next-btn:focus-visible {
+	opacity: 0.9 !important;
+}
+
+.monesto-tips-popover .driver-popover-arrow {
+	display: none !important;
+}
+
+.monesto-tips-popover .driver-popover-navigation-btns {
+	gap: 6px;
+}
