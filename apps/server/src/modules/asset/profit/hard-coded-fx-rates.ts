@@ -6,6 +6,6 @@ import { Currency } from '@prisma/client';
  */
 export const RUB_PER_UNIT: Record<Currency, number> = {
   [Currency.rub]: 1,
-  [Currency.usd]: 100,
+  [Currency.usd]: 79.59,
   [Currency.gold]: 9500,
 };
