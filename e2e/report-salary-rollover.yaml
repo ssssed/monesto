@@ -1,0 +1,12 @@
+appId: com.monesto.mobile
+---
+- launchApp
+- runFlow:
+    file: report-basic.yaml
+- tapOn: "Настройки"
+- tapOn: "Доходы"
+- tapOn: "25-е"
+- tapOn: "Сохранить"
+- tapOn: "Настройки"
+- tapOn: "Главная"
+- assertVisible: "ИТОГО свободных денег"

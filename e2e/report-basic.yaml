@@ -1,0 +1,38 @@
+appId: com.monesto.mobile
+---
+- launchApp
+- assertVisible: "Ваши доходы"
+- tapOn: "Название дохода"
+- inputText: "Зарплата"
+- tapOn: "Зарплата 2 раза в месяц (10 и 25)"
+- tapOn: "Месячная зарплата"
+- inputText: "100000"
+- tapOn: "Основная зарплата"
+- tapOn: "+ Добавить"
+- tapOn: "Название дохода"
+- inputText: "Стипендия"
+- tapOn: "100000"
+- eraseText
+- inputText: "13000"
+- tapOn: "День выплаты (1-31)"
+- inputText: "15"
+- tapOn: "Далее"
+- assertVisible: "Обязательные расходы"
+- tapOn: "Название расхода"
+- inputText: "Кредит"
+- tapOn: "Сумма"
+- inputText: "35000"
+- tapOn: "День списания (1-31)"
+- inputText: "20"
+- tapOn: "+ Добавить"
+- tapOn: "Название расхода"
+- inputText: "Английский"
+- tapOn: "35000"
+- eraseText
+- inputText: "10000"
+- tapOn: "День списания (1-31)"
+- inputText: "20"
+- tapOn: "Далее"
+- assertVisible: "ИТОГО свободных денег"
+- assertVisible:
+    id: "report-free-money"

@@ -1,0 +1,7 @@
+appId: com.monesto.mobile
+---
+- launchApp
+- runFlow:
+    file: report-basic.yaml
+- assertVisible: "1–15"
+- assertVisible: "р.д."

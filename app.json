@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Monesto",
+    "slug": "monesto-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "monesto",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "primaryColor": "#2563EB",
+    "description": "Личные финансы: зарплата, расходы, активы и авто-распределение.",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.monesto.mobile",
+      "buildNumber": "1",
+      "icon": "./assets/images/icon.png",
+      "infoPlist": {
+        "CFBundleDisplayName": "Monesto",
+        "CFBundleName": "Monesto",
+        "LSRequiresIPhoneOS": true,
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#052E1F",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.monesto.mobile",
+      "versionCode": 1
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Monesto",
+      "shortName": "Monesto",
+      "themeColor": "#0F172A",
+      "backgroundColor": "#ffffff",
+      "description": "Личные финансы: зарплата, расходы, активы и авто-распределение."
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#052E1F"
+        }
+      ],
+      "expo-sqlite",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {}
+  }
+}

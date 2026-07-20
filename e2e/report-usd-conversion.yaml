@@ -1,0 +1,18 @@
+appId: com.monesto.mobile
+---
+- launchApp
+- runFlow:
+    file: report-basic.yaml
+- tapOn: "Настройки"
+- tapOn: "Правила распределения"
+- tapOn: "+ Новое правило"
+- tapOn: "Название"
+- inputText: "Подушка"
+- tapOn: "%"
+- tapOn: "Процент"
+- inputText: "10"
+- tapOn: "Сохранить"
+- tapOn: "Настройки"
+- tapOn: "Главная"
+- assertVisible:
+    id: "report-allocation-0"
