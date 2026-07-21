@@ -1,11 +1,47 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FadeInBlock, FadeInItem } from '@/components/ui/Motion';
 import { clearAllData } from '@/lib/db/client';
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
+const MENU_ITEMS: {
+  href: '/(tabs)/settings/rules' | '/(tabs)/settings/income' | '/(tabs)/settings/expenses';
+  title: string;
+  subtitle: string;
+  icon: IoniconName;
+  iconColor: string;
+  iconBg: string;
+}[] = [
+  {
+    href: '/(tabs)/settings/rules',
+    title: 'Авто-распределение',
+    subtitle: 'Правила покупки активов',
+    icon: 'git-branch-outline',
+    iconColor: '#2563EB',
+    iconBg: '#EFF6FF',
+  },
+  {
+    href: '/(tabs)/settings/income',
+    title: 'Доходы',
+    subtitle: 'Источники и график выплат',
+    icon: 'trending-up-outline',
+    iconColor: '#059669',
+    iconBg: '#ECFDF5',
+  },
+  {
+    href: '/(tabs)/settings/expenses',
+    title: 'Расходы',
+    subtitle: 'Ежемесячные платежи',
+    icon: 'card-outline',
+    iconColor: '#475569',
+    iconBg: '#F1F5F9',
+  },
+];
 
 export default function SettingsScreen() {
   const [clearing, setClearing] = useState(false);
@@ -47,52 +83,37 @@ export default function SettingsScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}>
         <FadeInBlock>
-          <Text className="mb-6 text-3xl font-bold text-slate-900">Настройки</Text>
+          <Text className="text-3xl font-bold text-slate-900">Настройки</Text>
+          <Text className="mb-6 mt-1.5 text-sm leading-5 text-slate-500">
+            Доходы, расходы и правила распределения
+          </Text>
         </FadeInBlock>
 
         <FadeInItem index={0}>
-          <View className="mb-6">
-            <Text className="text-lg font-bold text-slate-900">Авто-распределение</Text>
-            <Text className="mb-3 mt-0.5 text-sm text-slate-500">
-              Правила для автоматической покупки активов
-            </Text>
-            <Link href="/(tabs)/settings/rules" asChild>
-              <Pressable className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                <Text className="text-sm font-medium text-blue-600">Открыть правила →</Text>
-              </Pressable>
-            </Link>
+          <View className="mb-8 overflow-hidden rounded-3xl border border-slate-100 bg-white">
+            {MENU_ITEMS.map((item, index) => (
+              <Link key={item.href} href={item.href} asChild>
+                <Pressable
+                  className={`flex-row items-center px-4 py-4 active:bg-slate-50 ${
+                    index < MENU_ITEMS.length - 1 ? 'border-b border-slate-100' : ''
+                  }`}>
+                  <View
+                    className="h-11 w-11 items-center justify-center rounded-2xl"
+                    style={{ backgroundColor: item.iconBg }}>
+                    <Ionicons name={item.icon} size={22} color={item.iconColor} />
+                  </View>
+                  <View className="ml-3 min-w-0 flex-1">
+                    <Text className="text-base font-semibold text-slate-900">{item.title}</Text>
+                    <Text className="mt-0.5 text-sm text-slate-500">{item.subtitle}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+                </Pressable>
+              </Link>
+            ))}
           </View>
         </FadeInItem>
 
         <FadeInItem index={1}>
-          <View className="mb-6">
-            <Text className="text-lg font-bold text-slate-900">Доходы</Text>
-            <Text className="mb-3 mt-0.5 text-sm text-slate-500">
-              Источники дохода и график выплат
-            </Text>
-            <Link href="/(tabs)/settings/income" asChild>
-              <Pressable className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                <Text className="text-sm font-medium text-emerald-600">Редактировать доходы →</Text>
-              </Pressable>
-            </Link>
-          </View>
-        </FadeInItem>
-
-        <FadeInItem index={2}>
-          <View className="mb-6">
-            <Text className="text-lg font-bold text-slate-900">Расходы</Text>
-            <Text className="mb-3 mt-0.5 text-sm text-slate-500">
-              Обязательные ежемесячные платежи
-            </Text>
-            <Link href="/(tabs)/settings/expenses" asChild>
-              <Pressable className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                <Text className="text-sm font-medium text-slate-700">Редактировать расходы →</Text>
-              </Pressable>
-            </Link>
-          </View>
-        </FadeInItem>
-
-        <FadeInItem index={3}>
           <View className="mb-8">
             <Text className="mb-1 text-lg font-bold text-slate-900">Опасная зона</Text>
             <Text className="mb-3 text-sm text-slate-500">

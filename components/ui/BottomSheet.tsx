@@ -25,13 +25,14 @@ interface Props {
   children: ReactNode;
 }
 
-const SPRING = { damping: 28, stiffness: 320, mass: 0.9 };
-const CLOSE_MS = 220;
+const OPEN_SPRING = { damping: 26, stiffness: 280, mass: 0.85 };
+const CLOSE_MS = 280;
+/** Достаточно большое смещение, чтобы лист полностью уехал за экран до unmount. */
+const HIDDEN_Y = 720;
 
 /**
- * Bottom sheet в духе shadcn Drawer:
- * оверлей плавно появляется, панель выезжает снизу со spring.
- * При открытии клавиатуры поднимается над ней.
+ * Bottom sheet: spring при открытии, плавный timing при закрытии.
+ * Клавиатура поднимает панель; unmount только после полной анимации.
  */
 export function BottomSheet({ visible, onClose, children }: Props) {
   const insets = useSafeAreaInsets();
@@ -39,36 +40,55 @@ export function BottomSheet({ visible, onClose, children }: Props) {
   const progress = useSharedValue(0);
   const dragY = useSharedValue(0);
   const keyboardHeight = useSharedValue(0);
+  const closing = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      closing.value = 0;
       setMounted(true);
       dragY.value = 0;
-      progress.value = withSpring(1, SPRING);
-    } else if (mounted) {
-      Keyboard.dismiss();
-      keyboardHeight.value = withTiming(0, { duration: CLOSE_MS });
-      progress.value = withTiming(
-        0,
-        { duration: CLOSE_MS, easing: Easing.out(Easing.cubic) },
-        (done) => {
-          if (done) runOnJS(setMounted)(false);
-        },
-      );
+      const frame = requestAnimationFrame(() => {
+        progress.value = withSpring(1, OPEN_SPRING);
+      });
+      return () => cancelAnimationFrame(frame);
     }
-  }, [visible, mounted, progress, dragY, keyboardHeight]);
+
+    if (!mounted) return;
+
+    closing.value = 1;
+    Keyboard.dismiss();
+    keyboardHeight.value = withTiming(0, {
+      duration: CLOSE_MS,
+      easing: Easing.out(Easing.cubic),
+    });
+    dragY.value = withTiming(0, { duration: CLOSE_MS });
+    progress.value = withTiming(
+      0,
+      { duration: CLOSE_MS, easing: Easing.bezier(0.32, 0.72, 0, 1) },
+      (finished) => {
+        if (finished) {
+          closing.value = 0;
+          runOnJS(setMounted)(false);
+        }
+      },
+    );
+    // Только `visible`: повторный запуск при смене mounted ломал закрытие.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const onShow = Keyboard.addListener(showEvent, (event) => {
+      if (closing.value) return;
       keyboardHeight.value = withTiming(event.endCoordinates.height, {
         duration: Platform.OS === 'ios' ? event.duration || 250 : 180,
         easing: Easing.out(Easing.cubic),
       });
     });
     const onHide = Keyboard.addListener(hideEvent, (event) => {
+      if (closing.value) return;
       keyboardHeight.value = withTiming(0, {
         duration: Platform.OS === 'ios' ? event.duration || 220 : 160,
         easing: Easing.out(Easing.cubic),
@@ -79,7 +99,7 @@ export function BottomSheet({ visible, onClose, children }: Props) {
       onShow.remove();
       onHide.remove();
     };
-  }, [keyboardHeight]);
+  }, [keyboardHeight, closing]);
 
   const requestClose = () => {
     Keyboard.dismiss();
@@ -95,7 +115,7 @@ export function BottomSheet({ visible, onClose, children }: Props) {
         dragY.value = withTiming(0, { duration: CLOSE_MS });
         runOnJS(requestClose)();
       } else {
-        dragY.value = withSpring(0, SPRING);
+        dragY.value = withSpring(0, OPEN_SPRING);
       }
     });
 
@@ -106,9 +126,10 @@ export function BottomSheet({ visible, onClose, children }: Props) {
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        translateY: (1 - progress.value) * 420 + dragY.value - keyboardHeight.value,
+        translateY: (1 - progress.value) * HIDDEN_Y + dragY.value - keyboardHeight.value,
       },
     ],
+    opacity: progress.value < 0.02 ? 0 : 1,
   }));
 
   if (!mounted) return null;

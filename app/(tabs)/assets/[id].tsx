@@ -98,13 +98,28 @@ export default function AssetDetailScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerRightContainerStyle: {
+        paddingRight: 8,
+      },
       headerRight: () => (
         <Pressable
           onPress={openEdit}
           hitSlop={12}
-          className="mr-1 h-9 w-9 items-center justify-center rounded-full bg-slate-50"
-          accessibilityLabel="Редактировать актив">
-          <Ionicons name="pencil" size={18} color="#2563EB" />
+          accessibilityLabel="Редактировать актив"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: '#F8FAFC',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+          <Ionicons
+            name="pencil"
+            size={18}
+            color="#2563EB"
+            style={{ transform: [{ translateX: 1.5 }] }}
+          />
         </Pressable>
       ),
     });
