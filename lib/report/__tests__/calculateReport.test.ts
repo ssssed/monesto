@@ -56,24 +56,47 @@ const rules: DistributionRule[] = [
 ];
 
 describe('calculateReport', () => {
-  it('calculates report with bimonthly salary proration and rules', () => {
+  it('calculates current cycle after 10th with remaining expenses', () => {
     const result = calculateReport({
       incomes: [primarySalary, stipend],
       expenses,
       rules,
       assets: [],
-      today: new Date(2025, 6, 10),
+      today: new Date(2025, 6, 12),
       usdRubRate: 82,
+      cyclePaymentDay: 10,
     });
 
     expect(isReportError(result)).toBe(false);
     if (isReportError(result)) return;
 
-    expect(result.incomeLines.some((line) => line.name === 'Стипендия')).toBe(true);
+    expect(result.paymentDay).toBe(10);
+    expect(result.isPreview).toBe(false);
     expect(result.totalExpenses).toBe(45_000);
     expect(result.remainder).toBe(result.totalIncome - 45_000);
     expect(result.allocations[0]?.amountRub).toBe(Math.round(result.remainder * 0.1));
     expect(result.freeMoney).toBe(result.remainder - result.totalAllocations);
+  });
+
+  it('preview cycle to 25th excludes expenses before payout', () => {
+    const result = calculateReport({
+      incomes: [primarySalary, stipend],
+      expenses,
+      rules,
+      assets: [],
+      today: new Date(2025, 6, 12),
+      usdRubRate: 82,
+      cyclePaymentDay: 25,
+    });
+
+    expect(isReportError(result)).toBe(false);
+    if (isReportError(result)) return;
+
+    expect(result.paymentDay).toBe(25);
+    expect(result.isPreview).toBe(true);
+    expect(result.incomeLines.some((line) => line.name === 'Стипендия')).toBe(true);
+    // due_day 20 до выплаты 25-го в этот цикл не входит
+    expect(result.totalExpenses).toBe(0);
   });
 
   it('includes usd asset rub equivalent in summary', () => {

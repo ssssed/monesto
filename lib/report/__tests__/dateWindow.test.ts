@@ -1,6 +1,8 @@
 import {
   expandExpensesToLines,
   expandIncomeToLines,
+  listReportCycles,
+  resolveReportCycle,
   resolveReportWindow,
   resolveTargetDate,
 } from '@/lib/report/dateWindow';
@@ -156,5 +158,22 @@ describe('dateWindow', () => {
       new Date(2025, 6, 25),
     );
     expect(lines).toHaveLength(2);
+  });
+
+  it('lists both 10 and 25 cycles for mid-month today', () => {
+    const cycles = listReportCycles(new Date(2025, 6, 21));
+    expect(cycles).toHaveLength(2);
+    expect(cycles[0]?.paymentDay).toBe(10);
+    expect(cycles[0]?.isPreview).toBe(false);
+    expect(cycles[0]?.nominalDate).toEqual(new Date(2025, 6, 10));
+    expect(cycles[1]?.paymentDay).toBe(25);
+    expect(cycles[1]?.isPreview).toBe(true);
+    expect(cycles[1]?.nominalDate).toEqual(new Date(2025, 6, 25));
+  });
+
+  it('marks preview expense start at payout date', () => {
+    const cycle = resolveReportCycle(new Date(2025, 6, 21), 25);
+    expect(cycle.isPreview).toBe(true);
+    expect(cycle.expenseStart).toEqual(cycle.payoutDate);
   });
 });

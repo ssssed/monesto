@@ -33,5 +33,22 @@ export function endOfMonth(year: number, month: number): number {
 
 export function countWorkingDaysInMonth(year: number, month: number): number {
   const last = endOfMonth(year, month);
-  return countWorkingDays(new Date(year, month, 1), new Date(year, month, last));
+  return countWorkingDays(
+    new Date(year, month, 1),
+    new Date(year, month, last),
+  );
+}
+
+/**
+ * Фактический день выплаты: если номинал (10/25) выпадает на выходной,
+ * берём предыдущий рабочий день (пт при сб/вс).
+ */
+export function toPayoutDate(nominalDate: Date): Date {
+  let cursor = startOfDay(nominalDate);
+  while (!isWorkingDay(cursor)) {
+    cursor = startOfDay(
+      new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1),
+    );
+  }
+  return cursor;
 }

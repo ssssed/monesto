@@ -1,9 +1,9 @@
-export type IncomeKind = 'fixed' | 'bimonthly_salary';
-export type Recurrence = 'monthly' | 'one_time';
+export type IncomeKind = "fixed" | "bimonthly_salary";
+export type Recurrence = "monthly" | "one_time";
 export type SalaryPaymentDay = 10 | 25;
-export type AssetProvider = 'rub' | 'usd' | 'gold' | 'steam';
-export type RuleType = 'percent' | 'fixed';
-export type RuleCurrency = 'rub' | 'asset';
+export type AssetProvider = "rub" | "usd" | "gold" | "steam";
+export type RuleType = "percent" | "fixed";
+export type RuleCurrency = "rub" | "asset";
 
 export interface IncomeSource {
   id: number;
@@ -97,7 +97,14 @@ export interface RuleAllocation {
 }
 
 export interface ReportResult {
+  /** Фактическая дата выплаты (с учётом выходных). */
   targetDate: Date;
+  /** Календарный якорь 10/25. */
+  nominalDate: Date;
+  payoutDate: Date;
+  paymentDay: SalaryPaymentDay;
+  /** true — будущий цикл, подтверждения ещё недоступны. */
+  isPreview: boolean;
   cycleKey: string;
   incomeLines: ReportIncomeLine[];
   totalIncome: number;
@@ -120,7 +127,7 @@ export interface ReportResult {
   }[];
 }
 
-export type ReportErrorCode = 'NO_PRIMARY_SALARY' | 'MISSING_USD_RATE';
+export type ReportErrorCode = "NO_PRIMARY_SALARY" | "MISSING_USD_RATE";
 
 export interface ReportError {
   code: ReportErrorCode;

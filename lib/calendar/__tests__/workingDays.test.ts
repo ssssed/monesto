@@ -1,4 +1,4 @@
-import { countWorkingDays, isWorkingDay } from '@/lib/calendar/workingDays';
+import { countWorkingDays, isWorkingDay, toPayoutDate } from '@/lib/calendar/workingDays';
 
 describe('workingDays', () => {
   it('treats Saturday and Sunday as non-working', () => {
@@ -29,5 +29,16 @@ describe('workingDays', () => {
 
   it('returns 0 when from is after to', () => {
     expect(countWorkingDays(new Date(2025, 6, 15), new Date(2025, 6, 1))).toBe(0);
+  });
+
+  it('shifts weekend payout to previous Friday', () => {
+    // 25 Oct 2025 — Saturday → Friday 24
+    expect(toPayoutDate(new Date(2025, 9, 25))).toEqual(new Date(2025, 9, 24));
+    // 10 May 2025 — Saturday → Friday 9
+    expect(toPayoutDate(new Date(2025, 4, 10))).toEqual(new Date(2025, 4, 9));
+  });
+
+  it('keeps weekday payout unchanged', () => {
+    expect(toPayoutDate(new Date(2025, 6, 25))).toEqual(new Date(2025, 6, 25));
   });
 });

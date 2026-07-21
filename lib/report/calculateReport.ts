@@ -1,11 +1,11 @@
-import { convertToRub } from '@/lib/exchange/convertToRub';
-import { applyRules } from '@/lib/report/applyRules';
+import { convertToRub } from "@/lib/exchange/convertToRub";
+import { applyRules } from "@/lib/report/applyRules";
 import {
   expandExpensesToLines,
   expandIncomeToLines,
   findPrimaryIncome,
-  resolveReportWindow,
-} from '@/lib/report/dateWindow';
+  resolveReportCycle,
+} from "@/lib/report/dateWindow";
 import type {
   Asset,
   DistributionRule,
@@ -13,12 +13,13 @@ import type {
   IncomeSource,
   ReportError,
   ReportResult,
-} from '@/lib/types';
+  SalaryPaymentDay,
+} from "@/lib/types";
 
 function toCycleKey(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
@@ -29,34 +30,35 @@ export function calculateReport(input: {
   assets: Asset[];
   today: Date;
   usdRubRate?: number;
+  /** Якорь цикла 10/25. По умолчанию — primary_payment_day. */
+  cyclePaymentDay?: SalaryPaymentDay;
 }): ReportResult | ReportError {
   const primary = findPrimaryIncome(input.incomes);
   if (!primary) {
     return {
-      code: 'NO_PRIMARY_SALARY',
-      message: 'Не указана основная зарплата',
+      code: "NO_PRIMARY_SALARY",
+      message: "Не указана основная зарплата",
     };
   }
 
-  const primaryPaymentDay = primary.primary_payment_day ?? 25;
-  const { incomeDate, expenseEndExclusive, incomeStart } = resolveReportWindow(
-    input.today,
-    primaryPaymentDay,
-  );
+  const cyclePaymentDay =
+    input.cyclePaymentDay ?? primary.primary_payment_day ?? 25;
+  const cycle = resolveReportCycle(input.today, cyclePaymentDay);
 
   const needsUsd =
     input.rules.some(
       (rule) =>
-        rule.rule_type === 'fixed' &&
-        rule.currency === 'asset' &&
+        rule.rule_type === "fixed" &&
+        rule.currency === "asset" &&
         rule.target_asset_id != null &&
-        input.assets.find((a) => a.id === rule.target_asset_id)?.provider === 'usd',
-    ) || input.assets.some((asset) => asset.provider === 'usd');
+        input.assets.find((a) => a.id === rule.target_asset_id)?.provider ===
+          "usd",
+    ) || input.assets.some((asset) => asset.provider === "usd");
 
   if (needsUsd && input.usdRubRate == null) {
     return {
-      code: 'MISSING_USD_RATE',
-      message: 'Курс USD/RUB ещё не загружен',
+      code: "MISSING_USD_RATE",
+      message: "Курс USD/RUB ещё не загружен",
     };
   }
 
@@ -65,21 +67,32 @@ export function calculateReport(input: {
   const incomeLines = expandIncomeToLines(
     input.incomes,
     input.today,
-    incomeDate,
-    incomeStart,
+    cycle.nominalDate,
+    cycle.incomeStart,
   );
   const expenseLines = expandExpensesToLines(
     input.expenses,
-    input.today,
-    expenseEndExclusive,
+    cycle.expenseStart,
+    cycle.expenseEndExclusive,
   );
 
   const totalIncome = incomeLines.reduce((sum, line) => sum + line.amount, 0);
-  const totalExpenses = expenseLines.reduce((sum, line) => sum + line.amount, 0);
+  const totalExpenses = expenseLines.reduce(
+    (sum, line) => sum + line.amount,
+    0,
+  );
   const remainder = totalIncome - totalExpenses;
 
-  const allocations = applyRules(remainder, input.rules, input.assets, usdRubRate);
-  const totalAllocations = allocations.reduce((sum, item) => sum + item.amountRub, 0);
+  const allocations = applyRules(
+    remainder,
+    input.rules,
+    input.assets,
+    usdRubRate,
+  );
+  const totalAllocations = allocations.reduce(
+    (sum, item) => sum + item.amountRub,
+    0,
+  );
   const freeMoney = remainder - totalAllocations;
 
   const incomingByAsset = new Map<number, number>();
@@ -87,7 +100,8 @@ export function calculateReport(input: {
     if (allocation.targetAssetId == null) continue;
     incomingByAsset.set(
       allocation.targetAssetId,
-      (incomingByAsset.get(allocation.targetAssetId) ?? 0) + allocation.amountRub,
+      (incomingByAsset.get(allocation.targetAssetId) ?? 0) +
+        allocation.amountRub,
     );
   }
 
@@ -96,8 +110,8 @@ export function calculateReport(input: {
     name: asset.name,
     nativeAmount: asset.current_amount,
     rubEquivalent:
-      asset.provider === 'usd'
-        ? convertToRub(asset.current_amount, 'usd', usdRubRate)
+      asset.provider === "usd"
+        ? convertToRub(asset.current_amount, "usd", usdRubRate)
         : asset.current_amount,
     provider: asset.provider,
     icon: asset.icon,
@@ -107,8 +121,12 @@ export function calculateReport(input: {
   }));
 
   return {
-    targetDate: incomeDate,
-    cycleKey: toCycleKey(incomeDate),
+    targetDate: cycle.payoutDate,
+    nominalDate: cycle.nominalDate,
+    payoutDate: cycle.payoutDate,
+    paymentDay: cycle.paymentDay,
+    isPreview: cycle.isPreview,
+    cycleKey: toCycleKey(cycle.nominalDate),
     incomeLines,
     totalIncome,
     expenseLines,
@@ -121,6 +139,8 @@ export function calculateReport(input: {
   };
 }
 
-export function isReportError(result: ReportResult | ReportError): result is ReportError {
-  return 'code' in result;
+export function isReportError(
+  result: ReportResult | ReportError,
+): result is ReportError {
+  return "code" in result;
 }
