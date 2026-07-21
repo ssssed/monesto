@@ -1,5 +1,5 @@
-import { getDatabase } from '@/lib/db/client';
-import type { Asset, AssetProvider, AssetTransaction } from '@/lib/types';
+import { getDatabase } from "@/lib/db/client";
+import type { Asset, AssetProvider, AssetTransaction } from "@/lib/types";
 
 function mapAsset(row: Record<string, unknown>): Asset {
   return {
@@ -10,9 +10,9 @@ function mapAsset(row: Record<string, unknown>): Asset {
     goal_amount: row.goal_amount as number | null,
     current_amount: row.current_amount as number,
     steam_inventory_url: row.steam_inventory_url as string | null,
-    icon: (row.icon as string) ?? 'wallet-outline',
-    bg_color: (row.bg_color as string) ?? '#DBEAFE',
-    icon_color: (row.icon_color as string) ?? '#2563EB',
+    icon: (row.icon as string) ?? "wallet-outline",
+    bg_color: (row.bg_color as string) ?? "#DBEAFE",
+    icon_color: (row.icon_color as string) ?? "#2563EB",
     cost_basis_rub: (row.cost_basis_rub as number) ?? 0,
   };
 }
@@ -31,7 +31,7 @@ function mapTransaction(row: Record<string, unknown>): AssetTransaction {
 export async function getAllAssets(): Promise<Asset[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM assets ORDER BY id ASC',
+    "SELECT * FROM assets ORDER BY id ASC",
   );
   return rows.map(mapAsset);
 }
@@ -39,7 +39,7 @@ export async function getAllAssets(): Promise<Asset[]> {
 export async function getAssetById(id: number): Promise<Asset | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<Record<string, unknown>>(
-    'SELECT * FROM assets WHERE id = ?',
+    "SELECT * FROM assets WHERE id = ?",
     [id],
   );
   return row ? mapAsset(row) : null;
@@ -60,7 +60,7 @@ export async function createAsset(input: {
   const db = await getDatabase();
   const costBasis =
     input.cost_basis_rub ??
-    (input.provider === 'rub' ? input.current_amount : 0);
+    (input.provider === "rub" ? input.current_amount : 0);
 
   const result = await db.runAsync(
     `INSERT INTO assets
@@ -72,9 +72,9 @@ export async function createAsset(input: {
       input.purpose ?? null,
       input.goal_amount ?? null,
       input.current_amount,
-      input.icon ?? 'wallet-outline',
-      input.bg_color ?? '#DBEAFE',
-      input.icon_color ?? '#2563EB',
+      input.icon ?? "wallet-outline",
+      input.bg_color ?? "#DBEAFE",
+      input.icon_color ?? "#2563EB",
       costBasis,
     ],
   );
@@ -87,7 +87,7 @@ export async function createAsset(input: {
       [
         assetId,
         input.current_amount,
-        'Начальный баланс',
+        "Начальный баланс",
         new Date().toISOString(),
         costBasis || null,
       ],
@@ -144,9 +144,13 @@ export async function addTransaction(
 
   let costDelta = costRubDelta ?? 0;
   if (costRubDelta == null) {
-    if (asset.provider === 'rub') {
+    if (asset.provider === "rub") {
       costDelta = amountDelta;
-    } else if (asset.provider === 'usd' && amountDelta < 0 && asset.current_amount > 0) {
+    } else if (
+      asset.provider === "usd" &&
+      amountDelta < 0 &&
+      asset.current_amount > 0
+    ) {
       // пропорциональное списание cost basis
       const avg = asset.cost_basis_rub / asset.current_amount;
       costDelta = avg * amountDelta; // negative
@@ -156,7 +160,13 @@ export async function addTransaction(
   await db.runAsync(
     `INSERT INTO asset_transactions (asset_id, amount_delta, note, created_at, cost_rub)
      VALUES (?, ?, ?, ?, ?)`,
-    [assetId, amountDelta, note ?? null, new Date().toISOString(), costDelta || null],
+    [
+      assetId,
+      amountDelta,
+      note ?? null,
+      new Date().toISOString(),
+      costDelta || null,
+    ],
   );
 
   await db.runAsync(
@@ -178,7 +188,7 @@ export async function depositFromAllocation(
   const asset = await getAssetById(assetId);
   if (!asset) return;
 
-  if (asset.provider === 'usd') {
+  if (asset.provider === "usd") {
     const usdAmount = amountRub / usdRubRate;
     await addTransaction(assetId, usdAmount, note, amountRub);
   } else {
@@ -195,19 +205,23 @@ export async function setAssetAmount(
   if (!asset) return;
   const delta = newAmount - asset.current_amount;
   if (delta === 0) return;
-  await addTransaction(assetId, delta, note ?? 'Изменение баланса');
+  await addTransaction(assetId, delta, note ?? "Изменение баланса");
 }
 
-export async function getTransactions(assetId: number): Promise<AssetTransaction[]> {
+export async function getTransactions(
+  assetId: number,
+): Promise<AssetTransaction[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM asset_transactions WHERE asset_id = ? ORDER BY created_at DESC',
+    "SELECT * FROM asset_transactions WHERE asset_id = ? ORDER BY created_at DESC",
     [assetId],
   );
   return rows.map(mapTransaction);
 }
 
-export async function getAssetTrend(assetId: number): Promise<'up' | 'down' | 'flat'> {
+export async function getAssetTrend(
+  assetId: number,
+): Promise<"up" | "down" | "flat"> {
   const db = await getDatabase();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
@@ -220,13 +234,42 @@ export async function getAssetTrend(assetId: number): Promise<'up' | 'down' | 'f
   );
 
   const delta = row?.total ?? 0;
-  if (delta > 0) return 'up';
-  if (delta < 0) return 'down';
-  return 'flat';
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "flat";
 }
 
 export function getTotalSpent(transactions: AssetTransaction[]): number {
   return transactions
     .filter((tx) => tx.amount_delta < 0)
     .reduce((sum, tx) => sum + Math.abs(tx.amount_delta), 0);
+}
+
+/**
+ * Полное удаление актива: история, правила на этот актив
+ * (и связанные confirmations/rejections), затем сам актив.
+ */
+export async function deleteAsset(assetId: number): Promise<void> {
+  const db = await getDatabase();
+
+  const rules = await db.getAllAsync<{ id: number }>(
+    "SELECT id FROM distribution_rules WHERE target_asset_id = ?",
+    [assetId],
+  );
+
+  for (const rule of rules) {
+    await db.runAsync(
+      "DELETE FROM allocation_confirmations WHERE rule_id = ?",
+      [rule.id],
+    );
+    await db.runAsync("DELETE FROM allocation_rejections WHERE rule_id = ?", [
+      rule.id,
+    ]);
+    await db.runAsync("DELETE FROM distribution_rules WHERE id = ?", [rule.id]);
+  }
+
+  await db.runAsync("DELETE FROM asset_transactions WHERE asset_id = ?", [
+    assetId,
+  ]);
+  await db.runAsync("DELETE FROM assets WHERE id = ?", [assetId]);
 }

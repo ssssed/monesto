@@ -1,21 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
-  Extrapolation,
   FadeInDown,
   FadeOut,
-  interpolate,
   LinearTransition,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
 } from "react-native-reanimated";
 
 import { FormTextInput } from "@/components/ui/FormScrollView";
+import { SwipeToDelete } from "@/components/ui/SwipeToDelete";
 import type { MoneyFlowEntry } from "@/lib/types";
 import { formatRub } from "@/lib/utils/format";
 
@@ -38,8 +31,6 @@ const EASE_OUT = Easing.out(Easing.cubic);
 const LAYOUT = LinearTransition.duration(280).easing(EASE_OUT);
 const ENTER = FadeInDown.duration(340).easing(EASE_OUT);
 const EXIT = FadeOut.duration(200).easing(Easing.in(Easing.cubic));
-const SWIPE_MAX = 88;
-const SWIPE_TRIGGER = SWIPE_MAX * 0.55;
 
 function Segment({
   options,
@@ -125,66 +116,12 @@ export function MoneyFlowEntryRow({
   const title =
     entry.name.trim() ||
     (isIncome ? `Доход ${index + 1}` : `Расход ${index + 1}`);
-  const translateX = useSharedValue(0);
 
   const scheduleKey = entry.isOneTime
     ? "one_time"
     : entry.isBimonthlySalary
       ? "bimonthly"
       : "monthly";
-
-  const pan = Gesture.Pan()
-    .enabled(canRemove)
-    .activeOffsetX([-14, 14])
-    .failOffsetY([-10, 10])
-    .onUpdate((event) => {
-      translateX.value = Math.max(-SWIPE_MAX, Math.min(0, event.translationX));
-    })
-    .onEnd(() => {
-      if (translateX.value < -SWIPE_TRIGGER) {
-        translateX.value = withTiming(
-          -SWIPE_MAX,
-          { duration: 120 },
-          (finished) => {
-            if (finished) runOnJS(onRemove)();
-          },
-        );
-      } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 220 });
-      }
-    });
-
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  const deleteTrackStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [-SWIPE_MAX, -12, 0],
-      [1, 0.55, 0],
-      Extrapolation.CLAMP,
-    ),
-  }));
-
-  const deleteIconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [-SWIPE_MAX, -28, 0],
-      [1, 0.4, 0],
-      Extrapolation.CLAMP,
-    ),
-    transform: [
-      {
-        scale: interpolate(
-          translateX.value,
-          [-SWIPE_MAX, 0],
-          [1, 0.85],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
 
   return (
     <Animated.View
@@ -193,294 +130,252 @@ export function MoneyFlowEntryRow({
       layout={LAYOUT}
       style={{ marginBottom: 12 }}
     >
-      <View style={styles.clip}>
-        <Animated.View style={[styles.deleteTrack, deleteTrackStyle]}>
-          <Animated.View style={deleteIconStyle}>
-            <Ionicons name="trash-outline" size={22} color="#fff" />
-          </Animated.View>
-        </Animated.View>
-
-        <GestureDetector gesture={pan}>
-          <Animated.View
-            style={[
-              styles.card,
-              cardStyle,
-              { borderColor: expanded ? "#e2e8f0" : "#f1f5f9" },
-            ]}
+      <SwipeToDelete
+        enabled={canRemove}
+        onDelete={onRemove}
+        borderRadius={24}
+        borderColor={expanded ? "#e2e8f0" : "#f1f5f9"}
+      >
+        <Pressable
+          onPress={onToggle}
+          className="flex-row items-center px-4 py-3.5 active:bg-slate-50"
+        >
+          <View
+            className="h-10 w-10 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: accentBg }}
           >
-            <Pressable
-              onPress={onToggle}
-              className="flex-row items-center px-4 py-3.5 active:bg-slate-50"
-            >
-              <View
-                className="h-10 w-10 items-center justify-center rounded-2xl"
-                style={{ backgroundColor: accentBg }}
+            <Ionicons
+              name={isIncome ? "arrow-down-outline" : "arrow-up-outline"}
+              size={18}
+              color={accent}
+            />
+          </View>
+
+          <View className="ml-3 min-w-0 flex-1">
+            <View className="flex-row items-center">
+              <Text
+                className="mr-2 flex-1 text-base font-semibold text-slate-900"
+                numberOfLines={1}
               >
-                <Ionicons
-                  name={isIncome ? "arrow-down-outline" : "arrow-up-outline"}
-                  size={18}
-                  color={accent}
-                />
-              </View>
-
-              <View className="ml-3 min-w-0 flex-1">
-                <View className="flex-row items-center">
-                  <Text
-                    className="mr-2 flex-1 text-base font-semibold text-slate-900"
-                    numberOfLines={1}
-                  >
-                    {title}
+                {title}
+              </Text>
+              {entry.isPrimary ? (
+                <View className="rounded-full bg-blue-50 px-2 py-0.5">
+                  <Text className="text-[10px] font-bold uppercase text-blue-600">
+                    осн.
                   </Text>
-                  {entry.isPrimary ? (
-                    <View className="rounded-full bg-blue-50 px-2 py-0.5">
-                      <Text className="text-[10px] font-bold uppercase text-blue-600">
-                        осн.
-                      </Text>
-                    </View>
-                  ) : null}
                 </View>
-                <Text
-                  className="mt-0.5 text-sm text-slate-500"
-                  numberOfLines={1}
-                >
-                  {previewLine(entry, mode)}
+              ) : null}
+            </View>
+            <Text className="mt-0.5 text-sm text-slate-500" numberOfLines={1}>
+              {previewLine(entry, mode)}
+            </Text>
+          </View>
+
+          <Ionicons
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={18}
+            color="#94A3B8"
+            style={{ marginLeft: 8 }}
+          />
+        </Pressable>
+
+        {expanded ? (
+          <View className="border-t border-slate-100 px-4 pb-4 pt-3">
+            <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Название
+            </Text>
+            <FormTextInput
+              className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
+              placeholder={
+                isIncome ? "Зарплата, фриланс…" : "Аренда, подписки…"
+              }
+              placeholderTextColor="#94a3b8"
+              value={entry.name}
+              onChangeText={(name) => update({ name })}
+            />
+
+            {isIncome && showOneTimeToggle ? (
+              <View className="mb-4">
+                <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Тип
                 </Text>
+                <Segment
+                  value={entry.isOneTime ? "one_time" : "recurring"}
+                  onChange={(key) =>
+                    update({
+                      isOneTime: key === "one_time",
+                      isBimonthlySalary:
+                        key === "one_time" ? false : entry.isBimonthlySalary,
+                    })
+                  }
+                  options={[
+                    { key: "recurring", label: "Регулярный" },
+                    { key: "one_time", label: "Разовый" },
+                  ]}
+                />
+              </View>
+            ) : null}
+
+            {isIncome && !entry.isOneTime ? (
+              <View className="mb-4">
+                <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  График
+                </Text>
+                <Segment
+                  value={scheduleKey === "bimonthly" ? "bimonthly" : "monthly"}
+                  onChange={(key) =>
+                    update({
+                      isBimonthlySalary: key === "bimonthly",
+                      isOneTime: false,
+                    })
+                  }
+                  options={[
+                    { key: "monthly", label: "Раз в месяц" },
+                    { key: "bimonthly", label: "10 и 25" },
+                  ]}
+                />
+              </View>
+            ) : null}
+
+            <View className="mb-4 flex-row gap-3">
+              <View className="flex-[1.4]">
+                <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {entry.isBimonthlySalary && isIncome
+                    ? "Сумма / мес"
+                    : "Сумма"}
+                </Text>
+                <View className="flex-row items-center rounded-2xl border border-slate-100 bg-slate-50">
+                  <FormTextInput
+                    className="flex-1 px-3.5 py-3.5 text-base text-slate-900"
+                    placeholder="0"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="numeric"
+                    value={
+                      entry.isBimonthlySalary && isIncome
+                        ? (entry.monthlyAmount ?? entry.amount)
+                        : entry.amount
+                    }
+                    onChangeText={(value) =>
+                      entry.isBimonthlySalary && isIncome
+                        ? update({ monthlyAmount: value, amount: value })
+                        : update({ amount: value })
+                    }
+                  />
+                  <Text className="pr-3.5 text-sm font-semibold text-slate-400">
+                    ₽
+                  </Text>
+                </View>
               </View>
 
-              <Ionicons
-                name={expanded ? "chevron-up" : "chevron-down"}
-                size={18}
-                color="#94A3B8"
-                style={{ marginLeft: 8 }}
-              />
-            </Pressable>
-
-            {expanded ? (
-              <View className="border-t border-slate-100 px-4 pb-4 pt-3">
-                <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Название
-                </Text>
-                <FormTextInput
-                  className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
-                  placeholder={
-                    isIncome ? "Зарплата, фриланс…" : "Аренда, подписки…"
-                  }
-                  placeholderTextColor="#94a3b8"
-                  value={entry.name}
-                  onChangeText={(name) => update({ name })}
-                />
-
-                {isIncome && showOneTimeToggle ? (
-                  <View className="mb-4">
-                    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Тип
-                    </Text>
-                    <Segment
-                      value={entry.isOneTime ? "one_time" : "recurring"}
-                      onChange={(key) =>
-                        update({
-                          isOneTime: key === "one_time",
-                          isBimonthlySalary:
-                            key === "one_time"
-                              ? false
-                              : entry.isBimonthlySalary,
-                        })
-                      }
-                      options={[
-                        { key: "recurring", label: "Регулярный" },
-                        { key: "one_time", label: "Разовый" },
-                      ]}
-                    />
-                  </View>
-                ) : null}
-
-                {isIncome && !entry.isOneTime ? (
-                  <View className="mb-4">
-                    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      График
-                    </Text>
-                    <Segment
-                      value={
-                        scheduleKey === "bimonthly" ? "bimonthly" : "monthly"
-                      }
-                      onChange={(key) =>
-                        update({
-                          isBimonthlySalary: key === "bimonthly",
-                          isOneTime: false,
-                        })
-                      }
-                      options={[
-                        { key: "monthly", label: "Раз в месяц" },
-                        { key: "bimonthly", label: "10 и 25" },
-                      ]}
-                    />
-                  </View>
-                ) : null}
-
-                <View className="mb-4 flex-row gap-3">
-                  <View className="flex-[1.4]">
-                    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      {entry.isBimonthlySalary && isIncome
-                        ? "Сумма / мес"
-                        : "Сумма"}
-                    </Text>
-                    <View className="flex-row items-center rounded-2xl border border-slate-100 bg-slate-50">
-                      <FormTextInput
-                        className="flex-1 px-3.5 py-3.5 text-base text-slate-900"
-                        placeholder="0"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="numeric"
-                        value={
-                          entry.isBimonthlySalary && isIncome
-                            ? (entry.monthlyAmount ?? entry.amount)
-                            : entry.amount
-                        }
-                        onChangeText={(value) =>
-                          entry.isBimonthlySalary && isIncome
-                            ? update({ monthlyAmount: value, amount: value })
-                            : update({ amount: value })
-                        }
-                      />
-                      <Text className="pr-3.5 text-sm font-semibold text-slate-400">
-                        ₽
-                      </Text>
-                    </View>
-                  </View>
-
-                  {!entry.isOneTime && !entry.isBimonthlySalary ? (
-                    <View className="flex-1">
-                      <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        День
-                      </Text>
-                      <FormTextInput
-                        className="rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-center text-base text-slate-900"
-                        placeholder="1–31"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="numeric"
-                        value={isIncome ? entry.paymentDay : entry.dueDay}
-                        onChangeText={(value) =>
-                          update(
-                            isIncome
-                              ? { paymentDay: value }
-                              : { dueDay: value },
-                          )
-                        }
-                      />
-                    </View>
-                  ) : null}
-
-                  {entry.isOneTime ? (
-                    <View className="flex-[1.2]">
-                      <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Дата
-                      </Text>
-                      <FormTextInput
-                        className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3.5 text-center text-sm text-slate-900"
-                        placeholder="ГГГГ-ММ-ДД"
-                        placeholderTextColor="#94a3b8"
-                        value={entry.specificDate ?? ""}
-                        onChangeText={(specificDate) =>
-                          update({ specificDate })
-                        }
-                      />
-                    </View>
-                  ) : null}
+              {!entry.isOneTime && !entry.isBimonthlySalary ? (
+                <View className="flex-1">
+                  <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    День
+                  </Text>
+                  <FormTextInput
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-center text-base text-slate-900"
+                    placeholder="1–31"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="numeric"
+                    value={isIncome ? entry.paymentDay : entry.dueDay}
+                    onChangeText={(value) =>
+                      update(
+                        isIncome ? { paymentDay: value } : { dueDay: value },
+                      )
+                    }
+                  />
                 </View>
+              ) : null}
 
-                {isIncome && showPrimarySalary ? (
-                  <View className="mb-1">
-                    <Pressable
-                      onPress={() => update({ isPrimary: !entry.isPrimary })}
-                      className={`flex-row items-center rounded-2xl border px-3.5 py-3 ${
-                        entry.isPrimary
-                          ? "border-blue-200 bg-blue-50"
-                          : "border-slate-100 bg-slate-50"
-                      }`}
-                    >
-                      <View
-                        className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${
-                          entry.isPrimary
-                            ? "border-blue-600 bg-blue-600"
-                            : "border-slate-300"
-                        }`}
-                      >
-                        {entry.isPrimary ? (
-                          <Ionicons name="checkmark" size={12} color="#fff" />
-                        ) : null}
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-sm font-semibold text-slate-900">
-                          Основная зарплата
-                        </Text>
-                        <Text className="text-xs text-slate-500">
-                          По ней строится отчёт к выплате
-                        </Text>
-                      </View>
-                    </Pressable>
+              {entry.isOneTime ? (
+                <View className="flex-[1.2]">
+                  <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Дата
+                  </Text>
+                  <FormTextInput
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3.5 text-center text-sm text-slate-900"
+                    placeholder="ГГГГ-ММ-ДД"
+                    placeholderTextColor="#94a3b8"
+                    value={entry.specificDate ?? ""}
+                    onChangeText={(specificDate) => update({ specificDate })}
+                  />
+                </View>
+              ) : null}
+            </View>
 
-                    {entry.isPrimary && entry.isBimonthlySalary ? (
-                      <View className="mt-3 flex-row gap-2">
-                        {([10, 25] as const).map((day) => {
-                          const active = entry.primaryPaymentDay === day;
-                          return (
-                            <Pressable
-                              key={day}
-                              className={`flex-1 rounded-2xl py-3 ${
-                                active ? "bg-blue-600" : "bg-slate-100"
-                              }`}
-                              onPress={() => update({ primaryPaymentDay: day })}
-                            >
-                              <Text
-                                className={`text-center text-sm font-semibold ${
-                                  active ? "text-white" : "text-slate-600"
-                                }`}
-                              >
-                                Ориентир {day}-е
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
+            {isIncome && showPrimarySalary ? (
+              <View className="mb-1">
+                <Pressable
+                  onPress={() => update({ isPrimary: !entry.isPrimary })}
+                  className={`flex-row items-center rounded-2xl border px-3.5 py-3 ${
+                    entry.isPrimary
+                      ? "border-blue-200 bg-blue-50"
+                      : "border-slate-100 bg-slate-50"
+                  }`}
+                >
+                  <View
+                    className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${
+                      entry.isPrimary
+                        ? "border-blue-600 bg-blue-600"
+                        : "border-slate-300"
+                    }`}
+                  >
+                    {entry.isPrimary ? (
+                      <Ionicons name="checkmark" size={12} color="#fff" />
                     ) : null}
                   </View>
-                ) : null}
-
-                {canRemove ? (
-                  <Pressable
-                    onPress={onRemove}
-                    className="mt-3 flex-row items-center justify-center rounded-2xl py-3"
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                    <Text className="ml-1.5 text-sm font-semibold text-red-500">
-                      Удалить
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-slate-900">
+                      Основная зарплата
                     </Text>
-                  </Pressable>
+                    <Text className="text-xs text-slate-500">
+                      По ней строится отчёт к выплате
+                    </Text>
+                  </View>
+                </Pressable>
+
+                {entry.isPrimary && entry.isBimonthlySalary ? (
+                  <View className="mt-3 flex-row gap-2">
+                    {([10, 25] as const).map((day) => {
+                      const active = entry.primaryPaymentDay === day;
+                      return (
+                        <Pressable
+                          key={day}
+                          className={`flex-1 rounded-2xl py-3 ${
+                            active ? "bg-blue-600" : "bg-slate-100"
+                          }`}
+                          onPress={() => update({ primaryPaymentDay: day })}
+                        >
+                          <Text
+                            className={`text-center text-sm font-semibold ${
+                              active ? "text-white" : "text-slate-600"
+                            }`}
+                          >
+                            Ориентир {day}-е
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 ) : null}
               </View>
             ) : null}
-          </Animated.View>
-        </GestureDetector>
-      </View>
+
+            {canRemove ? (
+              <Pressable
+                onPress={onRemove}
+                className="mt-3 flex-row items-center justify-center rounded-2xl py-3"
+              >
+                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                <Text className="ml-1.5 text-sm font-semibold text-red-500">
+                  Удалить
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+      </SwipeToDelete>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  clip: {
-    overflow: "hidden",
-    borderRadius: 24,
-  },
-  deleteTrack: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#EF4444",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    paddingRight: 22,
-  },
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    backgroundColor: "#fff",
-    overflow: "hidden",
-  },
-});
