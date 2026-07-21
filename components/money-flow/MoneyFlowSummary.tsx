@@ -10,37 +10,15 @@ interface Props {
 }
 
 export function MoneyFlowSummary({ mode, entries }: Props) {
-  const details = entries
-    .filter((entry) => entry.name && (entry.amount || entry.monthlyAmount))
-    .map((entry) => {
-      if (entry.isBimonthlySalary) {
-        const monthly = Number(entry.monthlyAmount ?? entry.amount);
-        const now = new Date();
-        const july25 = calculateSalaryPaymentAmount(
-          monthly,
-          25,
-          new Date(now.getFullYear(), now.getMonth(), 25),
-        );
-        const day10 = new Date(now.getFullYear(), now.getMonth(), 10);
-        const pay10 = calculateSalaryPaymentAmount(monthly, 10, day10);
-        return {
-          name: entry.name,
-          text: `${formatRub(monthly)}/мес · 10: ${formatRub(pay10.amount)} · 25: ${formatRub(july25.amount)}`,
-        };
-      }
-
-      const amount = Number(entry.amount);
-      const suffix = entry.isOneTime
-        ? (entry.specificDate ?? 'единоразово')
-        : `${entry.paymentDay || entry.dueDay || '?'}-е`;
-      return { name: entry.name, text: `${formatRub(amount)} · ${suffix}` };
-    });
+  const filled = entries.filter((entry) => entry.name.trim());
 
   const monthlyTotal =
     mode === 'income'
       ? entries.reduce((sum, entry) => {
           if (entry.isOneTime) return sum;
-          if (entry.isBimonthlySalary) return sum + Number(entry.monthlyAmount ?? (entry.amount || 0));
+          if (entry.isBimonthlySalary) {
+            return sum + Number(entry.monthlyAmount ?? (entry.amount || 0));
+          }
           return sum + Number(entry.amount || 0);
         }, 0)
       : entries.reduce((sum, entry) => {
@@ -48,31 +26,57 @@ export function MoneyFlowSummary({ mode, entries }: Props) {
           return sum + Number(entry.amount || 0);
         }, 0);
 
+  const oneTimeTotal = entries.reduce((sum, entry) => {
+    if (!entry.isOneTime) return sum;
+    return sum + Number(entry.amount || 0);
+  }, 0);
+
+  let hint: string | null = null;
+  const bimonthly = entries.find((entry) => entry.isBimonthlySalary && entry.name.trim());
+  if (bimonthly) {
+    const monthly = Number(bimonthly.monthlyAmount ?? bimonthly.amount);
+    if (monthly) {
+      const now = new Date();
+      const pay25 = calculateSalaryPaymentAmount(
+        monthly,
+        25,
+        new Date(now.getFullYear(), now.getMonth(), 25),
+      );
+      const pay10 = calculateSalaryPaymentAmount(
+        monthly,
+        10,
+        new Date(now.getFullYear(), now.getMonth(), 10),
+      );
+      hint = `Зарплата: 10-е ≈ ${formatRub(pay10.amount)}, 25-е ≈ ${formatRub(pay25.amount)}`;
+    }
+  }
+
   return (
-    <View className="mb-5 overflow-hidden rounded-3xl bg-slate-900">
-      <View className="px-5 pb-4 pt-5">
-        <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          {mode === 'income' ? 'Доход за месяц' : 'Расходы за месяц'}
-        </Text>
-        <Text className="mt-1 text-4xl font-bold text-white" testID="money-flow-total">
-          {formatRub(monthlyTotal)}
-        </Text>
+    <View className="mb-5 overflow-hidden rounded-3xl bg-slate-900 px-5 py-5">
+      <View className="flex-row items-end justify-between">
+        <View className="flex-1">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {mode === 'income' ? 'За месяц' : 'Расходы за месяц'}
+          </Text>
+          <Text className="mt-1 text-3xl font-bold text-white" testID="money-flow-total">
+            {formatRub(monthlyTotal)}
+          </Text>
+        </View>
+        <View className="items-end rounded-2xl bg-slate-800 px-3 py-2">
+          <Text className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            Записей
+          </Text>
+          <Text className="text-lg font-bold text-white">{filled.length}</Text>
+        </View>
       </View>
 
-      {details.length > 0 ? (
-        <View className="border-t border-slate-800 px-5 py-3">
-          {details.map((item, index) => (
-            <View
-              key={`${item.name}-${index}`}
-              className={`flex-row items-start justify-between ${index > 0 ? 'mt-2.5' : ''}`}>
-              <Text className="mr-3 flex-1 text-sm font-medium text-slate-200" numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text className="max-w-[58%] text-right text-xs text-slate-400">{item.text}</Text>
-            </View>
-          ))}
-        </View>
+      {oneTimeTotal > 0 ? (
+        <Text className="mt-3 text-xs text-slate-400">
+          + разовые: {formatRub(oneTimeTotal)}
+        </Text>
       ) : null}
+
+      {hint ? <Text className="mt-2 text-xs leading-4 text-slate-400">{hint}</Text> : null}
     </View>
   );
 }

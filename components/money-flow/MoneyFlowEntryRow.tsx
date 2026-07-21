@@ -1,202 +1,486 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  Easing,
+  Extrapolation,
+  FadeInDown,
+  FadeOut,
+  interpolate,
+  LinearTransition,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
-import { FormTextInput } from '@/components/ui/FormScrollView';
-import type { MoneyFlowEntry } from '@/lib/types';
+import { FormTextInput } from "@/components/ui/FormScrollView";
+import type { MoneyFlowEntry } from "@/lib/types";
+import { formatRub } from "@/lib/utils/format";
 
 interface Props {
   entry: MoneyFlowEntry;
-  mode: 'income' | 'expense';
+  mode: "income" | "expense";
   index: number;
+  expanded: boolean;
+  onToggle: () => void;
   onChange: (entry: MoneyFlowEntry) => void;
   onRemove: () => void;
+  canRemove: boolean;
   showOneTimeToggle?: boolean;
   showPrimarySalary?: boolean;
+  animateEnter?: boolean;
 }
 
-function FieldLabel({ children }: { children: string }) {
-  return <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</Text>;
-}
+const EASE_OUT = Easing.out(Easing.cubic);
+/** Только layout — без FadeInDown на теле, иначе анимация дёргается. */
+const LAYOUT = LinearTransition.duration(280).easing(EASE_OUT);
+const ENTER = FadeInDown.duration(340).easing(EASE_OUT);
+const EXIT = FadeOut.duration(200).easing(Easing.in(Easing.cubic));
+const SWIPE_MAX = 88;
+const SWIPE_TRIGGER = SWIPE_MAX * 0.55;
 
-function Chip({
-  label,
-  active,
-  onPress,
+function Segment({
+  options,
+  value,
+  onChange,
 }: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
+  options: { key: string; label: string }[];
+  value: string;
+  onChange: (key: string) => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      className={`rounded-full px-3 py-2 ${active ? 'bg-slate-900' : 'bg-slate-100'}`}>
-      <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-slate-600'}`}>
-        {label}
-      </Text>
-    </Pressable>
+    <View className="flex-row rounded-2xl bg-slate-100 p-1">
+      {options.map((option) => {
+        const active = value === option.key;
+        return (
+          <Pressable
+            key={option.key}
+            onPress={() => onChange(option.key)}
+            className={`flex-1 rounded-xl py-2.5 ${active ? "bg-white" : ""}`}
+            style={
+              active
+                ? {
+                    shadowColor: "#0f172a",
+                    shadowOpacity: 0.06,
+                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 1 },
+                    elevation: 1,
+                  }
+                : undefined
+            }
+          >
+            <Text
+              className={`text-center text-xs font-semibold ${
+                active ? "text-slate-900" : "text-slate-500"
+              }`}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
+}
+
+function previewLine(
+  entry: MoneyFlowEntry,
+  mode: "income" | "expense",
+): string {
+  if (entry.isBimonthlySalary) {
+    const monthly = Number(entry.monthlyAmount ?? entry.amount ?? 0);
+    return monthly ? `${formatRub(monthly)} / мес · 10 и 25` : "10 и 25 число";
+  }
+  if (entry.isOneTime) {
+    const amount = Number(entry.amount || 0);
+    const date = entry.specificDate || "дата не указана";
+    return amount ? `${formatRub(amount)} · ${date}` : date;
+  }
+  const amount = Number(entry.amount || 0);
+  const day = mode === "income" ? entry.paymentDay : entry.dueDay;
+  const dayLabel = day ? `${day}-е` : "день?";
+  return amount ? `${formatRub(amount)} · ${dayLabel}` : dayLabel;
 }
 
 export function MoneyFlowEntryRow({
   entry,
   mode,
   index,
+  expanded,
+  onToggle,
   onChange,
   onRemove,
+  canRemove,
   showOneTimeToggle,
   showPrimarySalary,
+  animateEnter = true,
 }: Props) {
-  const update = (patch: Partial<MoneyFlowEntry>) => onChange({ ...entry, ...patch });
-  const accent = mode === 'income' ? 'text-emerald-600' : 'text-slate-700';
-  const accentBg = mode === 'income' ? 'bg-emerald-50' : 'bg-slate-100';
+  const update = (patch: Partial<MoneyFlowEntry>) =>
+    onChange({ ...entry, ...patch });
+  const isIncome = mode === "income";
+  const accent = isIncome ? "#059669" : "#475569";
+  const accentBg = isIncome ? "#ECFDF5" : "#F1F5F9";
+  const title =
+    entry.name.trim() ||
+    (isIncome ? `Доход ${index + 1}` : `Расход ${index + 1}`);
+  const translateX = useSharedValue(0);
+
+  const scheduleKey = entry.isOneTime
+    ? "one_time"
+    : entry.isBimonthlySalary
+      ? "bimonthly"
+      : "monthly";
+
+  const pan = Gesture.Pan()
+    .enabled(canRemove)
+    .activeOffsetX([-14, 14])
+    .failOffsetY([-10, 10])
+    .onUpdate((event) => {
+      translateX.value = Math.max(-SWIPE_MAX, Math.min(0, event.translationX));
+    })
+    .onEnd(() => {
+      if (translateX.value < -SWIPE_TRIGGER) {
+        translateX.value = withTiming(
+          -SWIPE_MAX,
+          { duration: 120 },
+          (finished) => {
+            if (finished) runOnJS(onRemove)();
+          },
+        );
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 220 });
+      }
+    });
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const deleteTrackStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateX.value,
+      [-SWIPE_MAX, -12, 0],
+      [1, 0.55, 0],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  const deleteIconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateX.value,
+      [-SWIPE_MAX, -28, 0],
+      [1, 0.4, 0],
+      Extrapolation.CLAMP,
+    ),
+    transform: [
+      {
+        scale: interpolate(
+          translateX.value,
+          [-SWIPE_MAX, 0],
+          [1, 0.85],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
 
   return (
-    <View className="mb-3 overflow-hidden rounded-3xl border border-slate-100 bg-white">
-      <View className="flex-row items-center justify-between border-b border-slate-50 px-4 py-3">
-        <View className={`rounded-full px-2.5 py-1 ${accentBg}`}>
-          <Text className={`text-xs font-bold ${accent}`}>
-            {mode === 'income' ? `Доход ${index + 1}` : `Расход ${index + 1}`}
-          </Text>
-        </View>
-        <Pressable
-          onPress={onRemove}
-          hitSlop={8}
-          className="h-8 w-8 items-center justify-center rounded-full bg-slate-50">
-          <Ionicons name="trash-outline" size={16} color="#94a3b8" />
-        </Pressable>
-      </View>
+    <Animated.View
+      entering={animateEnter ? ENTER : undefined}
+      exiting={EXIT}
+      layout={LAYOUT}
+      style={{ marginBottom: 12 }}
+    >
+      <View style={styles.clip}>
+        <Animated.View style={[styles.deleteTrack, deleteTrackStyle]}>
+          <Animated.View style={deleteIconStyle}>
+            <Ionicons name="trash-outline" size={22} color="#fff" />
+          </Animated.View>
+        </Animated.View>
 
-      <View className="px-4 py-4">
-        <FieldLabel>Название</FieldLabel>
-        <FormTextInput
-          className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
-          placeholder={mode === 'income' ? 'Зарплата, фриланс…' : 'Аренда, подписки…'}
-          placeholderTextColor="#94a3b8"
-          value={entry.name}
-          onChangeText={(name) => update({ name })}
-        />
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            style={[
+              styles.card,
+              cardStyle,
+              { borderColor: expanded ? "#e2e8f0" : "#f1f5f9" },
+            ]}
+          >
+            <Pressable
+              onPress={onToggle}
+              className="flex-row items-center px-4 py-3.5 active:bg-slate-50"
+            >
+              <View
+                className="h-10 w-10 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: accentBg }}
+              >
+                <Ionicons
+                  name={isIncome ? "arrow-down-outline" : "arrow-up-outline"}
+                  size={18}
+                  color={accent}
+                />
+              </View>
 
-        {mode === 'income' && showOneTimeToggle ? (
-          <View className="mb-4">
-            <FieldLabel>Тип</FieldLabel>
-            <View className="flex-row flex-wrap gap-2">
-              <Chip
-                label="Регулярный"
-                active={!entry.isOneTime}
-                onPress={() => update({ isOneTime: false })}
+              <View className="ml-3 min-w-0 flex-1">
+                <View className="flex-row items-center">
+                  <Text
+                    className="mr-2 flex-1 text-base font-semibold text-slate-900"
+                    numberOfLines={1}
+                  >
+                    {title}
+                  </Text>
+                  {entry.isPrimary ? (
+                    <View className="rounded-full bg-blue-50 px-2 py-0.5">
+                      <Text className="text-[10px] font-bold uppercase text-blue-600">
+                        осн.
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text
+                  className="mt-0.5 text-sm text-slate-500"
+                  numberOfLines={1}
+                >
+                  {previewLine(entry, mode)}
+                </Text>
+              </View>
+
+              <Ionicons
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#94A3B8"
+                style={{ marginLeft: 8 }}
               />
-              <Chip
-                label="Единоразовый"
-                active={Boolean(entry.isOneTime)}
-                onPress={() => update({ isOneTime: true, isBimonthlySalary: false })}
-              />
-            </View>
-          </View>
-        ) : null}
+            </Pressable>
 
-        {mode === 'income' && !entry.isOneTime ? (
-          <View className="mb-4">
-            <FieldLabel>График</FieldLabel>
-            <View className="flex-row flex-wrap gap-2">
-              <Chip
-                label="Раз в месяц"
-                active={!entry.isBimonthlySalary}
-                onPress={() => update({ isBimonthlySalary: false })}
-              />
-              <Chip
-                label="10 и 25 число"
-                active={Boolean(entry.isBimonthlySalary)}
-                onPress={() => update({ isBimonthlySalary: true, isOneTime: false })}
-              />
-            </View>
-          </View>
-        ) : null}
+            {expanded ? (
+              <View className="border-t border-slate-100 px-4 pb-4 pt-3">
+                <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Название
+                </Text>
+                <FormTextInput
+                  className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
+                  placeholder={
+                    isIncome ? "Зарплата, фриланс…" : "Аренда, подписки…"
+                  }
+                  placeholderTextColor="#94a3b8"
+                  value={entry.name}
+                  onChangeText={(name) => update({ name })}
+                />
 
-        <FieldLabel>
-          {entry.isBimonthlySalary && mode === 'income' ? 'Месячная сумма' : 'Сумма'}
-        </FieldLabel>
-        {entry.isBimonthlySalary && mode === 'income' ? (
-          <FormTextInput
-            className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
-            placeholder="0 ₽"
-            placeholderTextColor="#94a3b8"
-            keyboardType="numeric"
-            value={entry.monthlyAmount ?? entry.amount}
-            onChangeText={(monthlyAmount) => update({ monthlyAmount, amount: monthlyAmount })}
-          />
-        ) : (
-          <FormTextInput
-            className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
-            placeholder="0 ₽"
-            placeholderTextColor="#94a3b8"
-            keyboardType="numeric"
-            value={entry.amount}
-            onChangeText={(amount) => update({ amount })}
-          />
-        )}
+                {isIncome && showOneTimeToggle ? (
+                  <View className="mb-4">
+                    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Тип
+                    </Text>
+                    <Segment
+                      value={entry.isOneTime ? "one_time" : "recurring"}
+                      onChange={(key) =>
+                        update({
+                          isOneTime: key === "one_time",
+                          isBimonthlySalary:
+                            key === "one_time"
+                              ? false
+                              : entry.isBimonthlySalary,
+                        })
+                      }
+                      options={[
+                        { key: "recurring", label: "Регулярный" },
+                        { key: "one_time", label: "Разовый" },
+                      ]}
+                    />
+                  </View>
+                ) : null}
 
-        {!entry.isOneTime && !entry.isBimonthlySalary ? (
-          <>
-            <FieldLabel>{mode === 'income' ? 'День выплаты' : 'День списания'}</FieldLabel>
-            <FormTextInput
-              className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
-              placeholder="1–31"
-              placeholderTextColor="#94a3b8"
-              keyboardType="numeric"
-              value={mode === 'income' ? entry.paymentDay : entry.dueDay}
-              onChangeText={(value) =>
-                update(mode === 'income' ? { paymentDay: value } : { dueDay: value })
-              }
-            />
-          </>
-        ) : null}
+                {isIncome && !entry.isOneTime ? (
+                  <View className="mb-4">
+                    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      График
+                    </Text>
+                    <Segment
+                      value={
+                        scheduleKey === "bimonthly" ? "bimonthly" : "monthly"
+                      }
+                      onChange={(key) =>
+                        update({
+                          isBimonthlySalary: key === "bimonthly",
+                          isOneTime: false,
+                        })
+                      }
+                      options={[
+                        { key: "monthly", label: "Раз в месяц" },
+                        { key: "bimonthly", label: "10 и 25" },
+                      ]}
+                    />
+                  </View>
+                ) : null}
 
-        {entry.isOneTime ? (
-          <>
-            <FieldLabel>Дата</FieldLabel>
-            <FormTextInput
-              className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
-              placeholder="ГГГГ-ММ-ДД"
-              placeholderTextColor="#94a3b8"
-              value={entry.specificDate ?? ''}
-              onChangeText={(specificDate) => update({ specificDate })}
-            />
-          </>
-        ) : null}
+                <View className="mb-4 flex-row gap-3">
+                  <View className="flex-[1.4]">
+                    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {entry.isBimonthlySalary && isIncome
+                        ? "Сумма / мес"
+                        : "Сумма"}
+                    </Text>
+                    <View className="flex-row items-center rounded-2xl border border-slate-100 bg-slate-50">
+                      <FormTextInput
+                        className="flex-1 px-3.5 py-3.5 text-base text-slate-900"
+                        placeholder="0"
+                        placeholderTextColor="#94a3b8"
+                        keyboardType="numeric"
+                        value={
+                          entry.isBimonthlySalary && isIncome
+                            ? (entry.monthlyAmount ?? entry.amount)
+                            : entry.amount
+                        }
+                        onChangeText={(value) =>
+                          entry.isBimonthlySalary && isIncome
+                            ? update({ monthlyAmount: value, amount: value })
+                            : update({ amount: value })
+                        }
+                      />
+                      <Text className="pr-3.5 text-sm font-semibold text-slate-400">
+                        ₽
+                      </Text>
+                    </View>
+                  </View>
 
-        {mode === 'income' && showPrimarySalary ? (
-          <View>
-            <FieldLabel>Основная зарплата</FieldLabel>
-            <View className="mb-2 flex-row flex-wrap gap-2">
-              <Chip
-                label={entry.isPrimary ? 'Да, основная' : 'Сделать основной'}
-                active={Boolean(entry.isPrimary)}
-                onPress={() => update({ isPrimary: !entry.isPrimary })}
-              />
-            </View>
-            {entry.isPrimary && entry.isBimonthlySalary ? (
-              <View className="mt-1 flex-row gap-2">
-                {[10, 25].map((day) => (
+                  {!entry.isOneTime && !entry.isBimonthlySalary ? (
+                    <View className="flex-1">
+                      <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        День
+                      </Text>
+                      <FormTextInput
+                        className="rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-center text-base text-slate-900"
+                        placeholder="1–31"
+                        placeholderTextColor="#94a3b8"
+                        keyboardType="numeric"
+                        value={isIncome ? entry.paymentDay : entry.dueDay}
+                        onChangeText={(value) =>
+                          update(
+                            isIncome
+                              ? { paymentDay: value }
+                              : { dueDay: value },
+                          )
+                        }
+                      />
+                    </View>
+                  ) : null}
+
+                  {entry.isOneTime ? (
+                    <View className="flex-[1.2]">
+                      <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Дата
+                      </Text>
+                      <FormTextInput
+                        className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3.5 text-center text-sm text-slate-900"
+                        placeholder="ГГГГ-ММ-ДД"
+                        placeholderTextColor="#94a3b8"
+                        value={entry.specificDate ?? ""}
+                        onChangeText={(specificDate) =>
+                          update({ specificDate })
+                        }
+                      />
+                    </View>
+                  ) : null}
+                </View>
+
+                {isIncome && showPrimarySalary ? (
+                  <View className="mb-1">
+                    <Pressable
+                      onPress={() => update({ isPrimary: !entry.isPrimary })}
+                      className={`flex-row items-center rounded-2xl border px-3.5 py-3 ${
+                        entry.isPrimary
+                          ? "border-blue-200 bg-blue-50"
+                          : "border-slate-100 bg-slate-50"
+                      }`}
+                    >
+                      <View
+                        className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${
+                          entry.isPrimary
+                            ? "border-blue-600 bg-blue-600"
+                            : "border-slate-300"
+                        }`}
+                      >
+                        {entry.isPrimary ? (
+                          <Ionicons name="checkmark" size={12} color="#fff" />
+                        ) : null}
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-semibold text-slate-900">
+                          Основная зарплата
+                        </Text>
+                        <Text className="text-xs text-slate-500">
+                          По ней строится отчёт к выплате
+                        </Text>
+                      </View>
+                    </Pressable>
+
+                    {entry.isPrimary && entry.isBimonthlySalary ? (
+                      <View className="mt-3 flex-row gap-2">
+                        {([10, 25] as const).map((day) => {
+                          const active = entry.primaryPaymentDay === day;
+                          return (
+                            <Pressable
+                              key={day}
+                              className={`flex-1 rounded-2xl py-3 ${
+                                active ? "bg-blue-600" : "bg-slate-100"
+                              }`}
+                              onPress={() => update({ primaryPaymentDay: day })}
+                            >
+                              <Text
+                                className={`text-center text-sm font-semibold ${
+                                  active ? "text-white" : "text-slate-600"
+                                }`}
+                              >
+                                Ориентир {day}-е
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {canRemove ? (
                   <Pressable
-                    key={day}
-                    className={`flex-1 rounded-2xl px-3 py-3 ${
-                      entry.primaryPaymentDay === day ? 'bg-blue-600' : 'bg-slate-50'
-                    }`}
-                    onPress={() => update({ primaryPaymentDay: day as 10 | 25 })}>
-                    <Text
-                      className={`text-center text-sm font-semibold ${
-                        entry.primaryPaymentDay === day ? 'text-white' : 'text-slate-700'
-                      }`}>
-                      Ориентир {day}-е
+                    onPress={onRemove}
+                    className="mt-3 flex-row items-center justify-center rounded-2xl py-3"
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                    <Text className="ml-1.5 text-sm font-semibold text-red-500">
+                      Удалить
                     </Text>
                   </Pressable>
-                ))}
+                ) : null}
               </View>
             ) : null}
-          </View>
-        ) : null}
+          </Animated.View>
+        </GestureDetector>
       </View>
-    </View>
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  clip: {
+    overflow: "hidden",
+    borderRadius: 24,
+  },
+  deleteTrack: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#EF4444",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingRight: 22,
+  },
+  card: {
+    borderRadius: 24,
+    borderWidth: 1,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+});
