@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
+import { FormScrollView, FormTextInput } from '@/components/ui/FormScrollView';
 import { getAllAssets } from '@/lib/db/assets';
 import { ASSET_PROVIDERS } from '@/lib/providers/assetProviders';
 import type { Asset, DistributionRule, RuleType } from '@/lib/types';
@@ -54,7 +55,7 @@ export function RuleForm({ initial, onSubmit, onDelete }: Props) {
   };
 
   return (
-    <ScrollView
+    <FormScrollView
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}>
       <Text className="mb-1 text-2xl font-bold text-slate-900">
@@ -65,7 +66,7 @@ export function RuleForm({ initial, onSubmit, onDelete }: Props) {
       </Text>
 
       <Text className="mb-2 text-sm font-medium text-slate-700">Название</Text>
-      <TextInput
+      <FormTextInput
         className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-base"
         placeholder="Например, Подушка безопасности"
         value={name}
@@ -134,7 +135,7 @@ export function RuleForm({ initial, onSubmit, onDelete }: Props) {
             ? 'Сумма в USD'
             : 'Сумма в ₽'}
       </Text>
-      <TextInput
+      <FormTextInput
         className="mb-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-base"
         placeholder={ruleType === 'percent' ? '10' : '15000'}
         keyboardType="numeric"
@@ -161,6 +162,6 @@ export function RuleForm({ initial, onSubmit, onDelete }: Props) {
           <Text className="text-center text-base font-semibold text-red-600">Удалить правило</Text>
         </Pressable>
       ) : null}
-    </ScrollView>
+    </FormScrollView>
   );
 }

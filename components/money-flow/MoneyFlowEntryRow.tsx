@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormTextInput } from '@/components/ui/FormScrollView';
 import type { MoneyFlowEntry } from '@/lib/types';
 
 interface Props {
@@ -68,7 +69,7 @@ export function MoneyFlowEntryRow({
 
       <View className="px-4 py-4">
         <FieldLabel>Название</FieldLabel>
-        <TextInput
+        <FormTextInput
           className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
           placeholder={mode === 'income' ? 'Зарплата, фриланс…' : 'Аренда, подписки…'}
           placeholderTextColor="#94a3b8"
@@ -116,7 +117,7 @@ export function MoneyFlowEntryRow({
           {entry.isBimonthlySalary && mode === 'income' ? 'Месячная сумма' : 'Сумма'}
         </FieldLabel>
         {entry.isBimonthlySalary && mode === 'income' ? (
-          <TextInput
+          <FormTextInput
             className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
             placeholder="0 ₽"
             placeholderTextColor="#94a3b8"
@@ -125,7 +126,7 @@ export function MoneyFlowEntryRow({
             onChangeText={(monthlyAmount) => update({ monthlyAmount, amount: monthlyAmount })}
           />
         ) : (
-          <TextInput
+          <FormTextInput
             className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
             placeholder="0 ₽"
             placeholderTextColor="#94a3b8"
@@ -138,7 +139,7 @@ export function MoneyFlowEntryRow({
         {!entry.isOneTime && !entry.isBimonthlySalary ? (
           <>
             <FieldLabel>{mode === 'income' ? 'День выплаты' : 'День списания'}</FieldLabel>
-            <TextInput
+            <FormTextInput
               className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
               placeholder="1–31"
               placeholderTextColor="#94a3b8"
@@ -154,7 +155,7 @@ export function MoneyFlowEntryRow({
         {entry.isOneTime ? (
           <>
             <FieldLabel>Дата</FieldLabel>
-            <TextInput
+            <FormTextInput
               className="mb-4 rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3.5 text-base text-slate-900"
               placeholder="ГГГГ-ММ-ДД"
               placeholderTextColor="#94a3b8"

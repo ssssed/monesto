@@ -1,5 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -23,12 +31,14 @@ const CLOSE_MS = 220;
 /**
  * Bottom sheet в духе shadcn Drawer:
  * оверлей плавно появляется, панель выезжает снизу со spring.
+ * При открытии клавиатуры поднимается над ней.
  */
 export function BottomSheet({ visible, onClose, children }: Props) {
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(0);
   const dragY = useSharedValue(0);
+  const keyboardHeight = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
@@ -36,6 +46,8 @@ export function BottomSheet({ visible, onClose, children }: Props) {
       dragY.value = 0;
       progress.value = withSpring(1, SPRING);
     } else if (mounted) {
+      Keyboard.dismiss();
+      keyboardHeight.value = withTiming(0, { duration: CLOSE_MS });
       progress.value = withTiming(
         0,
         { duration: CLOSE_MS, easing: Easing.out(Easing.cubic) },
@@ -44,9 +56,33 @@ export function BottomSheet({ visible, onClose, children }: Props) {
         },
       );
     }
-  }, [visible, mounted, progress, dragY]);
+  }, [visible, mounted, progress, dragY, keyboardHeight]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = Keyboard.addListener(showEvent, (event) => {
+      keyboardHeight.value = withTiming(event.endCoordinates.height, {
+        duration: Platform.OS === 'ios' ? event.duration || 250 : 180,
+        easing: Easing.out(Easing.cubic),
+      });
+    });
+    const onHide = Keyboard.addListener(hideEvent, (event) => {
+      keyboardHeight.value = withTiming(0, {
+        duration: Platform.OS === 'ios' ? event.duration || 220 : 160,
+        easing: Easing.out(Easing.cubic),
+      });
+    });
+
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [keyboardHeight]);
 
   const requestClose = () => {
+    Keyboard.dismiss();
     onClose();
   };
 
@@ -70,7 +106,7 @@ export function BottomSheet({ visible, onClose, children }: Props) {
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        translateY: (1 - progress.value) * 420 + dragY.value,
+        translateY: (1 - progress.value) * 420 + dragY.value - keyboardHeight.value,
       },
     ],
   }));
@@ -96,7 +132,13 @@ export function BottomSheet({ visible, onClose, children }: Props) {
               <View style={styles.handle} />
             </Animated.View>
           </GestureDetector>
-          {children}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.content}>
+            {children}
+          </ScrollView>
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
@@ -124,6 +166,9 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: -8 },
     elevation: 16,
+  },
+  content: {
+    paddingBottom: 8,
   },
   handleWrap: {
     alignItems: 'center',

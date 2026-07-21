@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Monesto",
-    "slug": "monesto-mobile",
+    "slug": "igor",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -55,11 +55,18 @@
         }
       ],
       "expo-sqlite",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
     },
-    "extra": {}
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "022f1469-b90f-4bfc-989b-f01e1ccbbe81"
+      }
+    },
+    "owner": "sssseds-team"
   }
 }

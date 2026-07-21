@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS app_meta (
@@ -73,6 +73,15 @@ CREATE TABLE IF NOT EXISTS allocation_confirmations (
   UNIQUE(rule_id, cycle_key),
   FOREIGN KEY (rule_id) REFERENCES distribution_rules(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS allocation_rejections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_id INTEGER NOT NULL,
+  cycle_key TEXT NOT NULL,
+  rejected_at TEXT NOT NULL,
+  UNIQUE(rule_id, cycle_key),
+  FOREIGN KEY (rule_id) REFERENCES distribution_rules(id) ON DELETE CASCADE
+);
 `;
 
 export const MIGRATIONS: Record<number, string[]> = {
@@ -88,6 +97,16 @@ export const MIGRATIONS: Record<number, string[]> = {
       cycle_key TEXT NOT NULL,
       confirmed_at TEXT NOT NULL,
       amount_rub REAL NOT NULL,
+      UNIQUE(rule_id, cycle_key),
+      FOREIGN KEY (rule_id) REFERENCES distribution_rules(id) ON DELETE CASCADE
+    )`,
+  ],
+  3: [
+    `CREATE TABLE IF NOT EXISTS allocation_rejections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id INTEGER NOT NULL,
+      cycle_key TEXT NOT NULL,
+      rejected_at TEXT NOT NULL,
       UNIQUE(rule_id, cycle_key),
       FOREIGN KEY (rule_id) REFERENCES distribution_rules(id) ON DELETE CASCADE
     )`,

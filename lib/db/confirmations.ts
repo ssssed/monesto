@@ -12,6 +12,18 @@ export async function isAllocationConfirmed(
   return Boolean(row);
 }
 
+export async function isAllocationRejected(
+  ruleId: number,
+  cycleKey: string,
+): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM allocation_rejections WHERE rule_id = ? AND cycle_key = ?',
+    [ruleId, cycleKey],
+  );
+  return Boolean(row);
+}
+
 export async function getConfirmedRuleIds(cycleKey: string): Promise<number[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ rule_id: number }>(
@@ -21,14 +33,27 @@ export async function getConfirmedRuleIds(cycleKey: string): Promise<number[]> {
   return rows.map((row) => row.rule_id);
 }
 
+export async function getRejectedRuleIds(cycleKey: string): Promise<number[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ rule_id: number }>(
+    'SELECT rule_id FROM allocation_rejections WHERE cycle_key = ?',
+    [cycleKey],
+  );
+  return rows.map((row) => row.rule_id);
+}
+
 export async function confirmAllocation(input: {
   ruleId: number;
   cycleKey: string;
   amountRub: number;
-}): Promise<'ok' | 'already_confirmed'> {
+}): Promise<'ok' | 'already_confirmed' | 'already_rejected'> {
   const db = await getDatabase();
-  const existing = await isAllocationConfirmed(input.ruleId, input.cycleKey);
-  if (existing) return 'already_confirmed';
+  if (await isAllocationRejected(input.ruleId, input.cycleKey)) {
+    return 'already_rejected';
+  }
+  if (await isAllocationConfirmed(input.ruleId, input.cycleKey)) {
+    return 'already_confirmed';
+  }
 
   try {
     await db.runAsync(
@@ -39,5 +64,29 @@ export async function confirmAllocation(input: {
     return 'ok';
   } catch {
     return 'already_confirmed';
+  }
+}
+
+export async function rejectAllocation(input: {
+  ruleId: number;
+  cycleKey: string;
+}): Promise<'ok' | 'already_confirmed' | 'already_rejected'> {
+  const db = await getDatabase();
+  if (await isAllocationConfirmed(input.ruleId, input.cycleKey)) {
+    return 'already_confirmed';
+  }
+  if (await isAllocationRejected(input.ruleId, input.cycleKey)) {
+    return 'already_rejected';
+  }
+
+  try {
+    await db.runAsync(
+      `INSERT INTO allocation_rejections (rule_id, cycle_key, rejected_at)
+       VALUES (?, ?, ?)`,
+      [input.ruleId, input.cycleKey, new Date().toISOString()],
+    );
+    return 'ok';
+  } catch {
+    return 'already_rejected';
   }
 }

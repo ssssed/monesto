@@ -109,9 +109,9 @@ export default function AssetsScreen() {
                       size={52}
                     />
                     <View className="ml-3 flex-1">
-                      <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center justify-between gap-2">
                         <Text
-                          className="mr-2 flex-1 text-base font-semibold text-slate-900"
+                          className="min-w-0 flex-1 text-base font-semibold leading-5 text-slate-900"
                           numberOfLines={1}>
                           {asset.name}
                         </Text>
@@ -129,13 +129,13 @@ export default function AssetsScreen() {
                       </View>
                       {asset.provider === 'usd' ? (
                         <>
-                          <Text className="mt-1 text-lg font-bold text-slate-900">
+                          <Text className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
                             {formatMoney(asset.current_amount, 'usd')}
                           </Text>
                           <Text className="text-sm text-slate-500">{formatRub(rubValue)}</Text>
                         </>
                       ) : (
-                        <Text className="mt-1 text-lg font-bold text-slate-900">
+                        <Text className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
                           {formatRub(asset.current_amount)}
                         </Text>
                       )}

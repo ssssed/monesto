@@ -83,6 +83,7 @@ export async function clearAllData(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(`
     DELETE FROM allocation_confirmations;
+    DELETE FROM allocation_rejections;
     DELETE FROM asset_transactions;
     DELETE FROM distribution_rules;
     DELETE FROM assets;

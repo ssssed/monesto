@@ -1,13 +1,22 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AssetStylePicker } from '@/components/assets/AssetStylePicker';
+import { FormScrollView, FormTextInput } from '@/components/ui/FormScrollView';
+import { SelectField } from '@/components/ui/SelectField';
 import { createAsset } from '@/lib/db/assets';
 import { ASSET_PROVIDERS, getEnabledProviders } from '@/lib/providers/assetProviders';
 import type { AssetProvider } from '@/lib/types';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
+
+const PROVIDER_LABELS: Record<AssetProvider, string> = {
+  rub: '₽ Рубли',
+  usd: 'USD Доллар',
+  gold: 'Золото',
+  steam: 'Steam',
+};
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
   return (
@@ -32,6 +41,9 @@ export default function NewAssetScreen() {
   const [saving, setSaving] = useState(false);
 
   const providers = getEnabledProviders();
+  const currencySymbol = ASSET_PROVIDERS[provider].symbol;
+  const currentAmount = Number(amount || 0);
+  const showBuyRate = provider === 'usd' && currentAmount > 0;
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -39,15 +51,18 @@ export default function NewAssetScreen() {
       return;
     }
 
-    const currentAmount = Number(amount || 0);
     let costBasis = currentAmount;
     if (provider === 'usd') {
-      const rate = Number(buyRate || usdRubRate);
-      if (!rate) {
-        Alert.alert('Ошибка', 'Укажите курс покупки');
-        return;
+      if (currentAmount > 0) {
+        const rate = Number(buyRate || usdRubRate);
+        if (!rate) {
+          Alert.alert('Ошибка', 'Укажите курс покупки');
+          return;
+        }
+        costBasis = currentAmount * rate;
+      } else {
+        costBasis = 0;
       }
-      costBasis = currentAmount * rate;
     }
 
     setSaving(true);
@@ -71,11 +86,11 @@ export default function NewAssetScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={[]}>
-      <ScrollView
+      <FormScrollView
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}>
         <FieldLabel label="Название" required />
-        <TextInput
+        <FormTextInput
           className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
           placeholder="Например, Подушка безопасности"
           value={name}
@@ -83,24 +98,39 @@ export default function NewAssetScreen() {
         />
 
         <FieldLabel label="Назначение" />
-        <TextInput
+        <FormTextInput
           className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
           placeholder="Необязательно"
           value={purpose}
           onChangeText={setPurpose}
         />
 
-        <FieldLabel label="Цель накопления" />
-        <TextInput
-          className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
-          placeholder="Необязательно"
-          keyboardType="numeric"
-          value={goal}
-          onChangeText={setGoal}
+        <SelectField
+          label="Провайдер"
+          required
+          value={provider}
+          options={providers.map((item) => ({
+            value: item,
+            label: PROVIDER_LABELS[item],
+          }))}
+          onChange={setProvider}
+          testID="asset-provider-select"
         />
 
+        <FieldLabel label="Цель накопления" />
+        <View className="mb-4 flex-row items-center rounded-xl border border-slate-200 bg-slate-50">
+          <FormTextInput
+            className="flex-1 px-3 py-3 text-base"
+            placeholder="Необязательно"
+            keyboardType="numeric"
+            value={goal}
+            onChangeText={setGoal}
+          />
+          <Text className="pr-3 text-base font-semibold text-slate-500">{currencySymbol}</Text>
+        </View>
+
         <FieldLabel label={provider === 'usd' ? 'Текущая сумма, USD' : 'Текущая сумма, ₽'} />
-        <TextInput
+        <FormTextInput
           className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
           placeholder="0"
           keyboardType="numeric"
@@ -108,10 +138,10 @@ export default function NewAssetScreen() {
           onChangeText={setAmount}
         />
 
-        {provider === 'usd' ? (
+        {showBuyRate ? (
           <>
             <FieldLabel label="Курс покупки, ₽/$" required />
-            <TextInput
+            <FormTextInput
               className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
               placeholder={`Сейчас ${usdRubRate}`}
               keyboardType="numeric"
@@ -120,27 +150,6 @@ export default function NewAssetScreen() {
             />
           </>
         ) : null}
-
-        <View className="mb-4 flex-row gap-2" testID="asset-provider-select">
-          {providers.map((item) => {
-            const selected = provider === item;
-            return (
-              <Pressable
-                key={item}
-                onPress={() => setProvider(item)}
-                className={`flex-1 rounded-2xl px-3 py-3.5 ${selected ? 'bg-slate-900' : 'bg-slate-50'}`}>
-                <Text
-                  className={`text-center text-sm font-semibold ${selected ? 'text-white' : 'text-slate-600'}`}>
-                  {ASSET_PROVIDERS[item].label}
-                </Text>
-                <Text
-                  className={`mt-0.5 text-center text-xs ${selected ? 'text-slate-300' : 'text-slate-400'}`}>
-                  {item.toUpperCase()}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
 
         <AssetStylePicker
           icon={icon}
@@ -160,7 +169,7 @@ export default function NewAssetScreen() {
         <Pressable className="mt-3 py-3" onPress={() => router.back()}>
           <Text className="text-center font-medium text-slate-500">Отмена</Text>
         </Pressable>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

@@ -6,23 +6,47 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
 import { getAllAssets } from '@/lib/db/assets';
+import { getAllExpenses } from '@/lib/db/expenses';
+import { getAllIncomes } from '@/lib/db/incomes';
 import { getAllRules } from '@/lib/db/rules';
 import { ASSET_PROVIDERS } from '@/lib/providers/assetProviders';
+import { calculateReport, isReportError } from '@/lib/report/calculateReport';
+import { summarizeRulesBudget } from '@/lib/report/rulesBudget';
 import type { Asset, DistributionRule } from '@/lib/types';
 import { formatRub } from '@/lib/utils/format';
+import { useExchangeRateStore } from '@/stores/exchange-rate-store';
+
+const SLICE_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F472B6', '#38BDF8'];
 
 export default function RulesScreen() {
+  const usdRubRate = useExchangeRateStore((state) => state.usdRubRate) ?? 82;
   const [rules, setRules] = useState<DistributionRule[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [remainder, setRemainder] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [ruleRows, assetRows] = await Promise.all([getAllRules(), getAllAssets()]);
+    const [ruleRows, assetRows, incomes, expenses] = await Promise.all([
+      getAllRules(),
+      getAllAssets(),
+      getAllIncomes(),
+      getAllExpenses(),
+    ]);
     setRules(ruleRows);
     setAssets(assetRows);
+
+    const report = calculateReport({
+      incomes,
+      expenses,
+      rules: ruleRows,
+      assets: assetRows,
+      today: new Date(),
+      usdRubRate,
+    });
+    setRemainder(isReportError(report) ? 0 : Math.max(0, report.remainder));
     setLoading(false);
-  }, []);
+  }, [usdRubRate]);
 
   useFocusEffect(
     useCallback(() => {
@@ -32,9 +56,19 @@ export default function RulesScreen() {
 
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
 
-  const totalPercent = rules
-    .filter((rule) => rule.rule_type === 'percent')
-    .reduce((sum, rule) => sum + rule.value, 0);
+  const budget = useMemo(
+    () =>
+      summarizeRulesBudget({
+        remainder,
+        rules,
+        assets,
+        usdRubRate,
+      }),
+    [remainder, rules, assets, usdRubRate],
+  );
+
+  const displayTotal = Math.round(budget.totalPercent * 10) / 10;
+  const barTotal = Math.max(budget.totalPercent, 100);
 
   if (loading) {
     return (
@@ -54,23 +88,81 @@ export default function RulesScreen() {
           Правила решают, какая часть остатка уходит в каждый актив после зарплаты
         </Text>
 
-        <View className="mb-6 mt-5 rounded-3xl bg-slate-900 px-5 py-5">
+        <View
+          className={`mb-6 mt-5 rounded-3xl px-5 py-5 ${budget.overBudget ? 'bg-red-900' : 'bg-slate-900'}`}>
           <View className="flex-row items-end justify-between">
             <View>
-              <Text className="text-sm text-slate-300">Активных правил</Text>
-              <Text className="mt-1 text-3xl font-bold text-white">{rules.length}</Text>
+              <Text className="text-sm text-slate-300">Занято от остатка</Text>
+              <Text
+                className={`mt-1 text-3xl font-bold ${budget.overBudget ? 'text-red-300' : 'text-white'}`}>
+                {displayTotal}%
+              </Text>
             </View>
             <View className="items-end">
-              <Text className="text-sm text-slate-300">% от остатка</Text>
-              <Text className="mt-1 text-2xl font-bold text-blue-300">{totalPercent}%</Text>
+              <Text className="text-sm text-slate-300">Свободно</Text>
+              <Text className="mt-1 text-2xl font-bold text-emerald-300">
+                {Math.max(0, Math.round(budget.freePercent))}%
+              </Text>
             </View>
           </View>
-          <View className="mt-4 h-2 overflow-hidden rounded-full bg-slate-700">
-            <View
-              className="h-2 rounded-full bg-blue-400"
-              style={{ width: `${Math.min(totalPercent, 100)}%` }}
-            />
+
+          <View className="mt-4 h-3 flex-row overflow-hidden rounded-full bg-slate-700">
+            {budget.slices.map((slice, index) => {
+              const widthPct = (slice.percent / barTotal) * 100;
+              if (widthPct <= 0) return null;
+              return (
+                <View
+                  key={slice.ruleId}
+                  style={{
+                    width: `${widthPct}%`,
+                    backgroundColor: SLICE_COLORS[index % SLICE_COLORS.length],
+                  }}
+                />
+              );
+            })}
+            {!budget.overBudget && budget.freePercent > 0 ? (
+              <View style={{ flex: 1, backgroundColor: 'transparent' }} />
+            ) : null}
           </View>
+
+          <Text className="mt-3 text-xs leading-4 text-slate-400">
+            {remainder > 0
+              ? `Остаток цикла ≈ ${formatRub(remainder)}. Фикс. суммы пересчитаны в % от него.`
+              : 'Нет положительного остатка — фикс. суммы пока не переводятся в %. Добавьте доходы или уменьшите расходы.'}
+          </Text>
+
+          {budget.overBudget ? (
+            <View className="mt-3 rounded-2xl bg-red-800/60 px-3 py-2.5">
+              <Text className="text-sm font-semibold text-red-100">
+                Правила занимают больше 100% остатка
+              </Text>
+              <Text className="mt-1 text-xs leading-4 text-red-200">
+                Уменьшите проценты или фикс. суммы, иначе часть распределения не поместится в
+                свободные деньги.
+              </Text>
+            </View>
+          ) : null}
+
+          {budget.slices.length > 0 ? (
+            <View className="mt-4 gap-2">
+              {budget.slices.map((slice, index) => (
+                <View key={slice.ruleId} className="flex-row items-center justify-between">
+                  <View className="mr-2 min-w-0 flex-1 flex-row items-center">
+                    <View
+                      className="mr-2 h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: SLICE_COLORS[index % SLICE_COLORS.length] }}
+                    />
+                    <Text className="flex-1 text-xs text-slate-300" numberOfLines={1}>
+                      {slice.name}
+                    </Text>
+                  </View>
+                  <Text className="text-xs font-semibold text-white">
+                    {Math.round(slice.percent * 10) / 10}% · {formatRub(slice.amountRub)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <Link href="/(tabs)/settings/rules/new" asChild>
@@ -134,7 +226,7 @@ export default function RulesScreen() {
                     {rule.rule_type === 'percent'
                       ? `${rule.value}% от остатка после расходов`
                       : rule.currency === 'asset'
-                        ? `Фиксированная сумма в валюте актива`
+                        ? 'Фиксированная сумма в валюте актива'
                         : `Фиксированно ${formatRub(rule.value)}`}
                   </Text>
                 </Pressable>

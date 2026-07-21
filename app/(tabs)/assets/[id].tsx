@@ -1,5 +1,6 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +19,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AssetAvatar, TrendPill } from '@/components/assets/AssetAvatar';
+import { AssetStylePicker } from '@/components/assets/AssetStylePicker';
 import { AnimatedPercentLabel, AnimatedProgressBar } from '@/components/ui/AnimatedProgress';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { FadeInBlock, FadeInItem } from '@/components/ui/Motion';
@@ -25,7 +27,9 @@ import {
   addTransaction,
   getAssetById,
   getTransactions,
+  updateAsset,
 } from '@/lib/db/assets';
+import { ASSET_PROVIDERS } from '@/lib/providers/assetProviders';
 import { calcUsdValuation } from '@/lib/exchange/usdValuation';
 import type { Asset, AssetTransaction } from '@/lib/types';
 import { formatMoney, formatRub } from '@/lib/utils/format';
@@ -35,14 +39,24 @@ type TxMode = 'deposit' | 'withdraw' | null;
 
 export default function AssetDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const navigation = useNavigation();
   const usdRubRate = useExchangeRateStore((state) => state.usdRubRate);
   const [asset, setAsset] = useState<Asset | null>(null);
   const [transactions, setTransactions] = useState<AssetTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<TxMode>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [buyRate, setBuyRate] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [editName, setEditName] = useState('');
+  const [editPurpose, setEditPurpose] = useState('');
+  const [editGoal, setEditGoal] = useState('');
+  const [editIcon, setEditIcon] = useState('wallet-outline');
+  const [editBg, setEditBg] = useState('#DBEAFE');
+  const [editIconColor, setEditIconColor] = useState('#2563EB');
+
   const amountPulse = useSharedValue(1);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -71,6 +85,31 @@ export default function AssetDetailScreen() {
     );
   }, [asset?.current_amount, amountPulse, asset]);
 
+  const openEdit = useCallback(() => {
+    if (!asset) return;
+    setEditName(asset.name);
+    setEditPurpose(asset.purpose ?? '');
+    setEditGoal(asset.goal_amount != null ? String(asset.goal_amount) : '');
+    setEditIcon(asset.icon);
+    setEditBg(asset.bg_color);
+    setEditIconColor(asset.icon_color);
+    setEditOpen(true);
+  }, [asset]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={openEdit}
+          hitSlop={12}
+          className="mr-1 h-9 w-9 items-center justify-center rounded-full bg-slate-50"
+          accessibilityLabel="Редактировать актив">
+          <Ionicons name="pencil" size={18} color="#2563EB" />
+        </Pressable>
+      ),
+    });
+  }, [navigation, openEdit]);
+
   const amountStyle = useAnimatedStyle(() => ({
     transform: [{ scale: amountPulse.value }],
   }));
@@ -84,6 +123,7 @@ export default function AssetDetailScreen() {
   }
 
   const providerKey = asset.provider === 'usd' ? 'usd' : 'rub';
+  const currencySymbol = ASSET_PROVIDERS[asset.provider].symbol;
   const valuation =
     asset.provider === 'usd' && usdRubRate ? calcUsdValuation(asset, usdRubRate) : null;
   const hasGoal = asset.goal_amount != null && asset.goal_amount > 0;
@@ -121,6 +161,28 @@ export default function AssetDetailScreen() {
         await addTransaction(asset.id, -value, 'Списание');
       }
       setMode(null);
+      await load({ silent: true });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Ошибка', 'Укажите название');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateAsset(asset.id, {
+        name: editName.trim(),
+        purpose: editPurpose.trim() || null,
+        goal_amount: editGoal.trim() ? Number(editGoal) : null,
+        icon: editIcon,
+        bg_color: editBg,
+        icon_color: editIconColor,
+      });
+      setEditOpen(false);
       await load({ silent: true });
     } finally {
       setSaving(false);
@@ -227,7 +289,22 @@ export default function AssetDetailScreen() {
 
         <Text className="mb-3 text-lg font-semibold text-slate-900">История операций</Text>
         {transactions.length === 0 ? (
-          <Text className="text-sm text-slate-500">История пока пуста</Text>
+          <View className="items-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10">
+            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+              <Ionicons name="receipt-outline" size={28} color="#2563EB" />
+            </View>
+            <Text className="text-center text-base font-semibold text-slate-900">
+              Пока пусто
+            </Text>
+            <Text className="mt-2 text-center text-sm leading-5 text-slate-500">
+              Пополните или спишите сумму — здесь появится история движений по активу
+            </Text>
+            <Pressable
+              className="mt-5 rounded-2xl bg-blue-600 px-5 py-3"
+              onPress={() => openModal('deposit')}>
+              <Text className="text-sm font-semibold text-white">Пополнить актив</Text>
+            </Pressable>
+          </View>
         ) : (
           transactions.map((tx, index) => (
             <FadeInItem key={tx.id} index={index}>
@@ -265,6 +342,7 @@ export default function AssetDetailScreen() {
           keyboardType="numeric"
           value={amount}
           onChangeText={setAmount}
+          autoFocus
         />
         {mode === 'deposit' && asset.provider === 'usd' ? (
           <>
@@ -287,6 +365,58 @@ export default function AssetDetailScreen() {
           <Text className="text-center font-semibold text-white">Подтвердить</Text>
         </Pressable>
         <Pressable className="py-3" onPress={() => setMode(null)}>
+          <Text className="text-center font-medium text-slate-500">Отмена</Text>
+        </Pressable>
+      </BottomSheet>
+
+      <BottomSheet visible={editOpen} onClose={() => setEditOpen(false)}>
+        <Text className="mb-4 text-center text-xl font-bold text-slate-900">Редактировать</Text>
+
+        <Text className="mb-2 text-sm font-medium text-slate-700">
+          Название <Text className="text-red-500">*</Text>
+        </Text>
+        <TextInput
+          className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
+          value={editName}
+          onChangeText={setEditName}
+        />
+
+        <Text className="mb-2 text-sm font-medium text-slate-700">Назначение</Text>
+        <TextInput
+          className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base"
+          placeholder="Необязательно"
+          value={editPurpose}
+          onChangeText={setEditPurpose}
+        />
+
+        <Text className="mb-2 text-sm font-medium text-slate-700">Цель накопления</Text>
+        <View className="mb-4 flex-row items-center rounded-xl border border-slate-200 bg-slate-50">
+          <TextInput
+            className="flex-1 px-3 py-3 text-base"
+            placeholder="Необязательно"
+            keyboardType="numeric"
+            value={editGoal}
+            onChangeText={setEditGoal}
+          />
+          <Text className="pr-3 text-base font-semibold text-slate-500">{currencySymbol}</Text>
+        </View>
+
+        <AssetStylePicker
+          icon={editIcon}
+          bgColor={editBg}
+          iconColor={editIconColor}
+          onIconChange={setEditIcon}
+          onBgChange={setEditBg}
+          onIconColorChange={setEditIconColor}
+        />
+
+        <Pressable
+          className={`mb-2 rounded-2xl py-4 ${saving ? 'bg-blue-300' : 'bg-blue-600'}`}
+          disabled={saving}
+          onPress={handleSaveEdit}>
+          <Text className="text-center font-semibold text-white">Сохранить</Text>
+        </Pressable>
+        <Pressable className="py-3" onPress={() => setEditOpen(false)}>
           <Text className="text-center font-medium text-slate-500">Отмена</Text>
         </Pressable>
       </BottomSheet>

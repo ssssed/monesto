@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { MoneyFlowEntryRow } from '@/components/money-flow/MoneyFlowEntryRow';
 import { MoneyFlowSummary } from '@/components/money-flow/MoneyFlowSummary';
+import { FormScrollView } from '@/components/ui/FormScrollView';
 import type { MoneyFlowEntry } from '@/lib/types';
 import { createEmptyExpenseEntry, createEmptyIncomeEntry } from '@/lib/utils/format';
 
@@ -98,7 +99,7 @@ export function MoneyFlowStep({
   };
 
   return (
-    <ScrollView
+    <FormScrollView
       className="flex-1 bg-white"
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 36 }}
       showsVerticalScrollIndicator={false}
@@ -144,6 +145,6 @@ export function MoneyFlowStep({
           {submitLabel ?? (onNext ? 'Далее' : 'Сохранить')}
         </Text>
       </Pressable>
-    </ScrollView>
+    </FormScrollView>
   );
 }

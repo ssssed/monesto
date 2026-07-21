@@ -92,17 +92,16 @@ interface RingBadgeProps {
 }
 
 /**
- * Badge цели без Reanimated worklets — безопасен в списках.
- * Кольцо рисуется статичными сегментами, % анимируется на JS.
+ * Компактное кольцо цели (~16px) + % справа.
  */
 export function AnimatedGoalBadge({ current, goal }: RingBadgeProps) {
   const progress = goal > 0 ? Math.min(Math.max(current / goal, 0), 1) : 0;
   const pct = useCountTo(progress);
-  const size = 28;
-  const border = 2.5;
+  const size = 16;
+  const border = 2;
 
   return (
-    <View style={styles.badge}>
+    <View style={styles.badgeRow}>
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
         <View
           style={{
@@ -129,9 +128,8 @@ export function AnimatedGoalBadge({ current, goal }: RingBadgeProps) {
             transform: [{ rotate: '-45deg' }],
           }}
         />
-        <Text style={{ fontSize: 8, fontWeight: '700', color: '#2563EB' }}>{pct}</Text>
       </View>
-      <Text style={styles.badgeLabel}>цель</Text>
+      <Text style={styles.badgePct}>{pct}%</Text>
     </View>
   );
 }
@@ -152,20 +150,16 @@ const styles = StyleSheet.create({
   fill: {
     minWidth: 0,
   },
-  badge: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingLeft: 4,
-    paddingRight: 10,
   },
-  badgeLabel: {
+  badgePct: {
     marginLeft: 4,
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '600',
-    color: '#475569',
+    color: '#2563EB',
   },
   percentLabel: {
     fontSize: 14,

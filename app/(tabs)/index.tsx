@@ -8,13 +8,18 @@ import { SwipeConfirmCard } from '@/components/report/SwipeConfirmCard';
 import { AppLoader } from '@/components/ui/AppLoader';
 import { FadeInBlock, FadeInItem } from '@/components/ui/Motion';
 import { depositFromAllocation, getAllAssets } from '@/lib/db/assets';
-import { confirmAllocation, getConfirmedRuleIds } from '@/lib/db/confirmations';
+import {
+  confirmAllocation,
+  getConfirmedRuleIds,
+  getRejectedRuleIds,
+  rejectAllocation,
+} from '@/lib/db/confirmations';
 import { getAllExpenses } from '@/lib/db/expenses';
 import { getAllIncomes } from '@/lib/db/incomes';
 import { getAllRules } from '@/lib/db/rules';
 import { calculateReport, isReportError } from '@/lib/report/calculateReport';
 import { formatReportDate } from '@/lib/report/dateWindow';
-import type { Asset, ReportResult, RuleAllocation } from '@/lib/types';
+import type { ReportResult, RuleAllocation } from '@/lib/types';
 import { formatRub, formatUsd } from '@/lib/utils/format';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
@@ -23,13 +28,12 @@ export default function HomeScreen() {
   const isLoadingRate = useExchangeRateStore((state) => state.isLoading);
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<ReportResult | null>(null);
-  const [assets, setAssets] = useState<Asset[]>([]);
   const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
+  const [rejectedIds, setRejectedIds] = useState<number[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasLoadedOnce = useRef(false);
 
   const loadReport = useCallback(async () => {
-    // Лоадер и remount только при первой загрузке — иначе анимации играют снова.
     if (!hasLoadedOnce.current) setLoading(true);
 
     const [incomes, expenses, rules, assetRows] = await Promise.all([
@@ -51,15 +55,17 @@ export default function HomeScreen() {
     if (isReportError(result)) {
       setErrorMessage(result.message);
       setReport(null);
-      setAssets(assetRows);
       setLoading(false);
       return;
     }
 
-    const confirmed = await getConfirmedRuleIds(result.cycleKey);
+    const [confirmed, rejected] = await Promise.all([
+      getConfirmedRuleIds(result.cycleKey),
+      getRejectedRuleIds(result.cycleKey),
+    ]);
     setConfirmedIds(confirmed);
+    setRejectedIds(rejected);
     setReport(result);
-    setAssets(assetRows);
     setErrorMessage(null);
     hasLoadedOnce.current = true;
     setLoading(false);
@@ -87,9 +93,11 @@ export default function HomeScreen() {
     if (!report || !usdRubRate) return;
 
     const allocations = allocationsByAsset.get(assetId) ?? [];
-    const pending = allocations.filter((item) => !confirmedIds.includes(item.ruleId));
+    const pending = allocations.filter(
+      (item) => !confirmedIds.includes(item.ruleId) && !rejectedIds.includes(item.ruleId),
+    );
     if (pending.length === 0) {
-      Alert.alert('Уже подтверждено', 'Пополнение этого актива в текущем цикле уже засчитано.');
+      Alert.alert('Уже обработано', 'Пополнение этого актива в текущем цикле уже засчитано или отклонено.');
       return;
     }
 
@@ -102,19 +110,39 @@ export default function HomeScreen() {
         cycleKey: report.cycleKey,
         amountRub: item.amountRub,
       });
-      if (status === 'ok') {
-        newlyConfirmed.push(item.ruleId);
-      }
+      if (status === 'ok') newlyConfirmed.push(item.ruleId);
     }
 
     if (newlyConfirmed.length === 0) {
-      Alert.alert('Уже подтверждено', 'Повторное подтверждение невозможно.');
+      Alert.alert('Уже обработано', 'Повторное подтверждение невозможно.');
       setConfirmedIds((prev) => [...new Set([...prev, ...pending.map((p) => p.ruleId)])]);
       return;
     }
 
     await depositFromAllocation(assetId, totalRub, usdRubRate, 'Распределение из отчёта');
     setConfirmedIds((prev) => [...new Set([...prev, ...newlyConfirmed])]);
+    await loadReport();
+  };
+
+  const handleRejectAsset = async (assetId: number) => {
+    if (!report) return;
+
+    const allocations = allocationsByAsset.get(assetId) ?? [];
+    const pending = allocations.filter(
+      (item) => !confirmedIds.includes(item.ruleId) && !rejectedIds.includes(item.ruleId),
+    );
+    if (pending.length === 0) return;
+
+    const newlyRejected: number[] = [];
+    for (const item of pending) {
+      const status = await rejectAllocation({
+        ruleId: item.ruleId,
+        cycleKey: report.cycleKey,
+      });
+      if (status === 'ok') newlyRejected.push(item.ruleId);
+    }
+
+    setRejectedIds((prev) => [...new Set([...prev, ...newlyRejected])]);
     await loadReport();
   };
 
@@ -133,8 +161,16 @@ export default function HomeScreen() {
   }
 
   const hasPendingAllocations = report.allocations.some(
-    (item) => item.targetAssetId != null && !confirmedIds.includes(item.ruleId),
+    (item) =>
+      item.targetAssetId != null &&
+      !confirmedIds.includes(item.ruleId) &&
+      !rejectedIds.includes(item.ruleId),
   );
+
+  const assetsWithChanges = (report.assetSummary ?? []).filter((item) => {
+    const related = allocationsByAsset.get(item.id) ?? [];
+    return related.length > 0;
+  });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -152,7 +188,6 @@ export default function HomeScreen() {
             <Text className="mb-5 text-sm text-slate-500">Отчёт по доходам и расходам</Text>
           </FadeInBlock>
 
-          {/* enter animations: first mount only */}
           <FadeInItem index={0}>
             <View className="mb-5 rounded-3xl bg-slate-900 px-5 py-5">
               <Text className="text-sm text-slate-300">Свободные деньги</Text>
@@ -202,19 +237,29 @@ export default function HomeScreen() {
           <Text className="mb-1 text-lg font-bold text-slate-900">Ваши активы</Text>
           <Text className="mb-4 text-sm leading-5 text-slate-500">
             {hasPendingAllocations
-              ? 'Справа сумма к пополнению по правилам. Сдвиньте карточку вправо, чтобы зачислить средства на актив. Повторно подтвердить тот же цикл нельзя — появится зелёная галочка.'
-              : 'Текущие балансы активов. Когда появятся правила распределения, здесь можно будет подтвердить пополнение свайпом.'}
+              ? 'Вправо — зачислить пополнение. Влево — отклонить. Решение действует до конца цикла.'
+              : assetsWithChanges.length > 0
+                ? 'В этом цикле все пополнения уже обработаны.'
+                : 'Нет активов с распределением в текущем цикле. Добавьте правила в настройках.'}
           </Text>
 
-          {(report.assetSummary ?? []).length === 0 ? (
-            <Text className="text-sm text-slate-500">Активов пока нет</Text>
+          {assetsWithChanges.length === 0 ? (
+            <Text className="text-sm text-slate-500">Нет активов к пополнению</Text>
           ) : (
-            (report.assetSummary ?? []).map((item, index) => {
+            assetsWithChanges.map((item, index) => {
               const related = allocationsByAsset.get(item.id) ?? [];
-              const pending = related.filter((a) => !confirmedIds.includes(a.ruleId));
+              const pending = related.filter(
+                (a) => !confirmedIds.includes(a.ruleId) && !rejectedIds.includes(a.ruleId),
+              );
               const allConfirmed =
                 related.length > 0 && related.every((a) => confirmedIds.includes(a.ruleId));
-              const incoming = pending.reduce((sum, a) => sum + a.amountRub, 0) || item.incomingRub;
+              const allRejected =
+                related.length > 0 &&
+                related.every((a) => rejectedIds.includes(a.ruleId)) &&
+                !allConfirmed;
+              const incoming =
+                pending.reduce((sum, a) => sum + a.amountRub, 0) ||
+                (allConfirmed ? item.incomingRub : 0);
 
               return (
                 <FadeInItem key={item.id} index={index + 3}>
@@ -225,13 +270,15 @@ export default function HomeScreen() {
                         ? `${formatUsd(item.nativeAmount)} · ${formatRub(item.rubEquivalent)}`
                         : formatRub(item.nativeAmount)
                     }
-                    incomingRub={allConfirmed ? item.incomingRub : incoming}
+                    incomingRub={incoming}
                     icon={item.icon}
                     bgColor={item.bg_color}
                     iconColor={item.icon_color}
                     confirmed={allConfirmed}
+                    rejected={allRejected}
                     swipeable={pending.length > 0}
                     onConfirm={() => handleConfirmAsset(item.id)}
+                    onReject={() => handleRejectAsset(item.id)}
                   />
                 </FadeInItem>
               );
