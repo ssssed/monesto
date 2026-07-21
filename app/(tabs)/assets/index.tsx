@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { GLASS_TAB_BAR_CONTENT_INSET } from "@/components/navigation/GlassTabBar";
 import { AssetAvatar, TrendPill } from "@/components/assets/AssetAvatar";
 import { AnimatedGoalBadge } from "@/components/ui/AnimatedProgress";
 import { FadeInBlock, FadeInItem } from "@/components/ui/Motion";
@@ -137,7 +138,7 @@ export default function AssetsScreen() {
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: 24,
+          paddingBottom: GLASS_TAB_BAR_CONTENT_INSET + 24,
         }}
         showsVerticalScrollIndicator={false}
       >

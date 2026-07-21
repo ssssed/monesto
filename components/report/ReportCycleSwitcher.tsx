@@ -1,7 +1,21 @@
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  LayoutChangeEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 import { formatReportDate, type ReportCycle } from "@/lib/report/dateWindow";
 import type { SalaryPaymentDay } from "@/lib/types";
+
+const SPRING = { damping: 18, stiffness: 220, mass: 0.85 };
 
 interface Props {
   cycles: ReportCycle[];
@@ -10,9 +24,39 @@ interface Props {
 }
 
 export function ReportCycleSwitcher({ cycles, selected, onSelect }: Props) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const selectedIndex = Math.max(
+    0,
+    cycles.findIndex((cycle) => cycle.paymentDay === selected),
+  );
+  const progress = useSharedValue(selectedIndex);
+
+  useEffect(() => {
+    progress.value = withSpring(selectedIndex, SPRING);
+  }, [selectedIndex, progress]);
+
+  const onTrackLayout = (event: LayoutChangeEvent) => {
+    setTrackWidth(event.nativeEvent.layout.width);
+  };
+
+  const pillWidth =
+    trackWidth > 0 ? (trackWidth - 12) / Math.max(cycles.length, 1) : 0;
+
+  const pillStyle = useAnimatedStyle(() => ({
+    width: pillWidth,
+    transform: [{ translateX: 6 + progress.value * pillWidth }],
+  }));
+
   return (
-    <View className="mb-5 rounded-3xl bg-slate-100 p-1.5">
-      <View className="flex-row gap-1">
+    <View
+      className="mb-5 overflow-hidden rounded-3xl bg-slate-100"
+      onLayout={onTrackLayout}
+    >
+      {pillWidth > 0 ? (
+        <Animated.View style={[styles.pill, pillStyle]} />
+      ) : null}
+
+      <View className="flex-row p-1.5">
         {cycles.map((cycle) => {
           const active = cycle.paymentDay === selected;
           const shifted =
@@ -22,18 +66,8 @@ export function ReportCycleSwitcher({ cycles, selected, onSelect }: Props) {
             <Pressable
               key={cycle.paymentDay}
               onPress={() => onSelect(cycle.paymentDay)}
-              className={`flex-1 rounded-2xl px-3 py-3 ${active ? "bg-white" : ""}`}
-              style={
-                active
-                  ? {
-                      shadowColor: "#0f172a",
-                      shadowOpacity: 0.08,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 2,
-                    }
-                  : undefined
-              }
+              className="flex-1 rounded-2xl px-3 py-3"
+              style={{ zIndex: 2 }}
             >
               <View className="flex-row items-center justify-between">
                 <Text
@@ -81,18 +115,12 @@ export function ReportCycleSwitcher({ cycles, selected, onSelect }: Props) {
 
               {shifted ? (
                 <Text
-                  className={`mt-0.5 text-[10px] ${
-                    active ? "text-slate-500" : "text-slate-400"
-                  }`}
+                  className={`mt-0.5 text-[10px] ${active ? "text-slate-500" : "text-slate-400"}`}
                 >
                   за {cycle.nominalDate.getDate()}-е
                 </Text>
               ) : (
-                <Text
-                  className={`mt-0.5 text-[10px] ${
-                    active ? "text-slate-400" : "text-slate-400"
-                  }`}
-                >
+                <Text className="mt-0.5 text-[10px] text-slate-400">
                   {cycle.isPreview ? "будущий цикл" : "текущий цикл"}
                 </Text>
               )}
@@ -103,3 +131,18 @@ export function ReportCycleSwitcher({ cycles, selected, onSelect }: Props) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  pill: {
+    position: "absolute",
+    top: 6,
+    bottom: 6,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+});
