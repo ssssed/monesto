@@ -1,6 +1,7 @@
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { NavigationState, PartialState } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
@@ -10,10 +11,16 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const SPRING = { damping: 16, stiffness: 200, mass: 0.75 };
+const PILL_SPRING = { damping: 16, stiffness: 200, mass: 0.75 };
+/** Выпрыгивание снизу. */
+const SHOW_SPRING = { damping: 13, stiffness: 260, mass: 0.7 };
+/** Уход вниз. */
+const HIDE_SPRING = { damping: 18, stiffness: 320, mass: 0.75 };
+
 const BAR_HEIGHT = 62;
 const H_MARGIN = 18;
 const PILL_INSET = 4;
+const SLIDE_EXTRA = 24;
 
 type TabMeta = {
   label: string;
@@ -26,6 +33,21 @@ const TAB_META: Record<string, TabMeta> = {
   settings: { label: "Настройки", icon: "settings-outline" },
 };
 
+type NavState = NavigationState | PartialState<NavigationState> | undefined;
+
+/** Корень стека вкладки — без задержки pathname, сразу из navigation state. */
+function isMainTabScreen(state: BottomTabBarProps["state"]): boolean {
+  const tabRoute = state.routes[state.index];
+  if (!tabRoute) return true;
+
+  const nested = tabRoute.state as NavState;
+  if (!nested || typeof nested.index !== "number") {
+    return true;
+  }
+
+  return nested.index === 0;
+}
+
 /** Плавающая glass-капсула вместо системного tab bar. */
 export function GlassTabBar({
   state,
@@ -34,6 +56,10 @@ export function GlassTabBar({
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [trackWidth, setTrackWidth] = useState(0);
+  const visible = isMainTabScreen(state);
+
+  const bottomPad = Math.max(insets.bottom, 10);
+  const hostHeight = BAR_HEIGHT + bottomPad + 10;
 
   const routes = state.routes.filter((route) => route.name in TAB_META);
   const activeRouteName = state.routes[state.index]?.name;
@@ -43,10 +69,18 @@ export function GlassTabBar({
   );
 
   const progress = useSharedValue(activeIndex);
+  const hideProgress = useSharedValue(visible ? 0 : 1);
 
   useEffect(() => {
-    progress.value = withSpring(activeIndex, SPRING);
+    progress.value = withSpring(activeIndex, PILL_SPRING);
   }, [activeIndex, progress]);
+
+  useEffect(() => {
+    hideProgress.value = withSpring(
+      visible ? 0 : 1,
+      visible ? SHOW_SPRING : HIDE_SPRING,
+    );
+  }, [visible, hideProgress]);
 
   const pillWidth =
     trackWidth > 0
@@ -58,17 +92,25 @@ export function GlassTabBar({
     transform: [{ translateX: PILL_INSET + progress.value * pillWidth }],
   }));
 
-  const bottomPad = Math.max(insets.bottom, 10);
+  const hostAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: hideProgress.value * (hostHeight + SLIDE_EXTRA),
+      },
+    ],
+    opacity: 1 - hideProgress.value * 0.15,
+  }));
 
   return (
-    <View
-      pointerEvents="box-none"
+    <Animated.View
+      pointerEvents={visible ? "box-none" : "none"}
       style={[
         styles.host,
         {
-          height: BAR_HEIGHT + bottomPad + 10,
+          height: hostHeight,
           paddingBottom: bottomPad,
         },
+        hostAnimStyle,
       ]}
     >
       <View style={styles.shadowWrap}>
@@ -140,11 +182,11 @@ export function GlassTabBar({
           </View>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
-/** Отступ контента над плавающим tab bar. */
+/** Отступ контента над плавающим tab bar (только для главных вкладок). */
 export const GLASS_TAB_BAR_CONTENT_INSET = 110;
 
 const styles = StyleSheet.create({
