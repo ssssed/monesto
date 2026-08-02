@@ -53,9 +53,14 @@ export function WelcomeScreen() {
 
         <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
           <FadeIn variant="fade" durationClass="duration-700">
-            <p className="text-sm font-bold tracking-[0.22em] text-blue-600">
-              MONESTO
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold tracking-[0.22em] text-blue-600">
+                MONESTO
+              </p>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600 ring-1 ring-blue-100">
+                Шаг 1 из 4
+              </span>
+            </div>
           </FadeIn>
 
           <FadeIn
@@ -158,9 +163,9 @@ export function WelcomeScreen() {
               variant="navy"
               size="lg"
               className="w-full"
-              onClick={() => void navigate({ to: '/onboarding/income' })}
+              onClick={() => void navigate({ to: '/onboarding/plan' })}
             >
-              Начать настройку
+              Далее
               <ArrowRight className="h-4 w-4" />
             </Button>
             <p className="mt-3 text-center text-xs text-slate-400">

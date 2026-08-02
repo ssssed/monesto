@@ -30,7 +30,14 @@ import {
   TrendingUp,
   Wallet
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
 import { AssetStylePicker } from '@/components/assets/AssetStylePicker';
@@ -41,7 +48,9 @@ import { ReportCycleSwitcher } from '@/components/report/ReportCycleSwitcher';
 import { SwipeConfirmCard } from '@/components/report/SwipeConfirmCard';
 import { DangerClearButton } from '@/components/ui/DangerClearButton';
 import { AppAboutFooter } from '@/components/ui/AppAboutFooter';
+import { ExchangeRateBadge } from '@/components/ui/ExchangeRateBadge';
 import { FadeIn } from '@/components/ui/FadeIn';
+import { ErrorPage } from '@/components/ui/ErrorPage';
 import { GoalProgressBadge, TrendBadge } from '@/components/ui/GoalProgressBadge';
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
@@ -264,7 +273,10 @@ export function HomeScreen() {
   return (
     <main className={`${shell} space-y-4`}>
       <FadeIn variant="fade">
-        <p className="text-xl font-black tracking-[0.18em] text-blue-600">MONESTO</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xl font-black tracking-[0.18em] text-blue-600">MONESTO</p>
+          <ExchangeRateBadge compact />
+        </div>
       </FadeIn>
 
       <FadeIn index={1}>
@@ -362,9 +374,46 @@ export function HomeScreen() {
               : 'Свайп вправо — применить, влево — отклонить.'}
           </p>
         </FadeIn>
-        {(report.assetSummary ?? [])
-          .filter((asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0)
-          .map((asset, i) => {
+        {(() => {
+          const reportAssets = (report.assetSummary ?? []).filter(
+            (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
+          );
+          if (!reportAssets.length) {
+            const hasAnyAssets = data.assets.length > 0;
+            return (
+              <FadeIn index={9} baseDelay={40} step={55}>
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+                    <Wallet className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <p className="font-bold text-slate-900">
+                    {hasAnyAssets ? 'Пока нечего распределять' : 'Активов пока нет'}
+                  </p>
+                  <p className="mx-auto mt-1.5 max-w-[280px] text-sm leading-snug text-slate-400">
+                    {hasAnyAssets
+                      ? 'Создайте правило распределения — и актив появится здесь в отчёте цикла.'
+                      : 'Создайте первый актив, чтобы направлять свободные деньги по правилам.'}
+                  </p>
+                  <Link to="/assets/new" className="mt-5 inline-flex w-full max-w-xs">
+                    <Button className="w-full" size="lg">
+                      <Plus className="h-4 w-4" />
+                      Создать актив
+                    </Button>
+                  </Link>
+                  {hasAnyAssets ? (
+                    <Link
+                      to="/settings/rules/new"
+                      className="mt-2 inline-block text-sm font-medium text-blue-600"
+                    >
+                      Или добавить правило
+                    </Link>
+                  ) : null}
+                </div>
+              </FadeIn>
+            );
+          }
+
+          return reportAssets.map((asset, i) => {
             const allocations = allocationsByAsset.get(asset.id) ?? [];
             const pendingForAsset = allocations.filter(
               (a) => !confirmedIds.includes(a.ruleId) && !rejectedIds.includes(a.ruleId)
@@ -402,7 +451,8 @@ export function HomeScreen() {
                 />
               </FadeIn>
             );
-          })}
+          });
+        })()}
       </section>
     </main>
   );
@@ -719,6 +769,7 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
 export function AssetDetailScreen({ slug }: { slug: string }) {
   const navigate = useNavigate();
   const [asset, setAsset] = useState<Asset | null>(null);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'missing'>('loading');
   const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof db.getTransactions>>>(
     []
   );
@@ -738,11 +789,19 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
 
   const reload = useCallback(async () => {
     const next = await db.getAssetBySlug(slug);
+    if (!next) {
+      setAsset(null);
+      setTransactions([]);
+      setLoadState('missing');
+      return;
+    }
     setAsset(next);
-    if (next) setTransactions(await db.getTransactions(next.id));
+    setTransactions(await db.getTransactions(next.id));
+    setLoadState('ready');
   }, [slug]);
 
   useEffect(() => {
+    setLoadState('loading');
     void reload();
   }, [reload]);
 
@@ -758,10 +817,24 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
     });
   }, [asset, editOpen]);
 
-  if (!asset) {
+  if (loadState === 'loading') {
     return (
       <PageTransition>
         <main className={nestedShell}>Загрузка…</main>
+      </PageTransition>
+    );
+  }
+
+  if (loadState === 'missing' || !asset) {
+    return (
+      <PageTransition>
+        <ErrorPage
+          status={404}
+          title="Актив не найден"
+          message="Этот актив удалён или ссылка устарела. Вернитесь к списку активов и выберите другой."
+          homeTo="/assets"
+          homeLabel="К активам"
+        />
       </PageTransition>
     );
   }
@@ -880,16 +953,23 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
         {valuation ? (
           <Card className="space-y-3 border-slate-100 p-4 shadow-sm">
             <p className="font-semibold">Валютная аналитика</p>
-            {[
+            {(
               [
-                'Средний курс покупки',
-                valuation.averageBuyRate ? `${valuation.averageBuyRate.toFixed(2)} ₽/$` : '—'
-              ],
-              ['Текущий курс', `${usdRate.toFixed(2)} ₽/$`],
-              ['Потрачено', formatRub(valuation.costBasisRub)],
-              ['Сейчас стоит', formatRub(valuation.currentValueRub)],
-              ['Прибыль', `${valuation.profitRub >= 0 ? '+' : ''}${formatRub(valuation.profitRub)}`]
-            ].map(([label, value]) => (
+                [
+                  'Средний курс покупки',
+                  valuation.averageBuyRate
+                    ? `${valuation.averageBuyRate.toFixed(2)} ₽/$`
+                    : '—'
+                ],
+                ['Текущий курс', <ExchangeRateBadge compact />],
+                ['Потрачено', formatRub(valuation.costBasisRub)],
+                ['Сейчас стоит', formatRub(valuation.currentValueRub)],
+                [
+                  'Прибыль',
+                  `${valuation.profitRub >= 0 ? '+' : ''}${formatRub(valuation.profitRub)}`
+                ]
+              ] as Array<[string, ReactNode]>
+            ).map(([label, value]) => (
               <div key={label} className="flex items-center justify-between gap-3 text-sm">
                 <span className="shrink-0 text-slate-400">{label}</span>
                 <span

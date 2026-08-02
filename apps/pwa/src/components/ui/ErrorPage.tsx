@@ -4,13 +4,15 @@ import {
   type ErrorComponentProps,
   type NotFoundRouteProps,
 } from '@tanstack/react-router';
-import { Home, RefreshCw, SearchX, ServerCrash } from 'lucide-react';
+import { Home, RefreshCw, SearchX, ServerCrash, Wallet } from 'lucide-react';
 
 type Props = {
   status?: 404 | 500;
   title?: string;
   message?: string;
   onRetry?: () => void;
+  homeTo?: '/' | '/assets';
+  homeLabel?: string;
 };
 
 export function ErrorPage({
@@ -18,6 +20,8 @@ export function ErrorPage({
   title,
   message,
   onRetry,
+  homeTo = '/',
+  homeLabel = 'На главную',
 }: Props) {
   const is404 = status === 404;
   const heading =
@@ -29,6 +33,7 @@ export function ErrorPage({
       : 'Произошла непредвиденная ошибка. Попробуйте обновить страницу или вернуться на главную.');
 
   const Icon = is404 ? SearchX : ServerCrash;
+  const HomeIcon = homeTo === '/assets' ? Wallet : Home;
 
   return (
     <main className="mx-auto flex min-h-full w-full flex-col items-center justify-center px-6 py-10 text-center">
@@ -47,10 +52,10 @@ export function ErrorPage({
       </p>
 
       <div className="mt-8 flex w-full flex-col gap-3 animate-in fade-in-0 slide-in-from-bottom-3 duration-500 [animation-delay:180ms] [animation-fill-mode:both]">
-        <Link to="/" className="w-full">
+        <Link to={homeTo} className="w-full">
           <Button className="w-full" size="lg">
-            <Home className="h-4 w-4" />
-            На главную
+            <HomeIcon className="h-4 w-4" />
+            {homeLabel}
           </Button>
         </Link>
         {!is404 && onRetry ? (

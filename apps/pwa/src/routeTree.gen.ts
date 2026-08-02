@@ -16,6 +16,7 @@ import { Route as AssetsNewRouteImport } from './routes/assets/new'
 import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as OnboardingExpensesRouteImport } from './routes/onboarding/expenses'
 import { Route as OnboardingIncomeRouteImport } from './routes/onboarding/income'
+import { Route as OnboardingPlanRouteImport } from './routes/onboarding/plan'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsExpensesRouteImport } from './routes/settings/expenses'
 import { Route as SettingsIncomeRouteImport } from './routes/settings/income'
@@ -58,6 +59,11 @@ const OnboardingIncomeRoute = OnboardingIncomeRouteImport.update({
   path: '/onboarding/income',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingPlanRoute = OnboardingPlanRouteImport.update({
+  id: '/onboarding/plan',
+  path: '/onboarding/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/assets/new': typeof AssetsNewRoute
   '/onboarding/expenses': typeof OnboardingExpensesRoute
   '/onboarding/income': typeof OnboardingIncomeRoute
+  '/onboarding/plan': typeof OnboardingPlanRoute
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
   '/assets/': typeof AssetsIndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/assets/new': typeof AssetsNewRoute
   '/onboarding/expenses': typeof OnboardingExpensesRoute
   '/onboarding/income': typeof OnboardingIncomeRoute
+  '/onboarding/plan': typeof OnboardingPlanRoute
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
   '/assets': typeof AssetsIndexRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/assets/new': typeof AssetsNewRoute
   '/onboarding/expenses': typeof OnboardingExpensesRoute
   '/onboarding/income': typeof OnboardingIncomeRoute
+  '/onboarding/plan': typeof OnboardingPlanRoute
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
   '/assets/': typeof AssetsIndexRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/assets/new'
     | '/onboarding/expenses'
     | '/onboarding/income'
+    | '/onboarding/plan'
     | '/settings/expenses'
     | '/settings/income'
     | '/assets/'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/assets/new'
     | '/onboarding/expenses'
     | '/onboarding/income'
+    | '/onboarding/plan'
     | '/settings/expenses'
     | '/settings/income'
     | '/assets'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/assets/new'
     | '/onboarding/expenses'
     | '/onboarding/income'
+    | '/onboarding/plan'
     | '/settings/expenses'
     | '/settings/income'
     | '/assets/'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   AssetsNewRoute: typeof AssetsNewRoute
   OnboardingExpensesRoute: typeof OnboardingExpensesRoute
   OnboardingIncomeRoute: typeof OnboardingIncomeRoute
+  OnboardingPlanRoute: typeof OnboardingPlanRoute
   SettingsExpensesRoute: typeof SettingsExpensesRoute
   SettingsIncomeRoute: typeof SettingsIncomeRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingIncomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding/plan': {
+      id: '/onboarding/plan'
+      path: '/onboarding/plan'
+      fullPath: '/onboarding/plan'
+      preLoaderRoute: typeof OnboardingPlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
       id: '/settings/'
       path: '/settings'
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsNewRoute: AssetsNewRoute,
   OnboardingExpensesRoute: OnboardingExpensesRoute,
   OnboardingIncomeRoute: OnboardingIncomeRoute,
+  OnboardingPlanRoute: OnboardingPlanRoute,
   SettingsExpensesRoute: SettingsExpensesRoute,
   SettingsIncomeRoute: SettingsIncomeRoute,
   AssetsIndexRoute: AssetsIndexRoute,
