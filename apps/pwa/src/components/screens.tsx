@@ -310,16 +310,15 @@ export function HomeScreen() {
             step={140}
             variant="rise"
             durationClass="duration-700"
-            className="h-full"
           >
-            <Card className="flex h-full flex-col border-0 bg-[var(--color-income-soft)] p-4 shadow-none">
+            <Card className="flex flex-col border-0 bg-[var(--color-income-soft)] p-4 shadow-none">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
                 Доходы
               </p>
               <p className="mt-1 text-lg font-bold text-[var(--color-income)]">
                 {formatRub(report.totalIncome)}
               </p>
-              <div className="mt-auto">
+              <div className="mt-2">
                 <ReportBreakdown
                   lines={report.incomeLines}
                   emptyLabel="Нет доходов в цикле"
@@ -334,16 +333,15 @@ export function HomeScreen() {
             step={140}
             variant="rise"
             durationClass="duration-700"
-            className="h-full"
           >
-            <Card className="flex h-full flex-col border-0 bg-[var(--color-expense-soft)] p-4 shadow-none">
+            <Card className="flex flex-col border-0 bg-[var(--color-expense-soft)] p-4 shadow-none">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
                 Расходы
               </p>
               <p className="mt-1 text-lg font-bold text-[var(--color-expense)]">
                 {formatRub(report.totalExpenses)}
               </p>
-              <div className="mt-auto">
+              <div className="mt-2">
                 <ReportBreakdown
                   lines={report.expenseLines}
                   emptyLabel="Нет расходов в цикле"
@@ -368,10 +366,10 @@ export function HomeScreen() {
       <section className="space-y-1">
         <FadeIn index={8} baseDelay={40} step={55}>
           <h2 className="font-bold text-slate-900">Ваши активы</h2>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs leading-relaxed text-slate-400">
             {report.isPreview
-              ? 'В плане будущего цикла подтверждения ещё недоступны.'
-              : 'Свайп вправо — применить, влево — отклонить.'}
+              ? 'Сюда попадёт остаток после расходов по вашим правилам. В плане будущего цикла подтверждения ещё недоступны.'
+              : 'Сюда попадает остаток после расходов — суммы по правилам распределения. Свайп вправо — применить, влево — отклонить.'}
           </p>
         </FadeIn>
         {(() => {
@@ -382,32 +380,31 @@ export function HomeScreen() {
             const hasAnyAssets = data.assets.length > 0;
             return (
               <FadeIn index={9} baseDelay={40} step={55}>
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
-                    <Wallet className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <p className="font-bold text-slate-900">
+                <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 px-4 py-4 text-center">
+                  <p className="text-sm font-semibold text-slate-600">
                     {hasAnyAssets ? 'Пока нечего распределять' : 'Активов пока нет'}
                   </p>
-                  <p className="mx-auto mt-1.5 max-w-[280px] text-sm leading-snug text-slate-400">
+                  <p className="mx-auto mt-1 max-w-[260px] text-xs leading-snug text-slate-400">
                     {hasAnyAssets
-                      ? 'Создайте правило распределения — и актив появится здесь в отчёте цикла.'
-                      : 'Создайте первый актив, чтобы направлять свободные деньги по правилам.'}
+                      ? 'Добавьте правило — актив появится в отчёте цикла.'
+                      : 'Создайте актив, чтобы направлять свободные деньги.'}
                   </p>
-                  <Link to="/assets/new" className="mt-5 inline-flex w-full max-w-xs">
-                    <Button className="w-full" size="lg">
-                      <Plus className="h-4 w-4" />
-                      Создать актив
-                    </Button>
-                  </Link>
-                  {hasAnyAssets ? (
-                    <Link
-                      to="/settings/rules/new"
-                      className="mt-2 inline-block text-sm font-medium text-blue-600"
-                    >
-                      Или добавить правило
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+                    <Link to="/assets/new">
+                      <Button variant="secondary" size="sm">
+                        <Plus className="h-3.5 w-3.5" />
+                        Создать актив
+                      </Button>
                     </Link>
-                  ) : null}
+                    {hasAnyAssets ? (
+                      <Link
+                        to="/settings/rules/new"
+                        className="text-xs font-medium text-slate-400 transition-colors hover:text-blue-600"
+                      >
+                        Добавить правило
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               </FadeIn>
             );
@@ -961,7 +958,7 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
                     ? `${valuation.averageBuyRate.toFixed(2)} ₽/$`
                     : '—'
                 ],
-                ['Текущий курс', <ExchangeRateBadge compact />],
+                ['Текущий курс', <ExchangeRateBadge compact variant="inline" />],
                 ['Потрачено', formatRub(valuation.costBasisRub)],
                 ['Сейчас стоит', formatRub(valuation.currentValueRub)],
                 [
