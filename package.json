@@ -3,11 +3,12 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=!monesto-mobile --filter=!@monesto/cli",
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "check-types": "turbo run check-types",
     "deploy:cli": "npm run build -w @monesto/cli && npm publish -w @monesto/cli --access public",
+    "deploy:pwa": "npm run deploy -w @monesto/pwa",
     "prepare": "husky"
   },
   "dependencies": {

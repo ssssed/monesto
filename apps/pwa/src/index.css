@@ -1,0 +1,121 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@monesto/rune/styles.css";
+
+@source "../../../packages/rune/src";
+@source "../src";
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f8fafc;
+  overscroll-behavior: none;
+}
+
+.app-shell {
+  height: 100dvh;
+  background: #f8fafc;
+}
+
+.app-scroll {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbars, keep scrolling */
+.app-scroll,
+.app-shell *,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-scroll::-webkit-scrollbar,
+.app-shell *::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Port of apps/webapp loader.svelte animations */
+.loader-root {
+  --loader-orbit-duration: 1.35s;
+  --loader-pulse-duration: 1.8s;
+  --loader-wave-duration: 1.05s;
+}
+
+.loader-orbit {
+  transform-origin: 0 0;
+  animation: loader-orbit-spin var(--loader-orbit-duration) linear infinite;
+}
+
+.loader-ring {
+  transform-origin: 0 0;
+  animation: loader-ring-pulse var(--loader-pulse-duration) ease-in-out infinite;
+}
+
+.loader-ring--outer {
+  animation-delay: 0ms;
+}
+.loader-ring--mid {
+  animation-delay: 120ms;
+}
+.loader-ring--inner {
+  animation-delay: 240ms;
+}
+
+@keyframes loader-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loader-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
+}
+
+.loader-wave-dot {
+  display: block;
+  animation: loader-wave-bounce var(--loader-wave-duration) ease-in-out infinite;
+}
+
+.loader-wave-dot:nth-child(1) {
+  animation-delay: 0ms;
+}
+.loader-wave-dot:nth-child(2) {
+  animation-delay: 140ms;
+}
+.loader-wave-dot:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+@keyframes loader-wave-bounce {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  28% {
+    transform: translateY(-7px);
+    opacity: 1;
+  }
+}

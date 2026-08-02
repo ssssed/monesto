@@ -1,0 +1,54 @@
+const CYRILLIC: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+};
+
+export function generateSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .split('')
+    .map((char) => CYRILLIC[char] ?? char)
+    .join('')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/** Stable unique slug from asset name (+ id when needed). */
+export function assetSlug(asset: { id: number; name: string }): string {
+  const base = generateSlug(asset.name) || 'asset';
+  return `${base}-${asset.id}`;
+}

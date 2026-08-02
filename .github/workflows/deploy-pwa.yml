@@ -1,0 +1,54 @@
+# Deploy @monesto/pwa to the gh-pages branch.
+# After first run: Settings → Pages → Build and deployment → Source: Deploy from a branch → gh-pages / (root)
+# URL: https://ssssed.github.io/monesto/
+name: Deploy PWA
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'apps/pwa/**'
+      - 'packages/rune/**'
+      - 'package-lock.json'
+      - 'package.json'
+      - '.github/workflows/deploy-pwa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-pwa
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build PWA
+        env:
+          BASE_PATH: /monesto/
+        run: npm run build -w @monesto/pwa
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/pwa/dist
+          publish_branch: gh-pages
+          force_orphan: true
+          enable_jekyll: false
+          commit_message: 'deploy(pwa): ${{ github.sha }}'
