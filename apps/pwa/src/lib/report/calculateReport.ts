@@ -1,11 +1,12 @@
-import { convertToRub } from "../exchange/convertToRub";
-import { applyRules } from "./applyRules";
+import { convertToRub } from '../exchange/convertToRub';
+import { applyRules } from './applyRules';
 import {
   expandExpensesToLines,
   expandIncomeToLines,
   findPrimaryIncome,
   resolveReportCycle,
-} from "./dateWindow";
+  scheduleDaysFromPrimary,
+} from './dateWindow';
 import type {
   Asset,
   DistributionRule,
@@ -14,12 +15,12 @@ import type {
   ReportError,
   ReportResult,
   SalaryPaymentDay,
-} from "../types";
+} from '../types';
 
 function toCycleKey(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
@@ -30,20 +31,24 @@ export function calculateReport(input: {
   assets: Asset[];
   today: Date;
   usdRubRate?: number;
-  /** Якорь цикла 10/25. По умолчанию — primary_payment_day. */
+  /** Якорь цикла. По умолчанию — primary_payment_day. */
   cyclePaymentDay?: SalaryPaymentDay;
 }): ReportResult | ReportError {
   const primary = findPrimaryIncome(input.incomes);
   if (!primary) {
     return {
-      code: "NO_PRIMARY_SALARY",
-      message: "Не указана основная зарплата",
+      code: 'NO_PRIMARY_SALARY',
+      message: 'Не указана основная зарплата',
     };
   }
 
+  const scheduleDays = scheduleDaysFromPrimary(primary);
   const cyclePaymentDay =
-    input.cyclePaymentDay ?? primary.primary_payment_day ?? 25;
-  const cycle = resolveReportCycle(input.today, cyclePaymentDay);
+    input.cyclePaymentDay ??
+    primary.primary_payment_day ??
+    scheduleDays[scheduleDays.length - 1] ??
+    25;
+  const cycle = resolveReportCycle(input.today, cyclePaymentDay, scheduleDays);
 
   const needsUsd =
     input.rules.some(

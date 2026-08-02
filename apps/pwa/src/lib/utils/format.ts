@@ -1,4 +1,5 @@
 import type { Expense, IncomeSource, MoneyFlowEntry } from '../types';
+import { createEmptyBimonthlyTranches } from '../report/calculateSalaryPayment';
 
 export function formatRub(amount: number): string {
   return `${Math.round(amount).toLocaleString('ru-RU')} ₽`;
@@ -30,6 +31,7 @@ export function createEmptyIncomeEntry(): MoneyFlowEntry {
     paymentDay: '',
     isPrimary: false,
     primaryPaymentDay: 25,
+    salaryTranches: createEmptyBimonthlyTranches(),
   };
 }
 
@@ -56,6 +58,11 @@ export function incomesToEntries(incomes: IncomeSource[]): MoneyFlowEntry[] {
     specificDate: income.specific_date ?? undefined,
     isPrimary: income.is_primary,
     primaryPaymentDay: income.primary_payment_day ?? 25,
+    salaryTranches:
+      income.salary_tranches ??
+      (income.income_kind === 'bimonthly_salary'
+        ? createEmptyBimonthlyTranches()
+        : undefined),
   }));
 }
 

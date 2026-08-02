@@ -1,27 +1,31 @@
-import { startOfDay, toPayoutDate } from "../calendar/workingDays";
+import { startOfDay, toPayoutDate } from '../calendar/workingDays';
 import {
   calculateSalaryPaymentAmount,
   getNextPrimaryPaymentDate,
+  getNextSchedulePaymentDate,
   getSalaryWorkPeriod,
   getUpcomingBimonthlyPayments,
-} from "./calculateSalaryPayment";
+  normalizeSalaryTranches,
+  paymentDaysFromTranches,
+} from './calculateSalaryPayment';
 import type {
   Expense,
   IncomeSource,
   ReportExpenseLine,
   ReportIncomeLine,
   SalaryPaymentDay,
-} from "../types";
+  SalaryTranche,
+} from '../types';
 
 export interface ReportCycle {
   paymentDay: SalaryPaymentDay;
-  /** Календарный якорь 10/25. */
+  /** Календарный якорь выплаты. */
   nominalDate: Date;
   /** Фактическая выплата (сдвиг с выходного). */
   payoutDate: Date;
   expenseEndExclusive: Date;
   incomeStart: Date;
-  /** Начало периода расходов = дата этой выплаты (зарплата покрывает траты до следующей). */
+  /** Начало периода расходов = дата этой выплаты. */
   expenseStart: Date;
   /** true, если выплата ещё не наступила. */
   isPreview: boolean;
@@ -29,93 +33,109 @@ export interface ReportCycle {
 
 export function formatReportDate(date: Date): string {
   const months = [
-    "января",
-    "февраля",
-    "марта",
-    "апреля",
-    "мая",
-    "июня",
-    "июля",
-    "августа",
-    "сентября",
-    "октября",
-    "ноября",
-    "декабря",
+    'января',
+    'февраля',
+    'марта',
+    'апреля',
+    'мая',
+    'июня',
+    'июля',
+    'августа',
+    'сентября',
+    'октября',
+    'ноября',
+    'декабря',
   ];
   return `${date.getDate()} ${months[date.getMonth()]}`;
 }
 
 export function parseDate(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
+  const [year, month, day] = value.split('-').map(Number);
   return startOfDay(new Date(year, month - 1, day));
 }
 
+function sortedPaymentDays(
+  days: SalaryPaymentDay[] | undefined,
+  tranches?: SalaryTranche[] | null,
+): SalaryPaymentDay[] {
+  if (days?.length) {
+    return [...new Set(days)].sort((a, b) => a - b);
+  }
+  return paymentDaysFromTranches(tranches);
+}
+
 /**
- * Окно отчёта для primary=25:
- *   incomeDate = ближайшая/текущая выплата 25-го
- *   expenseEndExclusive = следующее 10-е (не включительно)
- *
- * Для primary=10 симметрично: расходы до следующего 25-го exclusive.
+ * Окно отчёта для произвольного графика выплат.
+ * Для пары дней A < B логика как у классических 10/25.
+ * Для одного дня — цикл от выплаты до следующей такой же через месяц.
  */
 export function resolveReportWindow(
   today: Date,
   primaryPaymentDay: SalaryPaymentDay,
+  scheduleDays?: SalaryPaymentDay[],
 ): {
   incomeDate: Date;
   expenseEndExclusive: Date;
   incomeStart: Date;
 } {
   const todayStart = startOfDay(today);
+  const days = sortedPaymentDays(scheduleDays);
+  const primary = primaryPaymentDay;
   const day = todayStart.getDate();
   const year = todayStart.getFullYear();
   const month = todayStart.getMonth();
 
   let incomeDate: Date;
 
-  if (primaryPaymentDay === 25) {
-    if (day < 10) {
-      incomeDate = startOfDay(new Date(year, month - 1, 25));
-    } else if (day > 25) {
-      incomeDate = startOfDay(new Date(year, month, 25));
-    } else {
-      incomeDate = getNextPrimaryPaymentDate(todayStart, 25);
-    }
-  } else if (day > 10 && day < 25) {
-    incomeDate = startOfDay(new Date(year, month, 10));
-  } else if (day >= 25) {
-    incomeDate = getNextPrimaryPaymentDate(todayStart, 10);
+  if (days.length <= 1) {
+    incomeDate = getNextPrimaryPaymentDate(todayStart, primary);
   } else {
-    incomeDate = getNextPrimaryPaymentDate(todayStart, 10);
+    const sorted = days;
+    const earlier = sorted[0]!;
+    const later = sorted[sorted.length - 1]!;
+
+    if (primary === later) {
+      if (day < earlier) {
+        incomeDate = startOfDay(new Date(year, month - 1, later));
+      } else if (day > later) {
+        incomeDate = startOfDay(new Date(year, month, later));
+      } else {
+        incomeDate = getNextPrimaryPaymentDate(todayStart, later);
+      }
+    } else if (primary === earlier) {
+      if (day > earlier && day < later) {
+        incomeDate = startOfDay(new Date(year, month, earlier));
+      } else if (day >= later) {
+        incomeDate = getNextPrimaryPaymentDate(todayStart, earlier);
+      } else {
+        incomeDate = getNextPrimaryPaymentDate(todayStart, earlier);
+      }
+    } else {
+      incomeDate = getNextPrimaryPaymentDate(todayStart, primary);
+    }
   }
 
-  const expenseEndExclusive =
-    primaryPaymentDay === 25
-      ? startOfDay(
-          new Date(incomeDate.getFullYear(), incomeDate.getMonth() + 1, 10),
-        )
-      : startOfDay(
-          new Date(incomeDate.getFullYear(), incomeDate.getMonth(), 25),
-        );
-
+  const expenseEndExclusive = getNextSchedulePaymentDate(incomeDate, days);
   const incomeStart = todayStart <= incomeDate ? todayStart : incomeDate;
 
   return { incomeDate, expenseEndExclusive, incomeStart };
 }
 
-/** Цикл отчёта для якоря 10 или 25 с учётом выходных. */
+/** Цикл отчёта для якоря выплаты с учётом выходных. */
 export function resolveReportCycle(
   today: Date,
   paymentDay: SalaryPaymentDay,
+  scheduleDays?: SalaryPaymentDay[],
 ): ReportCycle {
   const todayStart = startOfDay(today);
+  const days = sortedPaymentDays(scheduleDays ?? [paymentDay]);
   const {
     incomeDate,
     expenseEndExclusive: nextNominalPayment,
     incomeStart,
-  } = resolveReportWindow(today, paymentDay);
+  } = resolveReportWindow(today, paymentDay, days);
   const payoutDate = toPayoutDate(incomeDate);
   const isPreview = todayStart < payoutDate;
-  // Зарплата покрывает все траты от этой выплаты до следующей (exclusive).
   const expenseStart = payoutDate;
   const expenseEndExclusive = toPayoutDate(nextNominalPayment);
 
@@ -130,19 +150,24 @@ export function resolveReportCycle(
   };
 }
 
-/** Оба доступных цикла, отсортированные по дате выплаты (раньше → левее). */
-export function listReportCycles(today: Date): ReportCycle[] {
-  return [resolveReportCycle(today, 10), resolveReportCycle(today, 25)].sort(
-    (a, b) => a.payoutDate.getTime() - b.payoutDate.getTime(),
-  );
+/** Доступные циклы по дням графика, отсортированные по дате выплаты. */
+export function listReportCycles(
+  today: Date,
+  scheduleDays?: SalaryPaymentDay[],
+): ReportCycle[] {
+  const days = sortedPaymentDays(scheduleDays);
+  return days
+    .map((day) => resolveReportCycle(today, day, days))
+    .sort((a, b) => a.payoutDate.getTime() - b.payoutDate.getTime());
 }
 
 /** @deprecated используйте resolveReportWindow */
 export function resolveTargetDate(
   today: Date,
   primaryPaymentDay: SalaryPaymentDay,
+  scheduleDays?: SalaryPaymentDay[],
 ): Date {
-  return resolveReportWindow(today, primaryPaymentDay).incomeDate;
+  return resolveReportWindow(today, primaryPaymentDay, scheduleDays).incomeDate;
 }
 
 export function expandIncomeToLines(
@@ -154,18 +179,23 @@ export function expandIncomeToLines(
   const lines: ReportIncomeLine[] = [];
   const windowStart = startOfDay(incomeStart ?? today);
   const target = startOfDay(targetDate);
-  const todayStart = startOfDay(today);
 
   for (const income of incomes) {
-    if (income.income_kind === "bimonthly_salary") {
+    if (income.income_kind === 'bimonthly_salary') {
       const monthlyAmount = income.monthly_amount ?? 0;
-      const payments = getUpcomingBimonthlyPayments(windowStart, target);
+      const tranches = normalizeSalaryTranches(income.salary_tranches);
+      const payments = getUpcomingBimonthlyPayments(
+        windowStart,
+        target,
+        tranches,
+      );
 
       for (const payment of payments) {
         const calc = calculateSalaryPaymentAmount(
           monthlyAmount,
           payment.paymentDay,
           payment.date,
+          tranches,
         );
         lines.push({
           name: income.name,
@@ -177,7 +207,7 @@ export function expandIncomeToLines(
       continue;
     }
 
-    if (income.is_one_time || income.recurrence === "one_time") {
+    if (income.is_one_time || income.recurrence === 'one_time') {
       if (!income.specific_date) continue;
       const date = parseDate(income.specific_date);
       if (date >= windowStart && date <= target) {
@@ -211,7 +241,6 @@ export function expandIncomeToLines(
     }
   }
 
-  void todayStart;
   return lines.sort(
     (a, b) => a.paymentDate.getTime() - b.paymentDate.getTime(),
   );
@@ -230,7 +259,7 @@ export function expandExpensesToLines(
   const endExclusive = startOfDay(expenseEndExclusive);
 
   for (const expense of expenses) {
-    if (expense.recurrence === "one_time") {
+    if (expense.recurrence === 'one_time') {
       if (!expense.specific_date) continue;
       const date = parseDate(expense.specific_date);
       if (date >= rangeStart && date < endExclusive) {
@@ -274,6 +303,18 @@ export function findPrimaryIncome(
   incomes: IncomeSource[],
 ): IncomeSource | undefined {
   return incomes.find((income) => income.is_primary);
+}
+
+export function scheduleDaysFromPrimary(
+  primary: IncomeSource | undefined,
+): SalaryPaymentDay[] {
+  if (!primary) return paymentDaysFromTranches(null);
+  if (primary.income_kind === 'bimonthly_salary') {
+    return paymentDaysFromTranches(primary.salary_tranches);
+  }
+  if (primary.payment_day != null) return [primary.payment_day];
+  if (primary.primary_payment_day != null) return [primary.primary_payment_day];
+  return paymentDaysFromTranches(null);
 }
 
 export { getSalaryWorkPeriod };

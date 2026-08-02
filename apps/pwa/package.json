@@ -9,6 +9,8 @@
     "build": "tsc --noEmit && vite build && node ./scripts/prepare-gh-pages.mjs",
     "preview": "vite preview --port 8193",
     "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deploy": "npm run build && npx --yes gh-pages@6 -d dist -b gh-pages --dotfiles"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.2",
     "vite": "^6.3.2",
-    "vite-plugin-pwa": "^1.0.3"
+    "vite-plugin-pwa": "^1.0.3",
+    "vitest": "^3.2.0"
   }
 }

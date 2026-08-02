@@ -1,9 +1,21 @@
-export type IncomeKind = "fixed" | "bimonthly_salary";
-export type Recurrence = "monthly" | "one_time";
-export type SalaryPaymentDay = 10 | 25;
-export type AssetProvider = "rub" | "usd" | "gold" | "steam";
-export type RuleType = "percent" | "fixed";
-export type RuleCurrency = "rub" | "asset";
+export type IncomeKind = 'fixed' | 'bimonthly_salary';
+export type Recurrence = 'monthly' | 'one_time';
+/** День выплаты (1–31). Раньше было жёстко 10 | 25. */
+export type SalaryPaymentDay = number;
+export type AssetProvider = 'rub' | 'usd' | 'gold' | 'steam';
+export type RuleType = 'percent' | 'fixed';
+export type RuleCurrency = 'rub' | 'asset';
+
+/**
+ * Один транш зарплаты: день выплаты + период работы, который эта выплата закрывает.
+ * periodMonthOffset: 0 = месяц выплаты, -1 = предыдущий месяц.
+ */
+export interface SalaryTranche {
+  paymentDay: number;
+  periodFromDay: number;
+  periodToDay: number;
+  periodMonthOffset: 0 | -1;
+}
 
 export interface IncomeSource {
   id: number;
@@ -17,6 +29,8 @@ export interface IncomeSource {
   is_primary: boolean;
   primary_payment_day: SalaryPaymentDay | null;
   specific_date: string | null;
+  /** Транши для income_kind = bimonthly_salary. null → дефолт 10/25. */
+  salary_tranches: SalaryTranche[] | null;
 }
 
 export interface Expense {
@@ -73,6 +87,8 @@ export interface MoneyFlowEntry {
   specificDate?: string;
   isPrimary?: boolean;
   primaryPaymentDay?: SalaryPaymentDay;
+  /** 1 или 2 транша для зарплаты по периодам. */
+  salaryTranches?: SalaryTranche[];
 }
 
 export interface ReportIncomeLine {
@@ -99,7 +115,7 @@ export interface RuleAllocation {
 export interface ReportResult {
   /** Фактическая дата выплаты (с учётом выходных). */
   targetDate: Date;
-  /** Календарный якорь 10/25. */
+  /** Календарный якорь выплаты. */
   nominalDate: Date;
   payoutDate: Date;
   paymentDay: SalaryPaymentDay;
@@ -127,7 +143,7 @@ export interface ReportResult {
   }[];
 }
 
-export type ReportErrorCode = "NO_PRIMARY_SALARY" | "MISSING_USD_RATE";
+export type ReportErrorCode = 'NO_PRIMARY_SALARY' | 'MISSING_USD_RATE';
 
 export interface ReportError {
   code: ReportErrorCode;

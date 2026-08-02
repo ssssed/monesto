@@ -83,7 +83,12 @@ function load(): AppDatabase {
       save(db);
       return db;
     }
-    return JSON.parse(raw) as AppDatabase;
+    const parsed = JSON.parse(raw) as AppDatabase;
+    parsed.income_sources = (parsed.income_sources ?? []).map((income) => ({
+      ...income,
+      salary_tranches: income.salary_tranches ?? null,
+    }));
+    return parsed;
   } catch {
     const db = emptyDb();
     save(db);
@@ -154,9 +159,34 @@ export async function replaceAllIncomes(entries: MoneyFlowEntry[]): Promise<void
         recurrence: entry.isOneTime ? 'one_time' : 'monthly',
         payment_day: entry.paymentDay ? Number(entry.paymentDay) : null,
         is_primary: Boolean(entry.isPrimary),
-        primary_payment_day:
-          entry.primaryPaymentDay ?? (isBimonthly ? 25 : null),
+        primary_payment_day: entry.isPrimary
+          ? entry.primaryPaymentDay ??
+            (isBimonthly
+              ? entry.salaryTranches?.[entry.salaryTranches.length - 1]
+                  ?.paymentDay ?? 25
+              : entry.paymentDay
+                ? Number(entry.paymentDay)
+                : null)
+          : null,
         specific_date: entry.specificDate ?? null,
+        salary_tranches: isBimonthly
+          ? entry.salaryTranches?.length
+            ? entry.salaryTranches
+            : [
+                {
+                  paymentDay: 10,
+                  periodFromDay: 16,
+                  periodToDay: 31,
+                  periodMonthOffset: -1 as const,
+                },
+                {
+                  paymentDay: 25,
+                  periodFromDay: 1,
+                  periodToDay: 15,
+                  periodMonthOffset: 0 as const,
+                },
+              ]
+          : null,
       };
     });
   });

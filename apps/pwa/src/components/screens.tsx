@@ -40,7 +40,12 @@ import { calcUsdValuation } from '@/lib/exchange/usdValuation';
 import type { AssetIconName } from '@/lib/providers/assetIcons';
 import { ASSET_PROVIDERS, getEnabledProviders } from '@/lib/providers/assetProviders';
 import { calculateReport, isReportError } from '@/lib/report/calculateReport';
-import { formatReportDate, listReportCycles } from '@/lib/report/dateWindow';
+import {
+  findPrimaryIncome,
+  formatReportDate,
+  listReportCycles,
+  scheduleDaysFromPrimary,
+} from '@/lib/report/dateWindow';
 import { summarizeRulesBudget } from '@/lib/report/rulesBudget';
 import type {
   Asset,
@@ -63,6 +68,50 @@ const defaults = {
   iconColor: '#2563EB'
 };
 const numeric = (value: string) => Math.max(0, Number(value.replace(',', '.')) || 0);
+
+/** Схлопывает строки отчёта с одинаковым именем. */
+function aggregateNamedAmounts(
+  lines: { name: string; amount: number }[],
+): { name: string; amount: number }[] {
+  const map = new Map<string, number>();
+  for (const line of lines) {
+    map.set(line.name, (map.get(line.name) ?? 0) + line.amount);
+  }
+  return [...map.entries()].map(([name, amount]) => ({ name, amount }));
+}
+
+function ReportBreakdown({
+  lines,
+  emptyLabel,
+  tone,
+}: {
+  lines: { name: string; amount: number }[];
+  emptyLabel: string;
+  tone: 'income' | 'expense';
+}) {
+  const items = aggregateNamedAmounts(lines);
+  const text = tone === 'income' ? 'text-emerald-700/75' : 'text-rose-700/75';
+
+  if (!items.length) {
+    return <p className={`mt-1.5 text-[11px] leading-4 ${text}`}>{emptyLabel}</p>;
+  }
+
+  return (
+    <ul className="mt-1.5 space-y-1">
+      {items.map((item) => (
+        <li
+          key={item.name}
+          className={`flex items-start justify-between gap-2 text-[11px] leading-4 ${text}`}
+        >
+          <span className="min-w-0 flex-1 truncate">{item.name}</span>
+          <span className="shrink-0 font-semibold tabular-nums">
+            {formatRub(item.amount)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function HomeScreen() {
   const [data, setData] = useState<{
@@ -90,9 +139,18 @@ export function HomeScreen() {
     void reload();
   }, [reload]);
 
-  const cycles = useMemo(() => listReportCycles(new Date()), []);
+  const cycles = useMemo(() => {
+    const primary = data ? findPrimaryIncome(data.incomes) : undefined;
+    return listReportCycles(new Date(), scheduleDaysFromPrimary(primary));
+  }, [data]);
   const selectedDay =
     day ?? cycles.find((c) => !c.isPreview)?.paymentDay ?? cycles[0]?.paymentDay ?? 25;
+
+  useEffect(() => {
+    if (day != null && cycles.length && !cycles.some((c) => c.paymentDay === day)) {
+      setDay(null);
+    }
+  }, [cycles, day]);
 
   const report = useMemo(() => {
     if (!data) return null;
@@ -141,8 +199,6 @@ export function HomeScreen() {
     }
     return map;
   })();
-
-  const salaryLine = report.incomeLines.find((l) => l.name.toLowerCase().includes('зарплат'));
 
   const confirmAsset = async (assetId: number) => {
     if (report.isPreview) return;
@@ -220,30 +276,53 @@ export function HomeScreen() {
           </Card>
         </FadeIn>
 
-        <div className="grid grid-cols-2 gap-3">
-          <FadeIn index={1} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
-            <Card className="border-0 bg-[var(--color-income-soft)] p-4 shadow-none">
+        <div className="grid grid-cols-2 items-stretch gap-3">
+          <FadeIn
+            index={1}
+            baseDelay={180}
+            step={140}
+            variant="rise"
+            durationClass="duration-700"
+            className="h-full"
+          >
+            <Card className="flex h-full flex-col border-0 bg-[var(--color-income-soft)] p-4 shadow-none">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
                 Доходы
               </p>
               <p className="mt-1 text-lg font-bold text-[var(--color-income)]">
                 {formatRub(report.totalIncome)}
               </p>
-              {salaryLine ? (
-                <p className="mt-1 text-xs text-emerald-700/70">
-                  Зарплата: {formatRub(salaryLine.amount)}
-                </p>
-              ) : null}
+              <div className="mt-auto">
+                <ReportBreakdown
+                  lines={report.incomeLines}
+                  emptyLabel="Нет доходов в цикле"
+                  tone="income"
+                />
+              </div>
             </Card>
           </FadeIn>
-          <FadeIn index={2} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
-            <Card className="border-0 bg-[var(--color-expense-soft)] p-4 shadow-none">
+          <FadeIn
+            index={2}
+            baseDelay={180}
+            step={140}
+            variant="rise"
+            durationClass="duration-700"
+            className="h-full"
+          >
+            <Card className="flex h-full flex-col border-0 bg-[var(--color-expense-soft)] p-4 shadow-none">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
                 Расходы
               </p>
               <p className="mt-1 text-lg font-bold text-[var(--color-expense)]">
                 {formatRub(report.totalExpenses)}
               </p>
+              <div className="mt-auto">
+                <ReportBreakdown
+                  lines={report.expenseLines}
+                  emptyLabel="Нет расходов в цикле"
+                  tone="expense"
+                />
+              </div>
             </Card>
           </FadeIn>
         </div>
@@ -1057,7 +1136,13 @@ export function MoneyFlowScreen({
       : db.getAllExpenses().then((x) => setEntries(expensesToEntries(x))));
   }, [mode]);
 
-  if (!entries) return <main className={shell}>Загрузка…</main>;
+  if (!entries) {
+    return (
+      <main className={`${formShell} overflow-hidden`}>
+        <p className="text-slate-400">Загрузка…</p>
+      </main>
+    );
+  }
 
   const submit = async (next: MoneyFlowEntry[]) => {
     if (mode === 'income') await db.replaceAllIncomes(next);
@@ -1076,24 +1161,35 @@ export function MoneyFlowScreen({
   };
 
   return (
-    <main className={`${shell} ${onboarding ? 'pb-8' : ''}`}>
+    <main className={`${formShell} overflow-hidden`}>
       {!onboarding ? (
-        <PageHeader title={mode === 'income' ? 'Доходы' : 'Расходы'} backTo="/settings" />
+        <PageHeader
+          title={mode === 'income' ? 'Доходы' : 'Расходы'}
+          backTo="/settings"
+        />
       ) : null}
-      <MoneyFlowStep
-        mode={mode}
-        title={mode === 'income' ? 'Ваши доходы' : 'Обязательные расходы'}
-        subtitle={
-          onboarding
-            ? mode === 'income'
-              ? 'Задайте зарплату и другие поступления'
-              : 'Регулярные платежи до распределения в активы'
-            : undefined
-        }
-        initialEntries={entries}
-        submitLabel={onboarding ? (mode === 'income' ? 'Далее' : 'Готово') : 'Сохранить'}
-        onSubmit={submit}
-      />
+      <div className="min-h-0 flex-1">
+        <MoneyFlowStep
+          mode={mode}
+          title={mode === 'income' ? 'Ваши доходы' : 'Обязательные расходы'}
+          subtitle={
+            onboarding
+              ? mode === 'income'
+                ? 'Задайте зарплату и другие поступления'
+                : 'Регулярные платежи до распределения в активы'
+              : undefined
+          }
+          initialEntries={entries}
+          submitLabel={
+            onboarding
+              ? mode === 'income'
+                ? 'Далее'
+                : 'Готово'
+              : 'Сохранить'
+          }
+          onSubmit={submit}
+        />
+      </div>
     </main>
   );
 }
