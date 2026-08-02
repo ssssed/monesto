@@ -20,6 +20,7 @@ body {
 
 .app-shell {
   height: 100dvh;
+  overflow: hidden;
   background: #f8fafc;
 }
 

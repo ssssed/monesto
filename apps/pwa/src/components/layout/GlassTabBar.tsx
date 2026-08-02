@@ -9,13 +9,13 @@ const TABS = [
     to: '/assets',
     label: 'Активы',
     icon: Wallet,
-    match: (p: string) => p.startsWith('/assets'),
+    match: (p: string) => p === '/assets' || p.startsWith('/assets/'),
   },
   {
     to: '/settings',
     label: 'Настройки',
     icon: Settings,
-    match: (p: string) => p.startsWith('/settings'),
+    match: (p: string) => p === '/settings' || p.startsWith('/settings/'),
   },
 ] as const;
 
@@ -81,15 +81,16 @@ export function GlassTabBar() {
         transform: visible
           ? 'translate3d(0, 0, 0)'
           : 'translate3d(0, calc(100% + 24px), 0)',
-        opacity: visible ? 1 : 0.85,
+        opacity: visible ? 1 : 0,
         transition: ready
           ? visible
             ? `transform 580ms ${SHOW_EASE}, opacity 480ms ${SHOW_EASE}`
-            : `transform 500ms ${HIDE_EASE}, opacity 420ms ${HIDE_EASE}`
+            : `transform 500ms ${HIDE_EASE}, opacity 280ms ${HIDE_EASE}`
           : 'none',
         willChange: 'transform, opacity',
       }}
       aria-hidden={!visible}
+      inert={!visible ? true : undefined}
     >
       <div
         ref={trackRef}

@@ -19,7 +19,17 @@ import {
   TabsTrigger
 } from '@monesto/rune';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronRight, GitBranch, Pencil, Plus, Receipt, TrendingUp, Wallet } from 'lucide-react';
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronRight,
+  GitBranch,
+  Pencil,
+  Plus,
+  Receipt,
+  TrendingUp,
+  Wallet
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
@@ -59,8 +69,13 @@ import { assetSlug } from '@/lib/utils/slug';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 const shell = 'mx-auto w-full px-5 pt-6 pb-[110px]';
+/** Nested screens without tab bar. */
+const nestedShell = 'mx-auto w-full px-5 pt-6 pb-8';
 /** Full-viewport form: scrollable body + footer pinned to bottom. */
 const formShell = 'mx-auto flex h-full min-h-0 w-full flex-col px-5 pt-6';
+/** Scrollable form body — inset ring не обрезается. */
+const formScroll =
+  'min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-4';
 const UNDO_MS = 7000;
 const defaults = {
   icon: 'wallet' as AssetIconName,
@@ -601,7 +616,7 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
       <main className={formShell}>
         <PageHeader title={asset ? 'Редактировать' : 'Новый актив'} backTo="/assets" />
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4">
+        <div className={formScroll}>
           <div>
             <Label required>Название</Label>
             <Input
@@ -746,7 +761,7 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
   if (!asset) {
     return (
       <PageTransition>
-        <main className={shell}>Загрузка…</main>
+        <main className={nestedShell}>Загрузка…</main>
       </PageTransition>
     );
   }
@@ -792,7 +807,7 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
 
   return (
     <PageTransition>
-      <main className={`${shell} space-y-4`}>
+      <main className={`${nestedShell} space-y-4`}>
         <PageHeader
           title="Актив"
           backTo="/assets"
@@ -875,15 +890,15 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
               ['Сейчас стоит', formatRub(valuation.currentValueRub)],
               ['Прибыль', `${valuation.profitRub >= 0 ? '+' : ''}${formatRub(valuation.profitRub)}`]
             ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">{label}</span>
+              <div key={label} className="flex items-center justify-between gap-3 text-sm">
+                <span className="shrink-0 text-slate-400">{label}</span>
                 <span
                   className={
                     label === 'Прибыль'
                       ? valuation.profitRub >= 0
-                        ? 'font-semibold text-emerald-600'
-                        : 'font-semibold text-rose-600'
-                      : 'font-medium text-slate-900'
+                        ? 'min-w-0 text-right font-semibold tabular-nums text-emerald-600'
+                        : 'min-w-0 text-right font-semibold tabular-nums text-rose-600'
+                      : 'min-w-0 text-right font-medium tabular-nums text-slate-900'
                   }
                 >
                   {value}
@@ -905,28 +920,62 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
         <section>
           <h2 className="mb-3 font-bold text-slate-900">История операций</h2>
           {transactions.length ? (
-            transactions.map((tx) => (
-              <Card
-                key={tx.id}
-                className="mb-2 flex items-center justify-between border-slate-100 p-4 shadow-sm"
-              >
-                <div>
-                  <p className="font-semibold">
-                    {tx.amount_delta >= 0 ? 'Пополнение' : 'Списание'}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {new Date(tx.created_at).toLocaleString('ru-RU')}
-                    {tx.note ? ` · ${tx.note}` : ''}
-                  </p>
-                </div>
-                <b className={tx.amount_delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                  {tx.amount_delta >= 0 ? '+' : ''}
-                  {asset.provider === 'usd'
+            <ul className="space-y-2">
+              {transactions.map((tx) => {
+                const positive = tx.amount_delta >= 0;
+                const title = positive ? 'Пополнение' : 'Списание';
+                const amountText = `${positive ? '+' : ''}${
+                  asset.provider === 'usd'
                     ? formatUsd(tx.amount_delta)
-                    : formatRub(tx.amount_delta)}
-                </b>
-              </Card>
-            ))
+                    : formatRub(tx.amount_delta)
+                }`;
+                const when = new Date(tx.created_at).toLocaleString('ru-RU', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+                const note = tx.note && tx.note !== title ? tx.note : null;
+                return (
+                  <li
+                    key={tx.id}
+                    className="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-slate-100"
+                  >
+                    <div
+                      className={
+                        positive
+                          ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600'
+                          : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600'
+                      }
+                      aria-hidden
+                    >
+                      {positive ? (
+                        <ArrowDownLeft className="h-5 w-5" strokeWidth={2} />
+                      ) : (
+                        <ArrowUpRight className="h-5 w-5" strokeWidth={2} />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-slate-900">{title}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-400">
+                        {when}
+                        {note ? ` · ${note}` : ''}
+                      </p>
+                    </div>
+                    <p
+                      className={
+                        positive
+                          ? 'shrink-0 self-center whitespace-nowrap text-right text-[15px] font-bold tabular-nums tracking-tight text-emerald-600'
+                          : 'shrink-0 self-center whitespace-nowrap text-right text-[15px] font-bold tabular-nums tracking-tight text-rose-600'
+                      }
+                    >
+                      {amountText}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
@@ -1444,7 +1493,7 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
           subtitle="Выберите актив и способ расчёта суммы"
         />
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4">
+        <div className={formScroll}>
           <div>
             <Label>Название</Label>
             <Input
