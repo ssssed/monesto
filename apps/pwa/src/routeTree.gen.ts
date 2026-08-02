@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
 import { Route as AssetsSlugRouteImport } from './routes/assets/$slug'
 import { Route as AssetsNewRouteImport } from './routes/assets/new'
+import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as OnboardingExpensesRouteImport } from './routes/onboarding/expenses'
 import { Route as OnboardingIncomeRouteImport } from './routes/onboarding/income'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
@@ -40,6 +41,11 @@ const AssetsSlugRoute = AssetsSlugRouteImport.update({
 const AssetsNewRoute = AssetsNewRouteImport.update({
   id: '/assets/new',
   path: '/assets/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingIndexRoute = OnboardingIndexRouteImport.update({
+  id: '/onboarding/',
+  path: '/onboarding/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingExpensesRoute = OnboardingExpensesRouteImport.update({
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
   '/assets/': typeof AssetsIndexRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/rules/$id': typeof SettingsRulesIdRoute
   '/settings/rules/new': typeof SettingsRulesNewRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
   '/assets': typeof AssetsIndexRoute
+  '/onboarding': typeof OnboardingIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/settings/rules/$id': typeof SettingsRulesIdRoute
   '/settings/rules/new': typeof SettingsRulesNewRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
   '/assets/': typeof AssetsIndexRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/settings/rules/$id': typeof SettingsRulesIdRoute
   '/settings/rules/new': typeof SettingsRulesNewRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/settings/expenses'
     | '/settings/income'
     | '/assets/'
+    | '/onboarding/'
     | '/settings/'
     | '/settings/rules/$id'
     | '/settings/rules/new'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/settings/expenses'
     | '/settings/income'
     | '/assets'
+    | '/onboarding'
     | '/settings'
     | '/settings/rules/$id'
     | '/settings/rules/new'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/settings/expenses'
     | '/settings/income'
     | '/assets/'
+    | '/onboarding/'
     | '/settings/'
     | '/settings/rules/$id'
     | '/settings/rules/new'
@@ -180,6 +192,7 @@ export interface RootRouteChildren {
   SettingsExpensesRoute: typeof SettingsExpensesRoute
   SettingsIncomeRoute: typeof SettingsIncomeRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
+  OnboardingIndexRoute: typeof OnboardingIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsRulesIdRoute: typeof SettingsRulesIdRoute
   SettingsRulesNewRoute: typeof SettingsRulesNewRoute
@@ -214,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/assets/new'
       fullPath: '/assets/new'
       preLoaderRoute: typeof AssetsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding/': {
+      id: '/onboarding/'
+      path: '/onboarding'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof OnboardingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding/expenses': {
@@ -284,6 +304,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsExpensesRoute: SettingsExpensesRoute,
   SettingsIncomeRoute: SettingsIncomeRoute,
   AssetsIndexRoute: AssetsIndexRoute,
+  OnboardingIndexRoute: OnboardingIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsRulesIdRoute: SettingsRulesIdRoute,
   SettingsRulesNewRoute: SettingsRulesNewRoute,

@@ -1099,7 +1099,7 @@ export function SettingsScreen() {
 
   const clear = async () => {
     await db.clearAllData();
-    await navigate({ to: '/onboarding/income' });
+    await navigate({ to: '/onboarding' });
   };
 
   const entries = [

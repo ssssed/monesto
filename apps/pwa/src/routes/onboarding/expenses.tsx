@@ -1,3 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
+
 import { MoneyFlowScreen } from '@/components/screens';
-export const Route = createFileRoute('/onboarding/expenses')({ component: () => <MoneyFlowScreen mode="expense" onboarding /> });
+import { requireIncompleteOnboarding } from '@/lib/onboarding/guard';
+
+export const Route = createFileRoute('/onboarding/expenses')({
+  beforeLoad: requireIncompleteOnboarding,
+  component: () => <MoneyFlowScreen mode="expense" onboarding />,
+});

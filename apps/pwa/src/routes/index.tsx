@@ -4,7 +4,7 @@ import { isOnboardingCompleted } from '@/lib/db';
 
 export const Route = createFileRoute('/')({
   beforeLoad: async () => {
-    if (!(await isOnboardingCompleted())) throw redirect({ to: '/onboarding/income' });
+    if (!(await isOnboardingCompleted())) throw redirect({ to: '/onboarding' });
   },
   component: HomeScreen,
 });

@@ -120,3 +120,59 @@ body::-webkit-scrollbar {
     opacity: 1;
   }
 }
+
+/* Onboarding welcome — soft ambient + floating hero */
+.welcome-blob {
+  animation: welcome-blob-drift 10s ease-in-out infinite;
+}
+
+.welcome-blob--b {
+  animation-duration: 12s;
+  animation-delay: -3s;
+}
+
+.welcome-blob--c {
+  animation-duration: 14s;
+  animation-delay: -6s;
+}
+
+.welcome-hero-card {
+  animation: welcome-float 5.5s ease-in-out infinite;
+}
+
+.welcome-hero-chip {
+  animation: welcome-float 6.2s ease-in-out infinite;
+  animation-delay: -1.2s;
+}
+
+.welcome-hero-chip--delay {
+  animation-delay: -2.4s;
+}
+
+@keyframes welcome-blob-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(12px, -18px, 0) scale(1.06);
+  }
+}
+
+@keyframes welcome-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-blob,
+  .welcome-hero-card,
+  .welcome-hero-chip {
+    animation: none;
+  }
+}
