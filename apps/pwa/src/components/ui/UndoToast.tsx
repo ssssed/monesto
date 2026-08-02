@@ -1,6 +1,7 @@
 import { cn } from '@monesto/rune';
 import { Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type Props = {
   visible: boolean;
@@ -38,10 +39,10 @@ export function UndoToast({
     return () => cancelAnimationFrame(frame);
   }, [visible, durationMs, message]);
 
-  if (!visible) return null;
+  if (!visible || typeof document === 'undefined') return null;
 
-  return (
-    <div className="pointer-events-none fixed left-1/2 top-3 z-50 w-full max-w-[430px] -translate-x-1/2 px-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+  return createPortal(
+    <div className="pointer-events-none fixed left-1/2 top-3 z-[100] w-full max-w-[430px] -translate-x-1/2 px-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
       <div className="pointer-events-auto overflow-hidden rounded-2xl bg-slate-900 shadow-lg">
         <div className="flex items-center px-3.5 py-3">
           <div className="mr-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-slate-800">
@@ -73,6 +74,7 @@ export function UndoToast({
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -15,9 +15,10 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
+import { UndoToast } from '@/components/ui/UndoToast';
 import {
   calculateSalaryPaymentAmount,
   createDefaultTranche,
@@ -777,6 +778,8 @@ function EntryRow({
   );
 }
 
+const UNDO_MS = 7000;
+
 export function MoneyFlowStep({
   mode,
   title,
@@ -802,6 +805,13 @@ export function MoneyFlowStep({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState<{ id: string; name: string } | null>(null);
+  const pendingRef = useRef(
+    new Map<
+      string,
+      { entry: MoneyFlowEntry; timer: ReturnType<typeof setTimeout>; index: number }
+    >(),
+  );
   const submitRef = useRef<HTMLDivElement>(null);
 
   const canRemove = useMemo(
@@ -837,15 +847,67 @@ export function MoneyFlowStep({
     setExpandedId(next.id ?? null);
   }
 
-  function remove(id: string | undefined) {
-    if (!id) return;
+  const scheduleRemove = useCallback(
+    (id: string | undefined) => {
+      if (!id) return;
+
+      setEntries((prev) => {
+        const index = prev.findIndex((e) => e.id === id);
+        const entry = index >= 0 ? prev[index] : undefined;
+        if (!entry) return prev;
+
+        const existing = pendingRef.current.get(id);
+        if (existing) clearTimeout(existing.timer);
+
+        const timer = setTimeout(() => {
+          pendingRef.current.delete(id);
+          setToast((current) => (current?.id === id ? null : current));
+        }, UNDO_MS);
+
+        pendingRef.current.set(id, { entry, timer, index });
+        setToast({
+          id,
+          name:
+            entry.name.trim() ||
+            (mode === 'income' ? 'Доход' : 'Расход'),
+        });
+
+        const next = prev.filter((e) => e.id !== id);
+        return next.length
+          ? next
+          : [
+              mode === 'income'
+                ? createEmptyIncomeEntry()
+                : createEmptyExpenseEntry(),
+            ];
+      });
+      setExpandedId((current) => (current === id ? null : current));
+    },
+    [mode],
+  );
+
+  const undoRemove = useCallback(() => {
+    if (!toast) return;
+    const pending = pendingRef.current.get(toast.id);
+    if (!pending) {
+      setToast(null);
+      return;
+    }
+    clearTimeout(pending.timer);
+    pendingRef.current.delete(toast.id);
     setEntries((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      return next.length
-        ? next
-        : [mode === 'income' ? createEmptyIncomeEntry() : createEmptyExpenseEntry()];
+      const onlyPlaceholder =
+        prev.length === 1 &&
+        !prev[0]?.name.trim() &&
+        !Number(prev[0]?.amount) &&
+        !Number(prev[0]?.monthlyAmount);
+      const base = onlyPlaceholder ? [] : [...prev];
+      const insertAt = Math.min(pending.index, base.length);
+      base.splice(insertAt, 0, pending.entry);
+      return base;
     });
-  }
+    setToast(null);
+  }, [toast]);
 
   async function handleSubmit() {
     const filled = entries.filter((e) => e.name.trim());
@@ -899,6 +961,14 @@ export function MoneyFlowStep({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <UndoToast
+        visible={toast != null}
+        message={toast ? `Удалено «${toast.name}»` : ''}
+        durationMs={UNDO_MS}
+        onUndo={undoRemove}
+        onDismiss={() => setToast(null)}
+      />
+
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">{title}</h2>
@@ -928,7 +998,7 @@ export function MoneyFlowStep({
                 setExpandedId(expandedId === entry.id ? null : entry.id ?? null)
               }
               onChange={(next) => updateEntry(entry.id, next)}
-              onRemove={() => remove(entry.id)}
+              onRemove={() => scheduleRemove(entry.id)}
               canRemove={canRemove}
               onPresetApplied={scrollToSubmit}
             />
