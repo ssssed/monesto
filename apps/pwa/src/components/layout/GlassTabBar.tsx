@@ -95,17 +95,17 @@ export function GlassTabBar() {
       <div
         ref={trackRef}
         className={cn(
-          'relative mx-auto flex h-[62px] w-full items-center overflow-hidden rounded-full border border-slate-300/50 bg-white/90 shadow-[0_8px_28px_rgb(15_23_42/0.16)] backdrop-blur-xl',
+          'relative mx-auto flex h-[62px] w-full items-center overflow-hidden rounded-full border border-slate-300/50 bg-white/90 p-1.5 shadow-[0_8px_28px_rgb(15_23_42/0.16)] backdrop-blur-xl',
           visible ? 'pointer-events-auto' : 'pointer-events-none',
         )}
       >
         {pill.width > 0 ? (
           <div
             aria-hidden
-            className="absolute top-1 bottom-1 rounded-full bg-[var(--color-navy)]"
+            className="absolute top-1.5 bottom-1.5 rounded-full bg-[var(--color-navy)]"
             style={{
               left: 0,
-              width: pill.width,
+              width: Math.max(0, pill.width),
               transform: `translateX(${pill.left}px)`,
               transition: ready
                 ? `transform 380ms ${SHOW_EASE}, width 380ms ${SHOW_EASE}`
@@ -124,7 +124,7 @@ export function GlassTabBar() {
               data-tab-item=""
               tabIndex={visible ? 0 : -1}
               className={cn(
-                'relative z-[1] flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors duration-300',
+                'relative z-[1] flex h-full flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide transition-colors duration-300',
                 active ? 'text-white' : 'text-slate-500',
               )}
             >
