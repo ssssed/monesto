@@ -22,6 +22,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  CalendarDays,
   ChevronRight,
   GitBranch,
   Pencil,
@@ -44,7 +45,10 @@ import { AssetStylePicker } from '@/components/assets/AssetStylePicker';
 import { PageHeader, PageTitle } from '@/components/layout/PageHeader';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { MoneyFlowStep } from '@/components/money-flow/MoneyFlowStep';
-import { ReportCycleSwitcher } from '@/components/report/ReportCycleSwitcher';
+import {
+  ReportCycleSwitcher,
+  reportCycleKey,
+} from '@/components/report/ReportCycleSwitcher';
 import { SwipeConfirmCard } from '@/components/report/SwipeConfirmCard';
 import { DangerClearButton } from '@/components/ui/DangerClearButton';
 import { AppAboutFooter } from '@/components/ui/AppAboutFooter';
@@ -71,7 +75,7 @@ import type {
   DistributionRule,
   MoneyFlowEntry,
   RuleType,
-  SalaryPaymentDay
+  VacationPeriod,
 } from '@/lib/types';
 import { expensesToEntries, formatRub, formatUsd, incomesToEntries } from '@/lib/utils/format';
 import { assetSlug } from '@/lib/utils/slug';
@@ -143,20 +147,22 @@ export function HomeScreen() {
     incomes: Awaited<ReturnType<typeof db.getAllIncomes>>;
     expenses: Awaited<ReturnType<typeof db.getAllExpenses>>;
     rules: DistributionRule[];
+    vacations: VacationPeriod[];
   } | null>(null);
-  const [day, setDay] = useState<SalaryPaymentDay | null>(null);
+  const [cycleKey, setCycleKey] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
 
   const reload = useCallback(async () => {
-    const [assets, incomes, expenses, rules] = await Promise.all([
+    const [assets, incomes, expenses, rules, vacations] = await Promise.all([
       db.getAllAssets(),
       db.getAllIncomes(),
       db.getAllExpenses(),
-      db.getAllRules()
+      db.getAllRules(),
+      db.getAllVacations(),
     ]);
-    setData({ assets, incomes, expenses, rules });
+    setData({ assets, incomes, expenses, rules, vacations });
   }, []);
 
   useEffect(() => {
@@ -164,27 +170,54 @@ export function HomeScreen() {
   }, [reload]);
 
   const cycles = useMemo(() => {
-    const primary = data ? findPrimaryIncome(data.incomes) : undefined;
-    return listReportCycles(new Date(), scheduleDaysFromPrimary(primary));
+    if (!data) return [];
+    const primary = findPrimaryIncome(data.incomes);
+    const vacationCtx =
+      primary?.income_kind === 'bimonthly_salary'
+        ? {
+            vacations: data.vacations,
+            monthlyAmount: primary.monthly_amount ?? 0,
+            tranches: primary.salary_tranches,
+          }
+        : undefined;
+    return listReportCycles(
+      new Date(),
+      scheduleDaysFromPrimary(primary),
+      vacationCtx,
+    );
   }, [data]);
-  const selectedDay =
-    day ?? cycles.find((c) => !c.isPreview)?.paymentDay ?? cycles[0]?.paymentDay ?? 25;
+
+  const selectedCycle =
+    cycles.find((c) => reportCycleKey(c) === cycleKey) ??
+    cycles.find((c) => !c.isPreview) ??
+    cycles[0] ??
+    null;
+  const selectedKey = selectedCycle ? reportCycleKey(selectedCycle) : '';
 
   useEffect(() => {
-    if (day != null && cycles.length && !cycles.some((c) => c.paymentDay === day)) {
-      setDay(null);
+    if (
+      cycleKey != null &&
+      cycles.length &&
+      !cycles.some((c) => reportCycleKey(c) === cycleKey)
+    ) {
+      setCycleKey(null);
     }
-  }, [cycles, day]);
+  }, [cycles, cycleKey]);
 
   const report = useMemo(() => {
-    if (!data) return null;
+    if (!data || !selectedCycle) return null;
     return calculateReport({
-      ...data,
+      incomes: data.incomes,
+      expenses: data.expenses,
+      rules: data.rules,
+      assets: data.assets,
+      vacations: data.vacations,
       today: new Date(),
-      cyclePaymentDay: selectedDay,
-      usdRubRate: rate ?? undefined
+      cyclePaymentDay: selectedCycle.paymentDay,
+      cycleNominalDate: selectedCycle.nominalDate,
+      usdRubRate: rate ?? undefined,
     });
-  }, [data, selectedDay, rate]);
+  }, [data, selectedCycle, rate]);
 
   useEffect(() => {
     if (!report || isReportError(report)) return;
@@ -197,7 +230,26 @@ export function HomeScreen() {
     });
   }, [report]);
 
-  if (!data || !report) {
+  if (!data) {
+    return <main className={shell}>Считаем отчёт…</main>;
+  }
+
+  if (!cycles.length) {
+    return (
+      <main className={shell}>
+        <p className="text-xl font-black tracking-[0.18em] text-blue-600">MONESTO</p>
+        <PageTitle
+          title="Нет ближайших выплат"
+          subtitle="Проверьте доходы и периоды отпуска в настройках"
+        />
+        <Link to="/settings/vacation">
+          <Button className="w-full">Открыть отпуск</Button>
+        </Link>
+      </main>
+    );
+  }
+
+  if (!report) {
     return <main className={shell}>Считаем отчёт…</main>;
   }
 
@@ -280,7 +332,11 @@ export function HomeScreen() {
       </FadeIn>
 
       <FadeIn index={1}>
-        <ReportCycleSwitcher cycles={cycles} selectedDay={selectedDay} onSelect={setDay} />
+        <ReportCycleSwitcher
+          cycles={cycles}
+          selectedKey={selectedKey}
+          onSelect={setCycleKey}
+        />
       </FadeIn>
 
       <FadeIn index={2}>
@@ -1215,13 +1271,20 @@ export function SettingsScreen() {
       desc: 'Обязательные платежи',
       icon: Wallet,
       color: 'bg-slate-100 text-slate-600'
+    },
+    {
+      to: '/settings/vacation' as const,
+      label: 'Отпуск',
+      desc: 'Периоды и влияние на выплаты',
+      icon: CalendarDays,
+      color: 'bg-amber-50 text-amber-700'
     }
   ];
 
   return (
     <main className={`${shell} space-y-4`}>
       <FadeIn variant="fade">
-        <PageTitle title="Настройки" subtitle="Доходы, расходы и правила распределения" />
+        <PageTitle title="Настройки" subtitle="Доходы, расходы, отпуск и правила распределения" />
       </FadeIn>
 
       <FadeIn index={1}>

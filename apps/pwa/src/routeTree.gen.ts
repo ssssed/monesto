@@ -20,6 +20,7 @@ import { Route as OnboardingPlanRouteImport } from './routes/onboarding/plan'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsExpensesRouteImport } from './routes/settings/expenses'
 import { Route as SettingsIncomeRouteImport } from './routes/settings/income'
+import { Route as SettingsVacationRouteImport } from './routes/settings/vacation'
 import { Route as SettingsRulesIndexRouteImport } from './routes/settings/rules/index'
 import { Route as SettingsRulesIdRouteImport } from './routes/settings/rules/$id'
 import { Route as SettingsRulesNewRouteImport } from './routes/settings/rules/new'
@@ -79,6 +80,11 @@ const SettingsIncomeRoute = SettingsIncomeRouteImport.update({
   path: '/settings/income',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsVacationRoute = SettingsVacationRouteImport.update({
+  id: '/settings/vacation',
+  path: '/settings/vacation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRulesIndexRoute = SettingsRulesIndexRouteImport.update({
   id: '/settings/rules/',
   path: '/settings/rules/',
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/onboarding/plan': typeof OnboardingPlanRoute
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
+  '/settings/vacation': typeof SettingsVacationRoute
   '/assets/': typeof AssetsIndexRoute
   '/onboarding/': typeof OnboardingIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/onboarding/plan': typeof OnboardingPlanRoute
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
+  '/settings/vacation': typeof SettingsVacationRoute
   '/assets': typeof AssetsIndexRoute
   '/onboarding': typeof OnboardingIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/onboarding/plan': typeof OnboardingPlanRoute
   '/settings/expenses': typeof SettingsExpensesRoute
   '/settings/income': typeof SettingsIncomeRoute
+  '/settings/vacation': typeof SettingsVacationRoute
   '/assets/': typeof AssetsIndexRoute
   '/onboarding/': typeof OnboardingIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/onboarding/plan'
     | '/settings/expenses'
     | '/settings/income'
+    | '/settings/vacation'
     | '/assets/'
     | '/onboarding/'
     | '/settings/'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/onboarding/plan'
     | '/settings/expenses'
     | '/settings/income'
+    | '/settings/vacation'
     | '/assets'
     | '/onboarding'
     | '/settings'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/onboarding/plan'
     | '/settings/expenses'
     | '/settings/income'
+    | '/settings/vacation'
     | '/assets/'
     | '/onboarding/'
     | '/settings/'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   OnboardingPlanRoute: typeof OnboardingPlanRoute
   SettingsExpensesRoute: typeof SettingsExpensesRoute
   SettingsIncomeRoute: typeof SettingsIncomeRoute
+  SettingsVacationRoute: typeof SettingsVacationRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
   OnboardingIndexRoute: typeof OnboardingIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIncomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/vacation': {
+      id: '/settings/vacation'
+      path: '/settings/vacation'
+      fullPath: '/settings/vacation'
+      preLoaderRoute: typeof SettingsVacationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/rules/': {
       id: '/settings/rules/'
       path: '/settings/rules'
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingPlanRoute: OnboardingPlanRoute,
   SettingsExpensesRoute: SettingsExpensesRoute,
   SettingsIncomeRoute: SettingsIncomeRoute,
+  SettingsVacationRoute: SettingsVacationRoute,
   AssetsIndexRoute: AssetsIndexRoute,
   OnboardingIndexRoute: OnboardingIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,

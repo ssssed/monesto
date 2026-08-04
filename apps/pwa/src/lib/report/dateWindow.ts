@@ -8,6 +8,7 @@ import {
   normalizeSalaryTranches,
   paymentDaysFromTranches,
 } from './calculateSalaryPayment';
+import { listVacationPayouts } from './vacation';
 import type {
   Expense,
   IncomeSource,
@@ -15,6 +16,7 @@ import type {
   ReportIncomeLine,
   SalaryPaymentDay,
   SalaryTranche,
+  VacationPeriod,
 } from '../types';
 
 export interface ReportCycle {
@@ -51,7 +53,7 @@ export function formatReportDate(date: Date): string {
 
 export function parseDate(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);
-  return startOfDay(new Date(year, month - 1, day));
+  return startOfDay(new Date(year!, month! - 1, day!));
 }
 
 function sortedPaymentDays(
@@ -150,15 +152,169 @@ export function resolveReportCycle(
   };
 }
 
+function salaryAmountForPayment(
+  paymentDate: Date,
+  monthlyAmount: number,
+  tranches: SalaryTranche[] | null | undefined,
+  vacations: VacationPeriod[],
+): number {
+  const day = paymentDate.getDate();
+  try {
+    return calculateSalaryPaymentAmount(
+      monthlyAmount,
+      day,
+      paymentDate,
+      tranches,
+      vacations,
+    ).amount;
+  } catch {
+    return 0;
+  }
+}
+
+function vacationPayOnDate(
+  paymentDate: Date,
+  vacations: VacationPeriod[],
+  monthlyAmount: number,
+  scheduleDays: SalaryPaymentDay[],
+): number {
+  const target = startOfDay(paymentDate).getTime();
+  return listVacationPayouts(vacations, monthlyAmount, scheduleDays)
+    .filter((p) => p.paymentDate.getTime() === target)
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+function isEmptyPayment(
+  paymentDate: Date,
+  monthlyAmount: number,
+  tranches: SalaryTranche[] | null | undefined,
+  vacations: VacationPeriod[],
+  scheduleDays: SalaryPaymentDay[],
+): boolean {
+  const salary = salaryAmountForPayment(
+    paymentDate,
+    monthlyAmount,
+    tranches,
+    vacations,
+  );
+  const vacationPay = vacationPayOnDate(
+    paymentDate,
+    vacations,
+    monthlyAmount,
+    scheduleDays,
+  );
+  return salary <= 0 && vacationPay <= 0;
+}
+
+function resolveCycleForNominalDate(
+  today: Date,
+  nominalDate: Date,
+  scheduleDays: SalaryPaymentDay[],
+): ReportCycle {
+  const todayStart = startOfDay(today);
+  const days = sortedPaymentDays(scheduleDays);
+  const payoutDate = toPayoutDate(nominalDate);
+  const nextNominal = getNextSchedulePaymentDate(nominalDate, days);
+  const incomeStart = todayStart <= nominalDate ? todayStart : nominalDate;
+
+  return {
+    paymentDay: nominalDate.getDate(),
+    nominalDate,
+    payoutDate,
+    expenseEndExclusive: toPayoutDate(nextNominal),
+    incomeStart,
+    expenseStart: payoutDate,
+    isPreview: todayStart < payoutDate,
+  };
+}
+
+/** Ближайшая будущая непустая выплата после afterDate. */
+function findNextNonEmptyPayment(
+  afterDate: Date,
+  scheduleDays: SalaryPaymentDay[],
+  monthlyAmount: number,
+  tranches: SalaryTranche[] | null | undefined,
+  vacations: VacationPeriod[],
+): ReportCycle | null {
+  const days = sortedPaymentDays(scheduleDays);
+  let cursor = startOfDay(afterDate);
+
+  for (let i = 0; i < 8; i += 1) {
+    const next = getNextSchedulePaymentDate(cursor, days);
+    if (!isEmptyPayment(next, monthlyAmount, tranches, vacations, days)) {
+      return resolveCycleForNominalDate(afterDate, next, days);
+    }
+    cursor = next;
+  }
+  return null;
+}
+
+export interface VacationReportContext {
+  vacations: VacationPeriod[];
+  monthlyAmount: number;
+  tranches?: SalaryTranche[] | null;
+}
+
 /** Доступные циклы по дням графика, отсортированные по дате выплаты. */
 export function listReportCycles(
   today: Date,
   scheduleDays?: SalaryPaymentDay[],
+  vacationCtx?: VacationReportContext,
 ): ReportCycle[] {
   const days = sortedPaymentDays(scheduleDays);
-  return days
-    .map((day) => resolveReportCycle(today, day, days))
-    .sort((a, b) => a.payoutDate.getTime() - b.payoutDate.getTime());
+  const vacations = vacationCtx?.vacations ?? [];
+  const monthlyAmount = vacationCtx?.monthlyAmount ?? 0;
+  const tranches = vacationCtx?.tranches;
+
+  const cycles = days.map((day) => resolveReportCycle(today, day, days));
+
+  if (!vacations.length || monthlyAmount <= 0) {
+    return cycles.sort(
+      (a, b) => a.payoutDate.getTime() - b.payoutDate.getTime(),
+    );
+  }
+
+  const kept: ReportCycle[] = [];
+  for (const cycle of cycles) {
+    if (
+      isEmptyPayment(
+        cycle.nominalDate,
+        monthlyAmount,
+        tranches,
+        vacations,
+        days,
+      )
+    ) {
+      continue;
+    }
+    kept.push(cycle);
+  }
+
+  const hasPreview = kept.some((c) => c.isPreview);
+  if (!hasPreview) {
+    const after =
+      kept.length > 0
+        ? kept.reduce(
+            (max, c) => (c.nominalDate > max ? c.nominalDate : max),
+            kept[0]!.nominalDate,
+          )
+        : startOfDay(today);
+    const next = findNextNonEmptyPayment(
+      after,
+      days,
+      monthlyAmount,
+      tranches,
+      vacations,
+    );
+    if (
+      next &&
+      !kept.some((c) => c.nominalDate.getTime() === next.nominalDate.getTime())
+    ) {
+      kept.push(next);
+    }
+  }
+
+  return kept.sort((a, b) => a.payoutDate.getTime() - b.payoutDate.getTime());
 }
 
 /** @deprecated используйте resolveReportWindow */
@@ -175,6 +331,7 @@ export function expandIncomeToLines(
   today: Date,
   targetDate: Date,
   incomeStart?: Date,
+  vacations: VacationPeriod[] = [],
 ): ReportIncomeLine[] {
   const lines: ReportIncomeLine[] = [];
   const windowStart = startOfDay(incomeStart ?? today);
@@ -196,13 +353,31 @@ export function expandIncomeToLines(
           payment.paymentDay,
           payment.date,
           tranches,
+          vacations,
         );
+        if (calc.amount <= 0) continue;
         lines.push({
           name: income.name,
           amount: calc.amount,
           detail: `${calc.periodLabel}, ${calc.workingDays} р.д.`,
           paymentDate: toPayoutDate(payment.date),
         });
+      }
+
+      for (const payout of listVacationPayouts(
+        vacations,
+        monthlyAmount,
+        paymentDaysFromTranches(tranches),
+      )) {
+        // Сравниваем номинальную дату с окном цикла (как у зарплаты).
+        if (payout.paymentDate >= windowStart && payout.paymentDate <= target) {
+          lines.push({
+            name: 'Отпускные',
+            amount: payout.amount,
+            detail: `${formatReportDate(payout.start)} – ${formatReportDate(payout.end)}, ${payout.days} дн.`,
+            paymentDate: toPayoutDate(payout.paymentDate),
+          });
+        }
       }
       continue;
     }

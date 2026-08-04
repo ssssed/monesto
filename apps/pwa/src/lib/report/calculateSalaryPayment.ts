@@ -4,7 +4,8 @@ import {
   endOfMonth,
   startOfDay,
 } from '../calendar/workingDays';
-import type { SalaryPaymentDay, SalaryTranche } from '../types';
+import type { SalaryPaymentDay, SalaryTranche, VacationPeriod } from '../types';
+import { countWorkingDaysExcludingVacation } from './vacation';
 
 const MONTH_NAMES = [
   'января',
@@ -197,6 +198,7 @@ export function calculateSalaryPaymentAmount(
   paymentDay: SalaryPaymentDay,
   paymentDate: Date,
   tranches?: SalaryTranche[] | null,
+  vacations?: VacationPeriod[],
 ): {
   amount: number;
   workingDays: number;
@@ -222,7 +224,9 @@ export function calculateSalaryPaymentAmount(
     ),
   );
   const { from, to } = resolveTranchePeriodBounds(date, tranche);
-  const periodDays = countWorkingDays(from, to);
+  const periodDays = vacations?.length
+    ? countWorkingDaysExcludingVacation(from, to, vacations)
+    : countWorkingDays(from, to);
   const monthDays = countWorkingDaysInMonth(
     from.getFullYear(),
     from.getMonth(),

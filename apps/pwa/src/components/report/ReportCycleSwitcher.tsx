@@ -3,7 +3,13 @@ import type { ReactNode } from 'react';
 
 import type { ReportCycle } from '@/lib/report/dateWindow';
 import { formatReportDate } from '@/lib/report/dateWindow';
-import type { SalaryPaymentDay } from '@/lib/types';
+
+function cycleKey(cycle: ReportCycle): string {
+  const y = cycle.nominalDate.getFullYear();
+  const m = String(cycle.nominalDate.getMonth() + 1).padStart(2, '0');
+  const d = String(cycle.nominalDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function CycleLabel({
   cycle,
@@ -67,30 +73,32 @@ function CycleLabel({
 
 export function ReportCycleSwitcher({
   cycles,
-  selectedDay,
+  selectedKey,
   onSelect,
 }: {
   cycles: ReportCycle[];
-  selectedDay: SalaryPaymentDay;
-  onSelect: (day: SalaryPaymentDay) => void;
+  selectedKey: string;
+  onSelect: (key: string) => void;
 }) {
   return (
     <SlidingToggleGroup
       size="lg"
-      value={String(selectedDay)}
-      onValueChange={(v) => onSelect(Number(v) as SalaryPaymentDay)}
+      value={selectedKey}
+      onValueChange={onSelect}
       trackClassName="rounded-3xl bg-slate-100"
       pillClassName="rounded-2xl shadow-[0_2px_8px_rgb(15_23_42/0.08)]"
-      options={cycles.map((cycle) => ({
-        value: String(cycle.paymentDay),
-        className: 'items-stretch justify-start px-3 py-3',
-        label: (
-          <CycleLabel
-            cycle={cycle}
-            active={cycle.paymentDay === selectedDay}
-          />
-        ),
-      }))}
+      options={cycles.map((cycle) => {
+        const key = cycleKey(cycle);
+        return {
+          value: key,
+          className: 'items-stretch justify-start px-3 py-3',
+          label: (
+            <CycleLabel cycle={cycle} active={key === selectedKey} />
+          ),
+        };
+      })}
     />
   );
 }
+
+export { cycleKey as reportCycleKey };

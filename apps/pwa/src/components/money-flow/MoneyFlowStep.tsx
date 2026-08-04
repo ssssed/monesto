@@ -558,7 +558,9 @@ function EntryRow({
           <div className="mb-4 flex gap-3">
             <div className="min-w-0 flex-[1.4]">
               <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {entry.isBimonthlySalary && isIncome ? 'Оклад / мес' : 'Сумма'}
+                {entry.isBimonthlySalary && isIncome
+                  ? 'Оклад на руки / мес'
+                  : 'Сумма'}
               </Label>
               <div className="flex items-center rounded-xl border border-slate-100 bg-slate-50">
                 <Input

@@ -10,6 +10,7 @@ import type {
   Expense,
   IncomeSource,
   MoneyFlowEntry,
+  VacationPeriod,
 } from '../types';
 import { assetSlug } from '../utils/slug';
 
@@ -37,6 +38,7 @@ export interface AppDatabase {
   assets: Asset[];
   asset_transactions: AssetTransaction[];
   distribution_rules: DistributionRule[];
+  vacation_periods: VacationPeriod[];
   allocation_confirmations: Confirmation[];
   allocation_rejections: Rejection[];
   nextIds: {
@@ -45,6 +47,7 @@ export interface AppDatabase {
     asset: number;
     transaction: number;
     rule: number;
+    vacation: number;
     confirmation: number;
     rejection: number;
   };
@@ -61,6 +64,7 @@ function emptyDb(): AppDatabase {
     assets: [],
     asset_transactions: [],
     distribution_rules: [],
+    vacation_periods: [],
     allocation_confirmations: [],
     allocation_rejections: [],
     nextIds: {
@@ -69,6 +73,7 @@ function emptyDb(): AppDatabase {
       asset: 1,
       transaction: 1,
       rule: 1,
+      vacation: 1,
       confirmation: 1,
       rejection: 1,
     },
@@ -88,6 +93,11 @@ function load(): AppDatabase {
       ...income,
       salary_tranches: income.salary_tranches ?? null,
     }));
+    parsed.vacation_periods = parsed.vacation_periods ?? [];
+    parsed.nextIds = {
+      ...emptyDb().nextIds,
+      ...parsed.nextIds,
+    };
     return parsed;
   } catch {
     const db = emptyDb();
@@ -132,9 +142,28 @@ export async function clearAllData(): Promise<void> {
     db.assets = [];
     db.asset_transactions = [];
     db.distribution_rules = [];
+    db.vacation_periods = [];
     db.allocation_confirmations = [];
     db.allocation_rejections = [];
     db.meta.onboarding_completed = 'false';
+  });
+}
+
+export async function getAllVacations(): Promise<VacationPeriod[]> {
+  return [...load().vacation_periods].sort((a, b) =>
+    a.start_date.localeCompare(b.start_date),
+  );
+}
+
+export async function replaceAllVacations(
+  periods: Omit<VacationPeriod, 'id'>[],
+): Promise<void> {
+  withDb((db) => {
+    db.vacation_periods = periods.map((period) => ({
+      id: db.nextIds.vacation++,
+      start_date: period.start_date,
+      end_date: period.end_date,
+    }));
   });
 }
 

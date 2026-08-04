@@ -1,4 +1,6 @@
+import { startOfDay, toPayoutDate } from '../calendar/workingDays';
 import { convertToRub } from '../exchange/convertToRub';
+import { getNextSchedulePaymentDate } from './calculateSalaryPayment';
 import { applyRules } from './applyRules';
 import {
   expandExpensesToLines,
@@ -15,6 +17,7 @@ import type {
   ReportError,
   ReportResult,
   SalaryPaymentDay,
+  VacationPeriod,
 } from '../types';
 
 function toCycleKey(date: Date): string {
@@ -33,6 +36,9 @@ export function calculateReport(input: {
   usdRubRate?: number;
   /** Якорь цикла. По умолчанию — primary_payment_day. */
   cyclePaymentDay?: SalaryPaymentDay;
+  /** Номинальная дата цикла (если цикл сдвинут из‑за отпуска). */
+  cycleNominalDate?: Date;
+  vacations?: VacationPeriod[];
 }): ReportResult | ReportError {
   const primary = findPrimaryIncome(input.incomes);
   if (!primary) {
@@ -42,28 +48,50 @@ export function calculateReport(input: {
     };
   }
 
+  const vacations = input.vacations ?? [];
   const scheduleDays = scheduleDaysFromPrimary(primary);
   const cyclePaymentDay =
     input.cyclePaymentDay ??
     primary.primary_payment_day ??
     scheduleDays[scheduleDays.length - 1] ??
     25;
-  const cycle = resolveReportCycle(input.today, cyclePaymentDay, scheduleDays);
+
+  let cycle = resolveReportCycle(input.today, cyclePaymentDay, scheduleDays);
+  if (
+    input.cycleNominalDate &&
+    input.cycleNominalDate.getTime() !== cycle.nominalDate.getTime()
+  ) {
+    const todayStart = startOfDay(input.today);
+    const nominalDate = startOfDay(input.cycleNominalDate);
+    const payoutDate = toPayoutDate(nominalDate);
+    const nextNominal = getNextSchedulePaymentDate(nominalDate, scheduleDays);
+    const incomeStart =
+      todayStart <= nominalDate ? todayStart : nominalDate;
+    cycle = {
+      paymentDay: nominalDate.getDate(),
+      nominalDate,
+      payoutDate,
+      expenseEndExclusive: toPayoutDate(nextNominal),
+      incomeStart,
+      expenseStart: payoutDate,
+      isPreview: todayStart < payoutDate,
+    };
+  }
 
   const needsUsd =
     input.rules.some(
       (rule) =>
-        rule.rule_type === "fixed" &&
-        rule.currency === "asset" &&
+        rule.rule_type === 'fixed' &&
+        rule.currency === 'asset' &&
         rule.target_asset_id != null &&
         input.assets.find((a) => a.id === rule.target_asset_id)?.provider ===
-          "usd",
-    ) || input.assets.some((asset) => asset.provider === "usd");
+          'usd',
+    ) || input.assets.some((asset) => asset.provider === 'usd');
 
   if (needsUsd && input.usdRubRate == null) {
     return {
-      code: "MISSING_USD_RATE",
-      message: "Курс USD/RUB ещё не загружен",
+      code: 'MISSING_USD_RATE',
+      message: 'Курс USD/RUB ещё не загружен',
     };
   }
 
@@ -74,6 +102,7 @@ export function calculateReport(input: {
     input.today,
     cycle.nominalDate,
     cycle.incomeStart,
+    vacations,
   );
   const expenseLines = expandExpensesToLines(
     input.expenses,
@@ -115,8 +144,8 @@ export function calculateReport(input: {
     name: asset.name,
     nativeAmount: asset.current_amount,
     rubEquivalent:
-      asset.provider === "usd"
-        ? convertToRub(asset.current_amount, "usd", usdRubRate)
+      asset.provider === 'usd'
+        ? convertToRub(asset.current_amount, 'usd', usdRubRate)
         : asset.current_amount,
     provider: asset.provider,
     icon: asset.icon,
@@ -147,5 +176,5 @@ export function calculateReport(input: {
 export function isReportError(
   result: ReportResult | ReportError,
 ): result is ReportError {
-  return "code" in result;
+  return 'code' in result;
 }

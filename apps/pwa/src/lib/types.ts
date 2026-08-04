@@ -75,6 +75,13 @@ export interface DistributionRule {
   sort_order: number;
 }
 
+/** Период отпуска: даты включительно, ISO YYYY-MM-DD. */
+export interface VacationPeriod {
+  id: number;
+  start_date: string;
+  end_date: string;
+}
+
 export interface MoneyFlowEntry {
   id?: string;
   name: string;
