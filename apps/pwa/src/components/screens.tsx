@@ -675,7 +675,7 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
             />
           </div>
           <div>
-            <Label>Назначение</Label>
+            <Label>Описание</Label>
             <Input
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
@@ -890,64 +890,77 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
           }
         />
 
-        <div className="flex flex-col items-center gap-3 pt-2">
-          <AssetAvatar
-            icon={asset.icon}
-            bgColor={asset.bg_color}
-            iconColor={asset.icon_color}
-            size="lg"
-          />
-          <h1 className="text-center text-2xl font-bold text-slate-900">{asset.name}</h1>
-        </div>
-
-        <Card
-          className={
-            progress != null
-              ? 'border-slate-100 p-5 text-center shadow-sm'
-              : 'border-0 bg-slate-50 p-5 text-center shadow-none'
-          }
-        >
-          <p className="text-3xl font-bold text-slate-900">
-            {asset.provider === 'usd'
-              ? formatUsd(asset.current_amount)
-              : formatRub(asset.current_amount)}
-          </p>
-          {asset.provider === 'usd' ? (
-            <p className="mt-1 text-slate-400">{formatRub(asset.current_amount * usdRate)}</p>
-          ) : null}
-          {valuation?.profitPercent != null ? (
-            <div className="mt-2 flex justify-center">
-              <TrendBadge
-                value={`${valuation.profitPercent >= 0 ? '+' : ''}${valuation.profitPercent}%`}
-                positive={valuation.profitPercent >= 0}
-              />
+        <div className="flex flex-col gap-1.5">
+          <FadeIn variant="fade" className="flex flex-col items-center gap-2 pt-1">
+            <AssetAvatar
+              icon={asset.icon}
+              bgColor={asset.bg_color}
+              iconColor={asset.icon_color}
+              size="lg"
+            />
+            <div className="px-2 text-center">
+              <h1 className="text-2xl font-bold leading-tight text-slate-900">{asset.name}</h1>
+              {asset.purpose?.trim() ? (
+                <FadeIn index={1} variant="up" className="mt-1">
+                  <p className="text-sm leading-snug text-slate-400">{asset.purpose.trim()}</p>
+                </FadeIn>
+              ) : null}
             </div>
-          ) : null}
-          {progress != null && asset.goal_amount ? (
-            <div className="mt-5 text-left">
-              <div className="mb-2 flex justify-between text-sm">
-                <span className="text-slate-500">Прогресс цели</span>
-                <span className="font-semibold text-slate-800">{Math.round(progress)}%</span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-blue-600 transition-[width] duration-500 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="mt-2.5 text-center text-xs text-slate-400">
-                Накоплено{' '}
+          </FadeIn>
+
+          <FadeIn index={2}>
+            <Card
+              className={
+                progress != null
+                  ? 'border-slate-100 p-5 text-center shadow-sm'
+                  : 'border-0 bg-slate-50 px-5 py-0 text-center shadow-none'
+              }
+            >
+              <p className="text-3xl font-bold leading-none text-slate-900">
                 {asset.provider === 'usd'
                   ? formatUsd(asset.current_amount)
-                  : formatRub(asset.current_amount)}{' '}
-                из{' '}
-                {asset.provider === 'usd'
-                  ? formatUsd(asset.goal_amount)
-                  : formatRub(asset.goal_amount)}
+                  : formatRub(asset.current_amount)}
               </p>
-            </div>
-          ) : null}
-        </Card>
+              {asset.provider === 'usd' ? (
+                <p className="mt-1.5 text-slate-400 leading-none">
+                  {formatRub(asset.current_amount * usdRate)}
+                </p>
+              ) : null}
+              {valuation?.profitPercent != null ? (
+                <div className="mt-2 flex justify-center">
+                  <TrendBadge
+                    value={`${valuation.profitPercent >= 0 ? '+' : ''}${valuation.profitPercent}%`}
+                    positive={valuation.profitPercent >= 0}
+                  />
+                </div>
+              ) : null}
+              {progress != null && asset.goal_amount ? (
+                <div className="mt-5 text-left">
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span className="text-slate-500">Прогресс цели</span>
+                    <span className="font-semibold text-slate-800">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-[width] duration-500 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-2.5 text-center text-xs text-slate-400">
+                    Накоплено{' '}
+                    {asset.provider === 'usd'
+                      ? formatUsd(asset.current_amount)
+                      : formatRub(asset.current_amount)}{' '}
+                    из{' '}
+                    {asset.provider === 'usd'
+                      ? formatUsd(asset.goal_amount)
+                      : formatRub(asset.goal_amount)}
+                  </p>
+                </div>
+              ) : null}
+            </Card>
+          </FadeIn>
+        </div>
 
         {valuation ? (
           <Card className="space-y-3 border-slate-100 p-4 shadow-sm">
@@ -1123,7 +1136,7 @@ export function AssetDetailScreen({ slug }: { slug: string }) {
                 <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
               </div>
               <div>
-                <Label>Назначение</Label>
+                <Label>Описание</Label>
                 <Input
                   value={editPurpose}
                   onChange={(e) => setEditPurpose(e.target.value)}
