@@ -622,13 +622,14 @@ export function AssetsScreen() {
   const listRef = useRef<HTMLDivElement>(null);
   const flipTopsRef = useRef<Map<number, number> | null>(null);
 
-  /** Слоты по высоте children — без offsetTop/offsetParent (они ломали drag вниз). */
+  /** Слоты по высоте children — layout, без CSS transform. */
   const getRowSlots = (list: HTMLElement) => {
     const rows = [
       ...list.querySelectorAll<HTMLElement>(':scope > [data-asset-id]'),
     ];
     const gap = 12; // space-y-3
-    let y = list.getBoundingClientRect().top - list.scrollTop;
+    // list сам не скроллится; top уже с учётом .app-scroll
+    let y = list.getBoundingClientRect().top;
     return rows.map((row, index) => {
       if (index > 0) y += gap;
       const top = y;
@@ -792,11 +793,7 @@ export function AssetsScreen() {
           ) : null}
         </div>
       </FadeIn>
-      <div
-        ref={listRef}
-        className="space-y-3"
-        style={reorderMode ? { touchAction: 'none' } : undefined}
-      >
+      <div ref={listRef} className="space-y-3">
         {assets.map((a, i) => {
           if (a.provider === 'credit') {
             const repaid = creditRepaidRatio(a);
