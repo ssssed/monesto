@@ -48,7 +48,7 @@ export function WelcomeScreen() {
             по вашим правилам.
           </p>
 
-          <div className="mt-8 rounded-2xl bg-[var(--color-navy)] p-5 text-white shadow-lg">
+          <div className="onboarding-float mt-8 rounded-2xl bg-[var(--color-navy)] p-5 text-white shadow-lg">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
               Свободно в цикле
             </p>

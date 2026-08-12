@@ -49,7 +49,7 @@ export function AssetsIntroScreen() {
             сколько уйдёт в каждый актив.
           </p>
 
-          <div className="mt-8 rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+          <div className="onboarding-float mt-8 rounded-2xl bg-white p-4 ring-1 ring-slate-100">
             <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-3">
               <span className="text-sm text-slate-500">Остаток цикла</span>
               <span className="text-sm font-bold tabular-nums text-slate-900">
