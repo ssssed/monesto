@@ -228,8 +228,29 @@ function resolveCycleForNominalDate(
   };
 }
 
+/** Предыдущий день выплаты в графике строго до beforeDate. */
+function getPreviousSchedulePaymentDate(
+  beforeDate: Date,
+  paymentDays: SalaryPaymentDay[],
+): Date {
+  const days = [...new Set(paymentDays)].sort((a, b) => a - b);
+  const before = startOfDay(beforeDate);
+  const year = before.getFullYear();
+  const month = before.getMonth();
+  const day = before.getDate();
+
+  for (let i = days.length - 1; i >= 0; i -= 1) {
+    if (days[i]! < day) {
+      return startOfDay(new Date(year, month, days[i]!));
+    }
+  }
+
+  return startOfDay(new Date(year, month - 1, days[days.length - 1]!));
+}
+
 /** Ближайшая будущая непустая выплата после afterDate. */
 function findNextNonEmptyPayment(
+  today: Date,
   afterDate: Date,
   scheduleDays: SalaryPaymentDay[],
   monthlyAmount: number,
@@ -242,9 +263,31 @@ function findNextNonEmptyPayment(
   for (let i = 0; i < 8; i += 1) {
     const next = getNextSchedulePaymentDate(cursor, days);
     if (!isEmptyPayment(next, monthlyAmount, tranches, vacations, days)) {
-      return resolveCycleForNominalDate(afterDate, next, days);
+      return resolveCycleForNominalDate(today, next, days);
     }
     cursor = next;
+  }
+  return null;
+}
+
+/** Ближайшая прошедшая непустая выплата строго до beforeDate. */
+function findPreviousNonEmptyPayment(
+  today: Date,
+  beforeDate: Date,
+  scheduleDays: SalaryPaymentDay[],
+  monthlyAmount: number,
+  tranches: SalaryTranche[] | null | undefined,
+  vacations: VacationPeriod[],
+): ReportCycle | null {
+  const days = sortedPaymentDays(scheduleDays);
+  let cursor = startOfDay(beforeDate);
+
+  for (let i = 0; i < 8; i += 1) {
+    const prev = getPreviousSchedulePaymentDate(cursor, days);
+    if (!isEmptyPayment(prev, monthlyAmount, tranches, vacations, days)) {
+      return resolveCycleForNominalDate(today, prev, days);
+    }
+    cursor = prev;
   }
   return null;
 }
@@ -300,6 +343,7 @@ export function listReportCycles(
           )
         : startOfDay(today);
     const next = findNextNonEmptyPayment(
+      today,
       after,
       days,
       monthlyAmount,
@@ -311,6 +355,33 @@ export function listReportCycles(
       !kept.some((c) => c.nominalDate.getTime() === next.nominalDate.getTime())
     ) {
       kept.push(next);
+    }
+  }
+
+  // Пустая текущая выплата (весь период в отпуске) выпадает из списка —
+  // подставляем ближайший прошлый непустой цикл, иначе остаётся только план.
+  const hasPast = kept.some((c) => !c.isPreview);
+  if (!hasPast) {
+    const before =
+      kept.length > 0
+        ? kept.reduce(
+            (min, c) => (c.nominalDate < min ? c.nominalDate : min),
+            kept[0]!.nominalDate,
+          )
+        : startOfDay(today);
+    const prev = findPreviousNonEmptyPayment(
+      today,
+      before,
+      days,
+      monthlyAmount,
+      tranches,
+      vacations,
+    );
+    if (
+      prev &&
+      !kept.some((c) => c.nominalDate.getTime() === prev.nominalDate.getTime())
+    ) {
+      kept.push(prev);
     }
   }
 
