@@ -264,6 +264,7 @@ function MoneyFlowSummary({
   entries: MoneyFlowEntry[];
 }) {
   const filled = entries.filter((entry) => entry.name.trim());
+  const isIncome = mode === 'income';
 
   const monthlyTotal =
     mode === 'income'
@@ -302,35 +303,35 @@ function MoneyFlowSummary({
         );
         return `${tranche.paymentDay}-е ≈ ${formatRub(calc.amount)}`;
       });
-      hint = `Зарплата: ${parts.join(', ')}`;
+      hint = `Выплаты: ${parts.join(' · ')}`;
     }
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-slate-900 px-5 py-5">
-      <div className="flex items-end justify-between">
-        <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {mode === 'income' ? 'За месяц' : 'Расходы за месяц'}
+    <div className="rounded-2xl bg-[var(--color-navy)] p-5 text-white shadow-lg">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
+            {isIncome ? 'Доходы за месяц' : 'Расходы за месяц'}
           </p>
-          <p className="mt-1 text-3xl font-bold text-white">
+          <p className="mt-1 text-3xl font-bold tracking-tight">
             {formatRub(monthlyTotal)}
           </p>
         </div>
-        <div className="rounded-2xl bg-slate-800 px-3 py-2 text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="rounded-xl bg-white/10 px-3 py-2 text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
             Записей
           </p>
-          <p className="text-lg font-bold text-white">{filled.length}</p>
+          <p className="text-lg font-bold">{filled.length}</p>
         </div>
       </div>
       {oneTimeTotal > 0 ? (
-        <p className="mt-3 text-xs text-slate-400">
-          + разовые: {formatRub(oneTimeTotal)}
+        <p className="mt-3 text-xs text-white/45">
+          + разовые {formatRub(oneTimeTotal)}
         </p>
       ) : null}
       {hint ? (
-        <p className="mt-2 text-xs leading-4 text-slate-400">{hint}</p>
+        <p className="mt-2 text-xs leading-4 text-white/45">{hint}</p>
       ) : null}
     </div>
   );
@@ -477,8 +478,6 @@ function EntryRow({
   const update = (patch: Partial<MoneyFlowEntry>) =>
     onChange({ ...entry, ...patch });
   const isIncome = mode === 'income';
-  const accent = isIncome ? '#059669' : '#475569';
-  const accentBg = isIncome ? '#ECFDF5' : '#F1F5F9';
   const title =
     entry.name.trim() ||
     (isIncome ? `Доход ${index + 1}` : `Расход ${index + 1}`);
@@ -529,15 +528,26 @@ function EntryRow({
     }
 
     const next = tranchesFromPreset(id);
+    const laterDay = Math.max(...next.map((t) => t.paymentDay));
     setManualOverride(false);
     update({
       isBimonthlySalary: true,
       isOneTime: false,
       salaryTranches: next,
-      primaryPaymentDay: next[next.length - 1]?.paymentDay ?? 25,
+      primaryPaymentDay: laterDay as SalaryPaymentDay,
     });
     window.setTimeout(() => onPresetApplied?.(), 80);
   };
+
+  const toneSoft = isIncome
+    ? 'bg-[var(--color-income-soft)] text-[var(--color-income)]'
+    : 'bg-[var(--color-expense-soft)] text-[var(--color-expense)]';
+  const toneRing = isIncome
+    ? 'ring-[var(--color-income)]/20'
+    : 'ring-[var(--color-expense)]/20';
+  const toneMoneyText = isIncome
+    ? 'text-[var(--color-income)]'
+    : 'text-[var(--color-expense)]';
 
   return (
     <SwipeToDelete
@@ -546,65 +556,83 @@ function EntryRow({
       borderRadius={16}
       className="mb-3"
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center px-4 py-3.5 text-left transition-colors hover:bg-slate-50"
-      >
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: accentBg }}
-        >
-          {isIncome ? (
-            <ArrowDown className="h-[18px] w-[18px]" style={{ color: accent }} />
-          ) : (
-            <ArrowUp className="h-[18px] w-[18px]" style={{ color: accent }} />
-          )}
-        </div>
-        <div className="ml-3 min-w-0 flex-1">
-          <div className="flex items-center">
-            <p className="mr-2 min-w-0 flex-1 truncate text-base font-semibold text-slate-900">
-              {title}
-            </p>
-            {entry.isPrimary ? (
-              <Badge variant="soft" className="shrink-0 text-[10px]">
-                ОСН.
-              </Badge>
-            ) : null}
-            {linkedCredit ? (
-              <Badge variant="soft" className="shrink-0 text-[10px] text-rose-700">
-                КРЕДИТ
-              </Badge>
-            ) : null}
-          </div>
-          <p className="mt-0.5 truncate text-sm text-slate-500">
-            {previewLine(entry, mode)}
-          </p>
-        </div>
-        {expanded ? (
-          <ChevronUp className="ml-2 h-[18px] w-[18px] text-slate-400" />
-        ) : (
-          <ChevronDown className="ml-2 h-[18px] w-[18px] text-slate-400" />
+      <div
+        className={cn(
+          'overflow-hidden rounded-2xl bg-white ring-1 transition-colors',
+          expanded ? toneRing : 'ring-slate-100',
         )}
-      </button>
-
-      {expanded ? (
-        <div className="animate-in fade-in-0 slide-in-from-top-1 border-t border-slate-100 px-4 pb-4 pt-3 duration-200">
-          <Label
-            required
-            className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50/70"
+        >
+          <div
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+              toneSoft,
+            )}
           >
-            Название
-          </Label>
-          <Input
-            className="mb-4 border-slate-100 bg-slate-50"
-            value={entry.name}
-            onChange={(e) => update({ name: e.target.value })}
-            placeholder={isIncome ? 'Зарплата, фриланс…' : 'Аренда, подписки…'}
-          />
+            {isIncome ? (
+              <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
+            ) : (
+              <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
+                {title}
+              </p>
+              {entry.isPrimary ? (
+                <Badge variant="soft" className="shrink-0 text-[10px]">
+                  ОСН.
+                </Badge>
+              ) : null}
+              {linkedCredit ? (
+                <Badge
+                  variant="soft"
+                  className="shrink-0 text-[10px] text-rose-700"
+                >
+                  КРЕДИТ
+                </Badge>
+              ) : null}
+            </div>
+            <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
+              {previewLine(entry, mode)}
+            </p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-[18px] w-[18px] shrink-0 text-slate-300" />
+          ) : (
+            <ChevronDown className="h-[18px] w-[18px] shrink-0 text-slate-300" />
+          )}
+        </button>
 
-          {isIncome ? (
-            <div className="mb-4">
+        {expanded ? (
+          <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
+            {/* Название — текстовое поле */}
+            <div className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
+              <Label required className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Название
+              </Label>
+              <p className="mt-0.5 mb-2 text-[11px] leading-4 text-slate-400">
+                {isIncome
+                  ? 'Как называется поступление — зарплата, подработка, дивиденды'
+                  : 'Как называется платёж — аренда, связь, кредит'}
+              </p>
+              <Input
+                inputMode="text"
+                autoComplete="off"
+                value={entry.name}
+                onChange={(e) => update({ name: e.target.value })}
+                placeholder={
+                  isIncome ? 'Например, Зарплата' : 'Например, Аренда'
+                }
+              />
+            </div>
+
+            <div>
               <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Тип
               </Label>
@@ -612,70 +640,96 @@ function EntryRow({
                 size="sm"
                 value={entry.isOneTime ? 'one_time' : 'recurring'}
                 onValueChange={(key) =>
-                  update({
-                    isOneTime: key === 'one_time',
-                    isBimonthlySalary:
-                      key === 'one_time' ? false : entry.isBimonthlySalary,
-                  })
+                  update(
+                    isIncome
+                      ? {
+                          isOneTime: key === 'one_time',
+                          isBimonthlySalary:
+                            key === 'one_time' ? false : entry.isBimonthlySalary,
+                        }
+                      : { isOneTime: key === 'one_time' },
+                  )
                 }
-                options={[
-                  { value: 'recurring', label: 'Регулярный' },
-                  { value: 'one_time', label: 'Разовый' },
-                ]}
+                options={
+                  isIncome
+                    ? [
+                        { value: 'recurring', label: 'Регулярный' },
+                        { value: 'one_time', label: 'Разовый' },
+                      ]
+                    : [
+                        { value: 'recurring', label: 'Ежемесячный' },
+                        { value: 'one_time', label: 'Разовый' },
+                      ]
+                }
               />
             </div>
-          ) : null}
 
-          {isIncome && !entry.isOneTime ? (
-            <div className="mb-4">
-              <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                График
-              </Label>
-              <SlidingToggleGroup
-                size="sm"
-                value={scheduleKey === 'periods' ? 'periods' : 'monthly'}
-                onValueChange={(key) =>
-                  update({
-                    isBimonthlySalary: key === 'periods',
-                    isOneTime: false,
-                    salaryTranches:
-                      key === 'periods'
-                        ? entry.salaryTranches?.length
-                          ? entry.salaryTranches
-                          : createEmptyBimonthlyTranches()
-                        : entry.salaryTranches,
-                  })
-                }
-                options={[
-                  { value: 'monthly', label: 'Фикс. день' },
-                  { value: 'periods', label: 'По периодам' },
-                ]}
-              />
-              <p className="mt-2 text-[11px] leading-4 text-slate-400">
-                {scheduleKey === 'periods'
-                  ? 'Выберите пресет или настройте даты вручную.'
-                  : 'Одна фиксированная сумма в выбранный день месяца.'}
-              </p>
-            </div>
-          ) : null}
+            {isIncome && !entry.isOneTime ? (
+              <div>
+                <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  График
+                </Label>
+                <SlidingToggleGroup
+                  size="sm"
+                  value={scheduleKey === 'periods' ? 'periods' : 'monthly'}
+                  onValueChange={(key) => {
+                    if (key !== 'periods') {
+                      update({
+                        isBimonthlySalary: false,
+                        isOneTime: false,
+                      });
+                      return;
+                    }
+                    const nextTranches = entry.salaryTranches?.length
+                      ? entry.salaryTranches
+                      : createEmptyBimonthlyTranches();
+                    const laterDay = Math.max(
+                      ...nextTranches.map((t) => t.paymentDay),
+                    );
+                    update({
+                      isBimonthlySalary: true,
+                      isOneTime: false,
+                      salaryTranches: nextTranches,
+                      primaryPaymentDay: laterDay as SalaryPaymentDay,
+                    });
+                  }}
+                  options={[
+                    { value: 'monthly', label: 'Фикс. день' },
+                    { value: 'periods', label: 'По периодам' },
+                  ]}
+                />
+                <p className="mt-2 text-[11px] leading-4 text-slate-400">
+                  {scheduleKey === 'periods'
+                    ? 'Два раза в месяц — пресет или ручная настройка'
+                    : 'Одна сумма в выбранный день месяца'}
+                </p>
+              </div>
+            ) : null}
 
-          <div className="mb-4 flex gap-3">
-            <div className="min-w-0 flex-[1.4]">
+            {/* Сумма — отдельный блок, чтобы не путали с названием */}
+            <div className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
               <Label
                 required
-                className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
               >
                 {entry.isBimonthlySalary && isIncome
                   ? 'Оклад на руки / мес'
-                  : 'Сумма'}
+                  : 'Сумма в рублях'}
               </Label>
-              <div className="flex items-center rounded-xl border border-slate-100 bg-slate-50">
+              <p className="mt-0.5 mb-2 text-[11px] leading-4 text-slate-400">
+                {entry.isBimonthlySalary && isIncome
+                  ? 'Месячный оклад до вычета расходов'
+                  : isIncome
+                    ? 'Сколько приходит за этот доход'
+                    : 'Сколько уходит на этот платёж'}
+              </p>
+              <div className="relative">
                 <Input
-                  className="border-0 bg-transparent focus-visible:ring-0"
                   type="number"
                   inputMode="decimal"
                   min={0}
                   step="any"
+                  className="border-0 bg-white pr-10 text-lg font-bold tabular-nums shadow-none ring-1 ring-slate-200"
                   value={
                     entry.isBimonthlySalary && isIncome
                       ? (entry.monthlyAmount ?? entry.amount)
@@ -691,254 +745,267 @@ function EntryRow({
                   }
                   placeholder="0"
                 />
-                <span className="pr-3.5 text-sm font-semibold text-slate-400">
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-base font-bold text-slate-400">
                   ₽
                 </span>
               </div>
-            </div>
 
-            {!entry.isOneTime && !entry.isBimonthlySalary ? (
-              <div className="flex-1">
-                <Label
-                  required
-                  className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
-                >
-                  День
-                </Label>
-                <Input
-                  className="border-slate-100 bg-slate-50 text-center"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={31}
-                  step={1}
-                  value={isIncome ? entry.paymentDay ?? '' : entry.dueDay ?? ''}
-                  onChange={(e) => {
-                    const day = clampDayField(e.target.value);
-                    update(
-                      isIncome ? { paymentDay: day } : { dueDay: day },
-                    );
-                  }}
-                  placeholder="1–31"
-                />
-              </div>
-            ) : null}
-
-            {entry.isOneTime ? (
-              <div className="flex-[1.2]">
-                <Label
-                  required
-                  className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
-                >
-                  Дата
-                </Label>
-                <Input
-                  className="border-slate-100 bg-slate-50 text-center text-sm"
-                  type="date"
-                  value={entry.specificDate ?? ''}
-                  onChange={(e) => update({ specificDate: e.target.value })}
-                />
-              </div>
-            ) : null}
-          </div>
-
-          {isIncome && entry.isBimonthlySalary ? (
-            <div className="mb-4 space-y-3">
-              <SchedulePresetPicker
-                activeId={activePreset}
-                onSelect={applyPreset}
-              />
-
-              {showManualEditors ? (
-                <>
-                  <div>
-                    <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Или настроить вручную
-                    </Label>
-                    <SlidingToggleGroup
-                      size="sm"
-                      value={String(trancheCount)}
-                      onValueChange={(key) => {
-                        if (key === '1') {
-                          setTranches([
-                            tranches[0] ?? createDefaultTranche(25),
-                          ]);
-                        } else {
-                          setTranches(
-                            tranches.length >= 2
-                              ? tranches.slice(0, 2)
-                              : createEmptyBimonthlyTranches(),
-                          );
-                        }
-                      }}
-                      options={[
-                        { value: '1', label: '1 дата' },
-                        { value: '2', label: '2 даты' },
-                      ]}
-                    />
-                  </div>
-
-                  {tranches.slice(0, trancheCount).map((tranche, i) => (
-                    <TrancheEditor
-                      key={`${i}-${tranche.paymentDay}`}
-                      tranche={tranche}
-                      index={i}
-                      canRemove={trancheCount > 1}
-                      onChange={(next) => {
-                        const copy = [...tranches];
-                        copy[i] = next;
-                        setTranches(copy.slice(0, trancheCount));
-                      }}
-                      onRemove={() => {
-                        setTranches([tranches[i === 0 ? 1 : 0]!]);
-                      }}
-                    />
-                  ))}
-                </>
-              ) : (
-                <p className="rounded-2xl bg-blue-50/70 px-3.5 py-3 text-[12px] leading-4 text-blue-700/80">
-                  Пресет применён. Нажмите на него ещё раз, чтобы настроить
-                  выплаты вручную.
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {isIncome ? (
-            <div className="mb-1">
-              <button
-                type="button"
-                onClick={() => update({ isPrimary: !entry.isPrimary })}
-                className={
-                  entry.isPrimary
-                    ? 'flex w-full items-center rounded-2xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-left transition-colors'
-                    : 'flex w-full items-center rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3 text-left transition-colors'
-                }
-              >
-                <div
-                  className={
-                    entry.isPrimary
-                      ? 'mr-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-blue-600 bg-blue-600'
-                      : 'mr-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-300'
-                  }
-                >
-                  {entry.isPrimary ? (
-                    <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                  ) : null}
+              {!entry.isOneTime && !entry.isBimonthlySalary ? (
+                <div className="mt-3">
+                  <Label
+                    required
+                    className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                  >
+                    День месяца
+                  </Label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={31}
+                    step={1}
+                    className="border-0 bg-white shadow-none ring-1 ring-slate-200"
+                    value={
+                      isIncome ? entry.paymentDay ?? '' : entry.dueDay ?? ''
+                    }
+                    onChange={(e) => {
+                      const day = clampDayField(e.target.value);
+                      update(
+                        isIncome ? { paymentDay: day } : { dueDay: day },
+                      );
+                    }}
+                    placeholder="1–31"
+                  />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900">
-                    Основная зарплата
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    По ней строится отчёт к выплате
-                  </p>
-                </div>
-              </button>
+              ) : null}
 
-              {entry.isPrimary && entry.isBimonthlySalary ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {tranches.map((tranche) => {
-                    const active =
-                      entry.primaryPaymentDay === tranche.paymentDay;
-                    return (
-                      <button
-                        key={tranche.paymentDay}
-                        type="button"
-                        onClick={() =>
-                          update({
-                            primaryPaymentDay:
-                              tranche.paymentDay as SalaryPaymentDay,
-                          })
-                        }
-                        className={
-                          active
-                            ? 'flex-1 rounded-2xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors'
-                            : 'flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-semibold text-slate-600 transition-colors'
-                        }
-                      >
-                        Ориентир {tranche.paymentDay}-е
-                      </button>
-                    );
-                  })}
+              {entry.isOneTime ? (
+                <div className="mt-3">
+                  <Label
+                    required
+                    className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                  >
+                    Дата
+                  </Label>
+                  <Input
+                    type="date"
+                    className="border-0 bg-white shadow-none ring-1 ring-slate-200"
+                    value={entry.specificDate ?? ''}
+                    onChange={(e) => update({ specificDate: e.target.value })}
+                  />
                 </div>
               ) : null}
             </div>
-          ) : (
-            <div className="mb-4">
-              <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Тип
-              </Label>
-              <SlidingToggleGroup
-                size="sm"
-                value={entry.isOneTime ? 'one_time' : 'recurring'}
-                onValueChange={(key) =>
-                  update({ isOneTime: key === 'one_time' })
-                }
-                options={[
-                  { value: 'recurring', label: 'Ежемесячный' },
-                  { value: 'one_time', label: 'Разовый' },
-                ]}
-              />
-            </div>
-          )}
 
-          {!isIncome && creditAssets.length > 0 && !entry.isOneTime ? (
-            <div className="mb-4">
-              <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Платёж по кредиту
-              </Label>
-              <div className="space-y-2">
+            {isIncome && entry.isBimonthlySalary ? (
+              <div className="space-y-3">
+                <SchedulePresetPicker
+                  activeId={activePreset}
+                  onSelect={applyPreset}
+                />
+
+                {showManualEditors ? (
+                  <>
+                    <div>
+                      <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Или настроить вручную
+                      </Label>
+                      <SlidingToggleGroup
+                        size="sm"
+                        value={String(trancheCount)}
+                        onValueChange={(key) => {
+                          if (key === '1') {
+                            setTranches([
+                              tranches[0] ?? createDefaultTranche(25),
+                            ]);
+                          } else {
+                            setTranches(
+                              tranches.length >= 2
+                                ? tranches.slice(0, 2)
+                                : createEmptyBimonthlyTranches(),
+                            );
+                          }
+                        }}
+                        options={[
+                          { value: '1', label: '1 дата' },
+                          { value: '2', label: '2 даты' },
+                        ]}
+                      />
+                    </div>
+
+                    {tranches.slice(0, trancheCount).map((tranche, i) => (
+                      <TrancheEditor
+                        key={`${i}-${tranche.paymentDay}`}
+                        tranche={tranche}
+                        index={i}
+                        canRemove={trancheCount > 1}
+                        onChange={(next) => {
+                          const copy = [...tranches];
+                          copy[i] = next;
+                          setTranches(copy.slice(0, trancheCount));
+                        }}
+                        onRemove={() => {
+                          setTranches([tranches[i === 0 ? 1 : 0]!]);
+                        }}
+                      />
+                    ))}
+                  </>
+                ) : (
+                  <p className="rounded-xl bg-blue-50 px-3.5 py-3 text-[12px] leading-4 text-blue-700/80">
+                    Пресет выбран. Нажмите ещё раз, чтобы настроить даты
+                    вручную.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {isIncome ? (
+              <div>
                 <button
                   type="button"
-                  onClick={() => update({ linkedAssetId: undefined })}
-                  className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
-                    !entry.linkedAssetId
-                      ? 'border-blue-500 ring-1 ring-blue-500'
-                      : 'border-slate-100'
-                  }`}
+                  onClick={() => {
+                    const becomingPrimary = !entry.isPrimary;
+                    if (!becomingPrimary) {
+                      update({ isPrimary: false });
+                      return;
+                    }
+                    // Готовые пресеты: ориентир всегда на позднюю выплату (20 / 25).
+                    const laterDay = Math.max(
+                      ...tranches.map((t) => t.paymentDay),
+                      25,
+                    );
+                    update({
+                      isPrimary: true,
+                      primaryPaymentDay: (
+                        showManualEditors
+                          ? entry.primaryPaymentDay ?? laterDay
+                          : laterDay
+                      ) as SalaryPaymentDay,
+                    });
+                  }}
+                  className={cn(
+                    'flex w-full items-center rounded-2xl px-3.5 py-3 text-left ring-1 transition-colors',
+                    entry.isPrimary
+                      ? 'bg-blue-50 ring-blue-200'
+                      : 'bg-slate-50 ring-slate-100',
+                  )}
                 >
-                  <p className="flex-1 text-sm font-semibold text-slate-900">
-                    Не привязан
-                  </p>
-                </button>
-                {creditAssets.map((credit) => (
-                  <button
-                    key={credit.id}
-                    type="button"
-                    onClick={() => update({ linkedAssetId: String(credit.id) })}
-                    className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
-                      entry.linkedAssetId === String(credit.id)
-                        ? 'border-blue-500 ring-1 ring-blue-500'
-                        : 'border-slate-100'
-                    }`}
+                  <div
+                    className={cn(
+                      'mr-3 flex h-5 w-5 items-center justify-center rounded-full border-2',
+                      entry.isPrimary
+                        ? 'border-blue-600 bg-blue-600'
+                        : 'border-slate-300',
+                    )}
                   >
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {credit.name}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        Долг {formatRub(credit.current_amount)}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+                    {entry.isPrimary ? (
+                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                    ) : null}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Основная зарплата
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      По ней строится отчёт к выплате
+                    </p>
+                  </div>
+                </button>
 
-          {canRemove ? (
-            <button
-              type="button"
-              onClick={onRemove}
-              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              Удалить
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+                {entry.isPrimary &&
+                entry.isBimonthlySalary &&
+                showManualEditors ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {tranches.map((tranche) => {
+                      const active =
+                        entry.primaryPaymentDay === tranche.paymentDay;
+                      return (
+                        <button
+                          key={tranche.paymentDay}
+                          type="button"
+                          onClick={() =>
+                            update({
+                              primaryPaymentDay:
+                                tranche.paymentDay as SalaryPaymentDay,
+                            })
+                          }
+                          className={cn(
+                            'rounded-xl py-2.5 text-sm font-semibold transition-colors',
+                            active
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-600',
+                          )}
+                        >
+                          Ориентир {tranche.paymentDay}-е
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!isIncome && creditAssets.length > 0 && !entry.isOneTime ? (
+              <div>
+                <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Платёж по кредиту
+                </Label>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => update({ linkedAssetId: undefined })}
+                    className={cn(
+                      'flex w-full items-center rounded-2xl px-3.5 py-3 text-left ring-1 transition-colors',
+                      !entry.linkedAssetId
+                        ? 'bg-blue-50 ring-blue-500'
+                        : 'bg-white ring-slate-100',
+                    )}
+                  >
+                    <p className="text-sm font-semibold text-slate-900">
+                      Не привязан
+                    </p>
+                  </button>
+                  {creditAssets.map((credit) => (
+                    <button
+                      key={credit.id}
+                      type="button"
+                      onClick={() =>
+                        update({ linkedAssetId: String(credit.id) })
+                      }
+                      className={cn(
+                        'flex w-full items-center rounded-2xl px-3.5 py-3 text-left ring-1 transition-colors',
+                        entry.linkedAssetId === String(credit.id)
+                          ? 'bg-blue-50 ring-blue-500'
+                          : 'bg-white ring-slate-100',
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {credit.name}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Долг {formatRub(credit.current_amount)}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {canRemove ? (
+              <button
+                type="button"
+                onClick={onRemove}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Удалить
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </SwipeToDelete>
   );
 }
@@ -952,6 +1019,7 @@ export function MoneyFlowStep({
   initialEntries,
   submitLabel,
   onSubmit,
+  onboarding = false,
 }: {
   mode: Mode;
   title: string;
@@ -959,6 +1027,7 @@ export function MoneyFlowStep({
   initialEntries: MoneyFlowEntry[];
   submitLabel: string;
   onSubmit: (entries: MoneyFlowEntry[]) => Promise<void> | void;
+  onboarding?: boolean;
 }) {
   const [entries, setEntries] = useState<MoneyFlowEntry[]>(
     initialEntries.length
@@ -1160,21 +1229,35 @@ export function MoneyFlowStep({
         onDismiss={() => setToast(null)}
       />
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-1 pt-1 pb-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900">{title}</h2>
+          {onboarding ? (
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <p className="text-sm font-bold tracking-[0.22em] text-blue-600">
+                MONESTO
+              </p>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600 ring-1 ring-blue-100">
+                Шаг {mode === 'income' ? '3' : '4'} из 4
+              </span>
+            </div>
+          ) : null}
+          <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900">
+            {title}
+          </h2>
           {subtitle ? (
-            <p className="mt-1.5 text-[15px] text-slate-400">{subtitle}</p>
+            <p className="mt-1.5 text-[15px] leading-relaxed text-slate-400">
+              {subtitle}
+            </p>
           ) : null}
         </div>
 
         <MoneyFlowSummary mode={mode} entries={entries} />
 
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-900">
             {mode === 'income' ? 'Источники' : 'Статьи'}
           </h3>
-          <p className="text-xs text-slate-400">Свайп влево — удалить</p>
+          <p className="text-[11px] text-slate-400">Свайп влево — удалить</p>
         </div>
 
         <div>
@@ -1216,6 +1299,7 @@ export function MoneyFlowStep({
         ) : null}
         <Button
           type="button"
+          variant={onboarding ? 'navy' : 'default'}
           size="lg"
           className="w-full"
           disabled={saving}

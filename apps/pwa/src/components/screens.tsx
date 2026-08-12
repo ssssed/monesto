@@ -1716,11 +1716,12 @@ export function MoneyFlowScreen({
       <div className="min-h-0 flex-1">
         <MoneyFlowStep
           mode={mode}
+          onboarding={onboarding}
           title={mode === 'income' ? 'Ваши доходы' : 'Обязательные расходы'}
           subtitle={
             onboarding
               ? mode === 'income'
-                ? 'Задайте зарплату и другие поступления'
+                ? 'Укажите зарплату и другие поступления'
                 : 'Регулярные платежи до распределения в активы'
               : undefined
           }
