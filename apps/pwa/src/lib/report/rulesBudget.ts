@@ -44,3 +44,48 @@ export function summarizeRulesBudget(input: {
     slices,
   };
 }
+
+/** Свободный % остатка, без учёта правила `excludeRuleId` (при редактировании). */
+export function freeRulesPercent(input: {
+  remainder: number;
+  rules: DistributionRule[];
+  assets: Asset[];
+  usdRubRate: number;
+  excludeRuleId?: number;
+}): number {
+  const rules =
+    input.excludeRuleId == null
+      ? input.rules
+      : input.rules.filter((r) => r.id !== input.excludeRuleId);
+  return summarizeRulesBudget({ ...input, rules }).freePercent;
+}
+
+/** Бюджет с подставленным черновиком правила (создание / правка). */
+export function summarizeDraftRulesBudget(input: {
+  remainder: number;
+  rules: DistributionRule[];
+  draft: Omit<DistributionRule, 'id'> & { id?: number };
+  assets: Asset[];
+  usdRubRate: number;
+}): RulesBudgetSummary {
+  const others =
+    input.draft.id == null
+      ? input.rules
+      : input.rules.filter((r) => r.id !== input.draft.id);
+  const draftRule: DistributionRule = {
+    id: input.draft.id ?? -1,
+    name: input.draft.name,
+    rule_type: input.draft.rule_type,
+    value: input.draft.value,
+    currency: input.draft.currency,
+    target_asset_id: input.draft.target_asset_id,
+    sort_order: input.draft.sort_order,
+    credit_early_repay_mode: input.draft.credit_early_repay_mode,
+  };
+  return summarizeRulesBudget({
+    remainder: input.remainder,
+    rules: [...others, draftRule],
+    assets: input.assets,
+    usdRubRate: input.usdRubRate,
+  });
+}

@@ -80,7 +80,11 @@ import {
   listReportCycles,
   scheduleDaysFromPrimary,
 } from '@/lib/report/dateWindow';
-import { summarizeRulesBudget } from '@/lib/report/rulesBudget';
+import {
+  freeRulesPercent,
+  summarizeDraftRulesBudget,
+  summarizeRulesBudget,
+} from '@/lib/report/rulesBudget';
 import type {
   Asset,
   DistributionRule,
@@ -1852,13 +1856,28 @@ export function RulesScreen() {
         <div className="mb-4 flex justify-between">
           <div>
             <p className="text-xs text-slate-400">Занято от остатка</p>
-            <p className="text-2xl font-bold">{budget.totalPercent.toFixed(1)}%</p>
+            <p
+              className={`text-2xl font-bold ${budget.overBudget ? 'text-red-400' : ''}`}
+            >
+              {budget.totalPercent.toFixed(1)}%
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-400">Свободно</p>
-            <p className="text-2xl font-bold text-emerald-400">{Math.round(budget.freePercent)}%</p>
+            <p
+              className={`text-2xl font-bold ${
+                budget.overBudget ? 'text-red-400' : 'text-emerald-400'
+              }`}
+            >
+              {Math.round(budget.freePercent)}%
+            </p>
           </div>
         </div>
+        {budget.overBudget ? (
+          <p className="mb-3 text-xs text-red-300">
+            Сумма правил больше 100% остатка — уменьшите проценты или фикс.
+          </p>
+        ) : null}
         <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-700">
           {budget.slices.map((slice, i) => (
             <div
@@ -1957,7 +1976,10 @@ export function RulesScreen() {
 
 export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
   const navigate = useNavigate();
+  const rate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [rules, setRules] = useState<DistributionRule[]>([]);
+  const [remainder, setRemainder] = useState(100_000);
   const [name, setName] = useState(rule?.name ?? '');
   const [target, setTarget] = useState(rule?.target_asset_id ? String(rule.target_asset_id) : '');
   const [type, setType] = useState<RuleType>(rule?.rule_type ?? 'percent');
@@ -1967,8 +1989,25 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
   );
 
   useEffect(() => {
-    void db.getAllAssets().then(setAssets);
-  }, []);
+    void Promise.all([
+      db.getAllAssets(),
+      db.getAllRules(),
+      db.getAllIncomes(),
+      db.getAllExpenses(),
+    ]).then(([nextAssets, nextRules, incomes, expenses]) => {
+      setAssets(nextAssets);
+      setRules(nextRules);
+      const report = calculateReport({
+        incomes,
+        expenses,
+        rules: nextRules,
+        assets: nextAssets,
+        today: new Date(),
+        usdRubRate: rate,
+      });
+      setRemainder(isReportError(report) ? 100_000 : Math.max(report.remainder, 1));
+    });
+  }, [rate]);
 
   const selectedAsset = assets.find((a) => String(a.id) === target);
   const targetIsCreditWithRate =
@@ -1976,12 +2015,62 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
     selectedAsset.credit_annual_rate != null &&
     selectedAsset.credit_annual_rate > 0;
 
+  const availablePercent = useMemo(
+    () =>
+      freeRulesPercent({
+        remainder,
+        rules,
+        assets,
+        usdRubRate: rate,
+        excludeRuleId: rule?.id,
+      }),
+    [remainder, rules, assets, rate, rule?.id],
+  );
+
+  const draftValue = numeric(value);
+  const draftBudget = useMemo(() => {
+    if (!target || draftValue <= 0) return null;
+    return summarizeDraftRulesBudget({
+      remainder,
+      rules,
+      draft: {
+        id: rule?.id,
+        name: name.trim() || 'Правило',
+        rule_type: type,
+        value: draftValue,
+        currency: type === 'fixed' ? 'asset' : 'rub',
+        target_asset_id: Number(target),
+        sort_order: rule?.sort_order ?? assets.length,
+        credit_early_repay_mode: targetIsCreditWithRate ? creditMode : null,
+      },
+      assets,
+      usdRubRate: rate,
+    });
+  }, [
+    target,
+    draftValue,
+    remainder,
+    rules,
+    rule?.id,
+    rule?.sort_order,
+    name,
+    type,
+    assets,
+    targetIsCreditWithRate,
+    creditMode,
+    rate,
+  ]);
+
+  const overBudget = draftBudget?.overBudget ?? false;
+  const canSave =
+    Boolean(name.trim() && value && target && draftValue > 0) && !overBudget;
+
   const save = async () => {
-    if (!name.trim() || !value || !target) return;
+    if (!canSave || !target) return;
     const input = {
       name,
       rule_type: type,
-      value: numeric(value),
+      value: draftValue,
       currency: type === 'fixed' ? ('asset' as const) : ('rub' as const),
       target_asset_id: Number(target),
       sort_order: rule?.sort_order ?? assets.length,
@@ -2003,7 +2092,7 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
 
         <div className={formScroll}>
           <div>
-            <Label>Название</Label>
+            <Label required>Название</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -2012,7 +2101,7 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
           </div>
 
           <div>
-            <Label>Актив</Label>
+            <Label required>Актив</Label>
             <div className="mt-2 space-y-2">
               {assets.map((a) => (
                 <button
@@ -2103,7 +2192,7 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
           ) : null}
 
           <div>
-            <Label>Тип</Label>
+            <Label required>Тип</Label>
             <Tabs value={type} onValueChange={(v) => setType(v as RuleType)}>
               <TabsList className="mt-1.5 grid w-full grid-cols-2">
                 <TabsTrigger value="percent">Процент</TabsTrigger>
@@ -2113,16 +2202,75 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
           </div>
 
           <div>
-            <Label>{type === 'percent' ? 'Процент от остатка' : 'Фиксированная сумма'}</Label>
-            <Input value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" />
+            <Label required>
+              {type === 'percent' ? 'Процент от остатка' : 'Фиксированная сумма'}
+            </Label>
+            {type === 'fixed' ? (
+              <div className="relative">
+                <Input
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  inputMode="decimal"
+                  className="pr-8"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  {selectedAsset?.provider === 'usd' ? '$' : '₽'}
+                </span>
+              </div>
+            ) : (
+              <Input
+                value={value}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const normalized = raw.replace(',', '.');
+                  const n = Number(normalized);
+                  if (
+                    raw === '' ||
+                    /[.,]$/.test(raw) ||
+                    !Number.isFinite(n)
+                  ) {
+                    setValue(raw);
+                    return;
+                  }
+                  const max = Math.min(100, Math.max(0, availablePercent));
+                  if (n > max) {
+                    setValue(String(Math.round(max * 10) / 10));
+                    return;
+                  }
+                  setValue(raw);
+                }}
+                inputMode="decimal"
+              />
+            )}
             <p className="mt-1.5 text-xs text-slate-400">
-              Считается от остатка (доход – расходы), не каскадно
+              {type === 'percent' ? (
+                <>
+                  Считается от остатка (доход – расходы), не каскадно. Доступно{' '}
+                  {availablePercent.toFixed(1)}%.
+                </>
+              ) : !selectedAsset ? (
+                'Выберите актив — сумма будет в его валюте.'
+              ) : selectedAsset.provider === 'usd' ? (
+                'Валюта актива: доллары США ($). С остатка спишется эквивалент в ₽ по курсу.'
+              ) : (
+                'Валюта актива: рубли (₽).'
+              )}
             </p>
+            {overBudget ? (
+              <p className="mt-1.5 text-xs font-medium text-red-500">
+                Сумма правил не может быть больше 100% остатка.
+              </p>
+            ) : null}
           </div>
         </div>
 
         <div className="shrink-0 space-y-2 border-t border-slate-100 bg-[#f8fafc] pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
-          <Button className="w-full" size="lg" onClick={() => void save()}>
+          <Button
+            className="w-full"
+            size="lg"
+            disabled={!canSave}
+            onClick={() => void save()}
+          >
             {rule ? 'Сохранить' : 'Создать'}
           </Button>
           {rule ? (
