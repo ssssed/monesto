@@ -6,7 +6,7 @@ export const ASSET_PROVIDERS: Record<
 > = {
   rub: { label: '₽', symbol: '₽', enabled: true },
   usd: { label: 'USD', symbol: '$', enabled: true },
-  credit: { label: 'Кредит', symbol: '−₽', enabled: true },
+  credit: { label: 'Кредит', symbol: '₽', enabled: true },
   gold: { label: 'Золото', symbol: 'Au', enabled: false },
   steam: { label: 'Steam', symbol: 'ST', enabled: false },
 };

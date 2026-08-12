@@ -929,9 +929,12 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
                     : `Текущая сумма${provider === 'rub' ? ', ₽' : ', $'}`}
                 </Label>
                 <Input
+                  type="number"
+                  format="money"
+                  suffix={provider === 'usd' ? '$' : '₽'}
+                  withRelativeSuffix
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  inputMode="decimal"
                   placeholder="0"
                 />
               </div>
@@ -1074,19 +1077,22 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
 
           {!isCredit || asset ? (
             <div>
-              <Label>{isCredit ? 'Исходный долг' : 'Цель накопления'}</Label>
-              <div className="relative">
-                <Input
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="Необязательно"
-                  className="pr-8"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                  {provider === 'usd' ? '$' : '₽'}
-                </span>
-              </div>
+              <Label>
+                {isCredit
+                  ? 'Исходный долг, ₽'
+                  : `Цель накопления${provider === 'usd' ? ', $' : ', ₽'}`}
+              </Label>
+              <Input
+                type="number"
+                format="money"
+                suffix={provider === 'usd' ? '$' : '₽'}
+                withRelativeSuffix
+                hideSuffixWhenEmpty
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                placeholder="Необязательно"
+                className="[&_input]:placeholder:font-normal"
+              />
             </div>
           ) : null}
 
@@ -2194,7 +2200,13 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
 
           <div>
             <Label required>Тип</Label>
-            <Tabs value={type} onValueChange={(v) => setType(v as RuleType)}>
+            <Tabs
+              value={type}
+              onValueChange={(v) => {
+                setType(v as RuleType);
+                setValue('');
+              }}
+            >
               <TabsList className="mt-1.5 grid w-full grid-cols-2">
                 <TabsTrigger value="percent">Процент</TabsTrigger>
                 <TabsTrigger value="fixed">Фикс</TabsTrigger>
@@ -2207,24 +2219,26 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
               {type === 'percent' ? 'Процент от остатка' : 'Фиксированная сумма'}
             </Label>
             {type === 'fixed' ? (
-              <div className="relative">
-                <Input
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  inputMode="decimal"
-                  className="pr-8"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                  {selectedAsset?.provider === 'usd' ? '$' : '₽'}
-                </span>
-              </div>
+              <Input
+                type="number"
+                format="money"
+                suffix={selectedAsset?.provider === 'usd' ? '$' : '₽'}
+                withRelativeSuffix
+                placeholder="0"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
             ) : (
               <Input
+                type="number"
+                format="money"
+                suffix="%"
+                withRelativeSuffix
+                placeholder="0"
                 value={value}
                 onChange={(e) => {
                   const raw = e.target.value;
-                  const normalized = raw.replace(',', '.');
-                  const n = Number(normalized);
+                  const n = Number(raw);
                   if (
                     raw === '' ||
                     /[.,]$/.test(raw) ||
@@ -2240,7 +2254,6 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
                   }
                   setValue(raw);
                 }}
-                inputMode="decimal"
               />
             )}
             <p className="mt-1.5 text-xs text-slate-400">

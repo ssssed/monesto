@@ -723,13 +723,12 @@ function EntryRow({
                     ? 'Сколько приходит за этот доход'
                     : 'Сколько уходит на этот платёж'}
               </p>
-              <div className="relative">
+              <div>
                 <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step="any"
-                  className="border-0 bg-white pr-10 text-lg font-bold tabular-nums shadow-none ring-1 ring-slate-200"
+                  format="money"
+                  suffix="₽"
+                  withRelativeSuffix
+                  className="border-0 bg-white text-lg font-bold shadow-none ring-1 ring-slate-200"
                   value={
                     entry.isBimonthlySalary && isIncome
                       ? (entry.monthlyAmount ?? entry.amount)
@@ -745,9 +744,6 @@ function EntryRow({
                   }
                   placeholder="0"
                 />
-                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-base font-bold text-slate-400">
-                  ₽
-                </span>
               </div>
 
               {!entry.isOneTime && !entry.isBimonthlySalary ? (
