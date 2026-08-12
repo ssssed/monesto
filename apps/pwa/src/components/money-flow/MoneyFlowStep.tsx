@@ -4,6 +4,11 @@ import {
   DatePicker,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SlidingToggleGroup,
   cn,
 } from '@monesto/rune';
@@ -15,6 +20,7 @@ import {
   ChevronUp,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 
@@ -503,10 +509,15 @@ function EntryRow({
   const [manualOverride, setManualOverride] = useState(
     () => detectedPreset === 'custom',
   );
+  const [pickingCredit, setPickingCredit] = useState(false);
   const activePreset: SalarySchedulePresetId = manualOverride
     ? 'custom'
     : detectedPreset;
   const showManualEditors = activePreset === 'custom';
+
+  useEffect(() => {
+    if (!expanded) setPickingCredit(false);
+  }, [expanded]);
 
   const setTranches = (next: SalaryTranche[]) => {
     const normalized = normalizeSalaryTranches(next);
@@ -942,51 +953,75 @@ function EntryRow({
             ) : null}
 
             {!isIncome && creditAssets.length > 0 && !entry.isOneTime ? (
-              <div>
-                <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Платёж по кредиту
-                </Label>
-                <div className="space-y-2">
+              linkedCredit && !pickingCredit ? (
+                <div className="flex items-center gap-2 rounded-xl bg-[var(--color-expense-soft)] px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-expense)]">
+                      Кредит
+                    </p>
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {linkedCredit.name}
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => update({ linkedAssetId: undefined })}
-                    className={cn(
-                      'flex w-full items-center rounded-2xl px-3.5 py-3 text-left ring-1 transition-colors',
-                      !entry.linkedAssetId
-                        ? 'bg-blue-50 ring-blue-500'
-                        : 'bg-white ring-slate-100',
-                    )}
+                    onClick={() => setPickingCredit(true)}
+                    className="shrink-0 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800"
                   >
-                    <p className="text-sm font-semibold text-slate-900">
-                      Не привязан
-                    </p>
+                    Сменить
                   </button>
-                  {creditAssets.map((credit) => (
-                    <button
-                      key={credit.id}
-                      type="button"
-                      onClick={() =>
-                        update({ linkedAssetId: String(credit.id) })
-                      }
-                      className={cn(
-                        'flex w-full items-center rounded-2xl px-3.5 py-3 text-left ring-1 transition-colors',
-                        entry.linkedAssetId === String(credit.id)
-                          ? 'bg-blue-50 ring-blue-500'
-                          : 'bg-white ring-slate-100',
-                      )}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {credit.name}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          Долг {formatRub(credit.current_amount)}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    aria-label="Отвязать кредит"
+                    onClick={() => update({ linkedAssetId: undefined })}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/70 hover:text-slate-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-              </div>
+              ) : pickingCredit ? (
+                <div>
+                  <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Платёж по кредиту
+                  </Label>
+                  <Select
+                    value={entry.linkedAssetId ?? 'none'}
+                    onValueChange={(value) => {
+                      update({
+                        linkedAssetId: value === 'none' ? undefined : value,
+                      });
+                      setPickingCredit(false);
+                    }}
+                  >
+                    <SelectTrigger className="border-0 bg-white shadow-none ring-1 ring-slate-200">
+                      <SelectValue placeholder="Выберите кредит" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Не привязан</SelectItem>
+                      {creditAssets.map((credit) => (
+                        <SelectItem key={credit.id} value={String(credit.id)}>
+                          {credit.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setPickingCredit(false)}
+                    className="mt-2 w-full py-1 text-center text-xs font-medium text-slate-400 transition-colors hover:text-slate-600"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPickingCredit(true)}
+                  className="w-full rounded-xl py-2 text-center text-sm font-medium text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
+                >
+                  Привязать к кредиту
+                </button>
+              )
             ) : null}
 
             {canRemove ? (
