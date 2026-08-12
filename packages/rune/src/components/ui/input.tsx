@@ -11,6 +11,7 @@ export const Input = React.forwardRef<
       type={type}
       className={cn(
         'flex h-12 w-full rounded-xl border border-transparent bg-[var(--color-input)] px-3.5 py-2 text-base text-[var(--color-foreground)] transition-colors placeholder:text-[var(--color-muted-foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-ring)] disabled:cursor-not-allowed disabled:opacity-50',
+        '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
         className,
       )}
       ref={ref}

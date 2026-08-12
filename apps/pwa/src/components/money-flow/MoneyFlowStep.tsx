@@ -70,6 +70,20 @@ function parseDay(raw: string, fallback: number): number {
   return Math.min(31, Math.max(1, Math.round(n)));
 }
 
+/** Ввод дня месяца: пусто или 1–31. */
+function clampDayField(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const n = Number(digits);
+  if (!Number.isFinite(n)) return '';
+  return String(Math.min(31, Math.max(1, Math.round(n))));
+}
+
+function isValidMonthDay(raw: string | undefined): boolean {
+  const day = Number(raw);
+  return Boolean(raw?.trim()) && Number.isFinite(day) && day >= 1 && day <= 31;
+}
+
 function formatTranchesPreview(tranches: SalaryTranche[]): string {
   const normalized = normalizeSalaryTranches(tranches);
   return normalized
@@ -294,7 +308,11 @@ function TrancheEditor({
         </Label>
         <Input
           className="border-slate-100 bg-white text-center"
+          type="number"
           inputMode="numeric"
+          min={1}
+          max={31}
+          step={1}
           value={dayInput(tranche.paymentDay)}
           onChange={(e) =>
             onChange({
@@ -314,7 +332,11 @@ function TrancheEditor({
           <Label className="mb-1 text-[10px] text-slate-400">С числа</Label>
           <Input
             className="border-slate-100 bg-white text-center"
+            type="number"
             inputMode="numeric"
+            min={1}
+            max={31}
+            step={1}
             value={dayInput(tranche.periodFromDay)}
             onChange={(e) =>
               onChange({
@@ -328,7 +350,11 @@ function TrancheEditor({
           <Label className="mb-1 text-[10px] text-slate-400">По число</Label>
           <Input
             className="border-slate-100 bg-white text-center"
+            type="number"
             inputMode="numeric"
+            min={1}
+            max={31}
+            step={1}
             value={dayInput(tranche.periodToDay)}
             onChange={(e) =>
               onChange({
@@ -500,7 +526,10 @@ function EntryRow({
 
       {expanded ? (
         <div className="animate-in fade-in-0 slide-in-from-top-1 border-t border-slate-100 px-4 pb-4 pt-3 duration-200">
-          <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <Label
+            required
+            className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
+          >
             Название
           </Label>
           <Input
@@ -568,7 +597,10 @@ function EntryRow({
 
           <div className="mb-4 flex gap-3">
             <div className="min-w-0 flex-[1.4]">
-              <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <Label
+                required
+                className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
                 {entry.isBimonthlySalary && isIncome
                   ? 'Оклад на руки / мес'
                   : 'Сумма'}
@@ -576,7 +608,10 @@ function EntryRow({
               <div className="flex items-center rounded-xl border border-slate-100 bg-slate-50">
                 <Input
                   className="border-0 bg-transparent focus-visible:ring-0"
+                  type="number"
                   inputMode="decimal"
+                  min={0}
+                  step="any"
                   value={
                     entry.isBimonthlySalary && isIncome
                       ? (entry.monthlyAmount ?? entry.amount)
@@ -600,20 +635,26 @@ function EntryRow({
 
             {!entry.isOneTime && !entry.isBimonthlySalary ? (
               <div className="flex-1">
-                <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <Label
+                  required
+                  className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                >
                   День
                 </Label>
                 <Input
                   className="border-slate-100 bg-slate-50 text-center"
+                  type="number"
                   inputMode="numeric"
+                  min={1}
+                  max={31}
+                  step={1}
                   value={isIncome ? entry.paymentDay ?? '' : entry.dueDay ?? ''}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const day = clampDayField(e.target.value);
                     update(
-                      isIncome
-                        ? { paymentDay: e.target.value }
-                        : { dueDay: e.target.value },
-                    )
-                  }
+                      isIncome ? { paymentDay: day } : { dueDay: day },
+                    );
+                  }}
                   placeholder="1–31"
                 />
               </div>
@@ -621,14 +662,17 @@ function EntryRow({
 
             {entry.isOneTime ? (
               <div className="flex-[1.2]">
-                <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <Label
+                  required
+                  className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                >
                   Дата
                 </Label>
                 <Input
                   className="border-slate-100 bg-slate-50 text-center text-sm"
+                  type="date"
                   value={entry.specificDate ?? ''}
                   onChange={(e) => update({ specificDate: e.target.value })}
-                  placeholder="ГГГГ-ММ-ДД"
                 />
               </div>
             ) : null}
@@ -999,6 +1043,24 @@ export function MoneyFlowStep({
       } else if (!Number(entry.amount)) {
         setError(`Укажите сумму для «${entry.name}»`);
         return;
+      }
+
+      if (entry.isOneTime) {
+        const date = entry.specificDate?.trim() ?? '';
+        if (!date) {
+          setError(`Укажите дату для «${entry.name}»`);
+          return;
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          setError(`Дата для «${entry.name}» должна быть в формате ГГГГ-ММ-ДД`);
+          return;
+        }
+      } else if (!entry.isBimonthlySalary) {
+        const dayRaw = mode === 'income' ? entry.paymentDay : entry.dueDay;
+        if (!isValidMonthDay(dayRaw)) {
+          setError(`Укажите день (1–31) для «${entry.name}»`);
+          return;
+        }
       }
     }
     if (mode === 'income' && !filled.some((e) => e.isPrimary)) {
