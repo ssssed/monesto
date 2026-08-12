@@ -105,7 +105,7 @@ function load(): AppDatabase {
       ...expense,
       linked_asset_id: expense.linked_asset_id ?? null,
     }));
-    parsed.assets = (parsed.assets ?? []).map((asset) => ({
+    parsed.assets = (parsed.assets ?? []).map((asset, i) => ({
       ...asset,
       linked_expense_id: asset.linked_expense_id ?? null,
       credit_annual_rate: asset.credit_annual_rate ?? null,
@@ -113,6 +113,10 @@ function load(): AppDatabase {
       credit_start_date: asset.credit_start_date ?? null,
       credit_remaining_months: asset.credit_remaining_months ?? null,
       credit_early_repay_mode: asset.credit_early_repay_mode ?? null,
+      sort_order:
+        typeof (asset as Asset).sort_order === 'number'
+          ? (asset as Asset).sort_order
+          : i,
     }));
     parsed.distribution_rules = (parsed.distribution_rules ?? []).map((rule) => ({
       ...rule,
@@ -284,7 +288,9 @@ export async function replaceAllExpenses(entries: MoneyFlowEntry[]): Promise<voi
 }
 
 export async function getAllAssets(): Promise<Asset[]> {
-  return load().assets;
+  return [...load().assets].sort(
+    (a, b) => a.sort_order - b.sort_order || a.id - b.id,
+  );
 }
 
 export async function getAssetById(id: number): Promise<Asset | null> {
@@ -348,6 +354,9 @@ export async function createAsset(input: {
       ? (input.credit_remaining_months ?? termMonths)
       : null;
 
+    const sort_order =
+      db.assets.reduce((max, a) => Math.max(max, a.sort_order), -1) + 1;
+
     db.assets.push({
       id,
       name: input.name,
@@ -369,6 +378,7 @@ export async function createAsset(input: {
         ? (input.credit_early_repay_mode ??
           (input.credit_annual_rate ? 'reduce_term' : null))
         : null,
+      sort_order,
     });
 
     if (input.current_amount !== 0) {
@@ -622,6 +632,24 @@ export async function getAssetTrend(
   if (total > 0) return 'up';
   if (total < 0) return 'down';
   return 'flat';
+}
+
+export async function reorderAssets(orderedIds: number[]): Promise<void> {
+  withDb((db) => {
+    const byId = new Map(db.assets.map((a) => [a.id, a]));
+    orderedIds.forEach((id, index) => {
+      const asset = byId.get(id);
+      if (asset) asset.sort_order = index;
+    });
+    const seen = new Set(orderedIds);
+    let next = orderedIds.length;
+    for (const asset of db.assets) {
+      if (!seen.has(asset.id)) {
+        asset.sort_order = next;
+        next += 1;
+      }
+    }
+  });
 }
 
 export async function deleteAsset(assetId: number): Promise<void> {

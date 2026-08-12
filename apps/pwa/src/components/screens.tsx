@@ -21,6 +21,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
   ArrowDownLeft,
+  ArrowUpDown,
   ArrowUpRight,
   CalendarDays,
   ChevronRight,
@@ -34,6 +35,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -41,6 +43,7 @@ import {
 } from 'react';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
+import { AssetReorderHandle } from '@/components/assets/AssetReorderHandle';
 import { AssetStylePicker } from '@/components/assets/AssetStylePicker';
 import { CreditDetailScreen } from '@/components/credit/CreditDetailScreen';
 import { PageHeader, PageTitle } from '@/components/layout/PageHeader';
@@ -559,6 +562,7 @@ export function HomeScreen() {
 
 export function AssetsScreen() {
   const [assets, setAssets] = useState<Asset[] | null>(null);
+  const [reorderMode, setReorderMode] = useState(false);
   const [toast, setToast] = useState<{ assetId: number; name: string } | null>(null);
   const pendingRef = useRef(
     new Map<number, { asset: Asset; timer: ReturnType<typeof setTimeout> }>()
@@ -598,7 +602,11 @@ export function AssetsScreen() {
     }
     clearTimeout(pending.timer);
     pendingRef.current.delete(toast.assetId);
-    setAssets((prev) => [...(prev ?? []), pending.asset].sort((a, b) => a.id - b.id));
+    setAssets((prev) =>
+      [...(prev ?? []), pending.asset].sort(
+        (a, b) => a.sort_order - b.sort_order || a.id - b.id,
+      ),
+    );
     setToast(null);
   }, [toast]);
 
@@ -607,6 +615,112 @@ export function AssetsScreen() {
     const pendingIds = new Set(pendingRef.current.keys());
     setAssets(next.filter((asset) => !pendingIds.has(asset.id)));
   };
+
+  const assetsRef = useRef(assets);
+  assetsRef.current = assets;
+  const listRef = useRef<HTMLDivElement>(null);
+  const flipTopsRef = useRef<Map<number, number> | null>(null);
+
+  /** Слоты по высоте children — без offsetTop/offsetParent (они ломали drag вниз). */
+  const getRowSlots = (list: HTMLElement) => {
+    const rows = [
+      ...list.querySelectorAll<HTMLElement>(':scope > [data-asset-id]'),
+    ];
+    const gap = 12; // space-y-3
+    let y = list.getBoundingClientRect().top - list.scrollTop;
+    return rows.map((row, index) => {
+      if (index > 0) y += gap;
+      const top = y;
+      const height = row.offsetHeight;
+      y += height;
+      return {
+        row,
+        id: Number(row.dataset.assetId),
+        top,
+        mid: top + height / 2,
+      };
+    });
+  };
+
+  const findTargetId = useCallback((clientY: number, fromId: number) => {
+    const list = listRef.current;
+    if (!list) return null;
+    const slots = getRowSlots(list);
+    const fromIndex = slots.findIndex((slot) => slot.id === fromId);
+    if (fromIndex < 0) return null;
+
+    // Сосед снизу — опустить
+    if (fromIndex < slots.length - 1) {
+      const next = slots[fromIndex + 1]!;
+      if (clientY > next.mid) return next.id;
+    }
+    // Сосед сверху — поднять
+    if (fromIndex > 0) {
+      const prev = slots[fromIndex - 1]!;
+      if (clientY < prev.mid) return prev.id;
+    }
+    return null;
+  }, []);
+
+  const moveAsset = useCallback((fromId: number, toId: number) => {
+    const root = listRef.current;
+    if (root) {
+      const tops = new Map<number, number>();
+      for (const slot of getRowSlots(root)) {
+        if (!Number.isFinite(slot.id)) continue;
+        tops.set(slot.id, slot.top);
+      }
+      flipTopsRef.current = tops;
+    }
+    setAssets((prev) => {
+      if (!prev) return prev;
+      const from = prev.findIndex((a) => a.id === fromId);
+      const to = prev.findIndex((a) => a.id === toId);
+      if (from < 0 || to < 0 || from === to) {
+        flipTopsRef.current = null;
+        return prev;
+      }
+      const next = [...prev];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item!);
+      return next.map((asset, index) => ({ ...asset, sort_order: index }));
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const prevTops = flipTopsRef.current;
+    const root = listRef.current;
+    if (!prevTops || !root) return;
+    flipTopsRef.current = null;
+
+    for (const slot of getRowSlots(root)) {
+      const firstTop = prevTops.get(slot.id);
+      if (firstTop == null) continue;
+      const dy = firstTop - slot.top;
+      if (Math.abs(dy) < 0.5) continue;
+
+      const node = slot.row;
+      node.style.transition = 'none';
+      node.style.transform = `translateY(${dy}px)`;
+      void node.offsetHeight;
+      node.style.transition =
+        'transform 280ms cubic-bezier(0.22, 1, 0.36, 1)';
+      node.style.transform = '';
+
+      const clear = (event: TransitionEvent) => {
+        if (event.propertyName && event.propertyName !== 'transform') return;
+        node.style.transition = '';
+        node.style.transform = '';
+        node.removeEventListener('transitionend', clear);
+      };
+      node.addEventListener('transitionend', clear);
+    }
+  }, [assets]);
+
+  const persistOrder = useCallback(async () => {
+    const list = assetsRef.current;
+    if (list) await db.reorderAssets(list.map((a) => a.id));
+  }, []);
 
   useEffect(() => {
     void reload();
@@ -652,19 +766,67 @@ export function AssetsScreen() {
       </FadeIn>
 
       <FadeIn index={2}>
-        <h2 className="font-bold text-slate-900">Ваши активы</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-bold text-slate-900">Ваши активы</h2>
+          {assets.length > 1 ? (
+            <button
+              type="button"
+              aria-pressed={reorderMode}
+              aria-label={
+                reorderMode ? 'Готово — сохранить порядок' : 'Изменить порядок'
+              }
+              onClick={() => {
+                if (reorderMode) void persistOrder();
+                setReorderMode((v) => !v);
+              }}
+              className={
+                reorderMode
+                  ? 'flex h-9 items-center gap-1.5 rounded-full bg-blue-600 px-3 text-xs font-semibold text-white'
+                  : 'flex h-9 items-center gap-1.5 rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700'
+              }
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {reorderMode ? 'Готово' : 'Порядок'}
+            </button>
+          ) : null}
+        </div>
       </FadeIn>
-      <div className="space-y-3">
+      <div ref={listRef} className="space-y-3">
         {assets.map((a, i) => {
           if (a.provider === 'credit') {
             const repaid = creditRepaidRatio(a);
-            return (
-              <FadeIn key={a.id} index={3 + i}>
-                <SwipeToDelete borderRadius={16} onDelete={() => scheduleDelete(a)}>
+            const body = (
+              <div className="flex items-center gap-0">
+                {reorderMode ? (
+                  <AssetReorderHandle
+                    assetId={a.id}
+                    findTargetId={findTargetId}
+                    onReorder={moveAsset}
+                    onReorderEnd={() => void persistOrder()}
+                  />
+                ) : null}
+                {reorderMode ? (
+                  <div className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-3 pl-0">
+                    <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
+                          {a.name}
+                        </p>
+                        <span className="shrink-0 rounded-full bg-[var(--color-expense-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
+                          Долг
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                        {formatRub(a.current_amount)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
                   <Link
                     to="/assets/$slug"
                     params={{ slug: assetSlug(a) }}
-                    className="flex items-center gap-3 px-3 py-3.5"
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5"
                   >
                     <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
                     <div className="min-w-0 flex-1">
@@ -689,8 +851,27 @@ export function AssetsScreen() {
                       ) : null}
                     </div>
                   </Link>
-                </SwipeToDelete>
-              </FadeIn>
+                )}
+              </div>
+            );
+
+            return (
+              <div
+                key={a.id}
+                data-asset-id={a.id}
+              >
+                {reorderMode ? (
+                  <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                    {body}
+                  </div>
+                ) : (
+                  <FadeIn index={3 + i}>
+                    <SwipeToDelete borderRadius={16} onDelete={() => scheduleDelete(a)}>
+                      {body}
+                    </SwipeToDelete>
+                  </FadeIn>
+                )}
+              </div>
             );
           }
 
@@ -700,13 +881,40 @@ export function AssetsScreen() {
             valuation?.profitPercent != null
               ? `${valuation.profitPercent >= 0 ? '+' : ''}${valuation.profitPercent}%`
               : null;
-          return (
-            <FadeIn key={a.id} index={3 + i}>
-              <SwipeToDelete borderRadius={16} onDelete={() => scheduleDelete(a)}>
+
+          const savingsBody = (
+            <div className="flex items-center gap-0">
+              {reorderMode ? (
+                <AssetReorderHandle
+                  assetId={a.id}
+                  findTargetId={findTargetId}
+                  onReorder={moveAsset}
+                  onReorderEnd={() => void persistOrder()}
+                />
+              ) : null}
+              {reorderMode ? (
+                <div className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-3 pl-0">
+                  <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+                  <div className="min-w-0 flex-1">
+                    <p className="min-w-0 truncate text-base font-semibold leading-5 text-slate-900">
+                      {a.name}
+                    </p>
+                    {a.provider === 'usd' ? (
+                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                        {formatUsd(a.current_amount)}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                        {formatRub(a.current_amount)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
                 <Link
                   to="/assets/$slug"
                   params={{ slug: assetSlug(a) }}
-                  className="flex items-center gap-3 px-3 py-3.5"
+                  className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5"
                 >
                   <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
                   <div className="min-w-0 flex-1">
@@ -742,8 +950,24 @@ export function AssetsScreen() {
                     )}
                   </div>
                 </Link>
-              </SwipeToDelete>
-            </FadeIn>
+              )}
+            </div>
+          );
+
+          return (
+            <div key={a.id} data-asset-id={a.id}>
+              {reorderMode ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                  {savingsBody}
+                </div>
+              ) : (
+                <FadeIn index={3 + i}>
+                  <SwipeToDelete borderRadius={16} onDelete={() => scheduleDelete(a)}>
+                    {savingsBody}
+                  </SwipeToDelete>
+                </FadeIn>
+              )}
+            </div>
           );
         })}
       </div>

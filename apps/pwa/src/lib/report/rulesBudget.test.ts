@@ -25,6 +25,7 @@ const asset = (id: number): Asset => ({
   credit_start_date: null,
   credit_remaining_months: null,
   credit_early_repay_mode: null,
+  sort_order: id,
 });
 
 const rule = (partial: Partial<DistributionRule> & { id: number }): DistributionRule => ({

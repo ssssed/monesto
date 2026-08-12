@@ -32,6 +32,7 @@ const credit = (partial: Partial<Asset>): Asset => ({
   credit_start_date: null,
   credit_remaining_months: null,
   credit_early_repay_mode: null,
+  sort_order: 0,
   ...partial,
 });
 

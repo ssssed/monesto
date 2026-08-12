@@ -81,6 +81,8 @@ export interface Asset {
    * При взносе можно переопределить в модалке / правиле.
    */
   credit_early_repay_mode: 'reduce_term' | 'reduce_payment' | null;
+  /** Порядок в списке активов. */
+  sort_order: number;
 }
 
 export interface AssetTransaction {
