@@ -792,68 +792,67 @@ export function AssetsScreen() {
           ) : null}
         </div>
       </FadeIn>
-      <div ref={listRef} className="space-y-3">
+      <div
+        ref={listRef}
+        className="space-y-3"
+        style={reorderMode ? { touchAction: 'none' } : undefined}
+      >
         {assets.map((a, i) => {
           if (a.provider === 'credit') {
             const repaid = creditRepaidRatio(a);
-            const body = (
-              <div className="flex items-center gap-0">
-                {reorderMode ? (
-                  <AssetReorderHandle
-                    assetId={a.id}
-                    findTargetId={findTargetId}
-                    onReorder={moveAsset}
-                    onReorderEnd={() => void persistOrder()}
-                  />
-                ) : null}
-                {reorderMode ? (
-                  <div className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-3 pl-0">
-                    <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
-                          {a.name}
-                        </p>
-                        <span className="shrink-0 rounded-full bg-[var(--color-expense-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
-                          Долг
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
-                        {formatRub(a.current_amount)}
+            const body = reorderMode ? (
+              <AssetReorderHandle
+                assetId={a.id}
+                findTargetId={findTargetId}
+                onReorder={moveAsset}
+                onReorderEnd={() => void persistOrder()}
+              >
+                <div className="flex min-w-0 items-center gap-3 py-3.5 pr-3">
+                  <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
+                        {a.name}
                       </p>
+                      <span className="shrink-0 rounded-full bg-[var(--color-expense-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
+                        Долг
+                      </span>
                     </div>
+                    <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                      {formatRub(a.current_amount)}
+                    </p>
                   </div>
-                ) : (
-                  <Link
-                    to="/assets/$slug"
-                    params={{ slug: assetSlug(a) }}
-                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5"
-                  >
-                    <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
-                          {a.name}
-                        </p>
-                        <span className="shrink-0 rounded-full bg-[var(--color-expense-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
-                          Долг
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
-                        {formatRub(a.current_amount)}
-                      </p>
-                      {repaid != null ? (
-                        <div className="mt-2 h-0.5 overflow-hidden rounded-full bg-rose-100">
-                          <div
-                            className="h-full rounded-full bg-rose-400/80"
-                            style={{ width: `${repaid * 100}%` }}
-                          />
-                        </div>
-                      ) : null}
+                </div>
+              </AssetReorderHandle>
+            ) : (
+              <Link
+                to="/assets/$slug"
+                params={{ slug: assetSlug(a) }}
+                className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5"
+              >
+                <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
+                      {a.name}
+                    </p>
+                    <span className="shrink-0 rounded-full bg-[var(--color-expense-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
+                      Долг
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                    {formatRub(a.current_amount)}
+                  </p>
+                  {repaid != null ? (
+                    <div className="mt-2 h-0.5 overflow-hidden rounded-full bg-rose-100">
+                      <div
+                        className="h-full rounded-full bg-rose-400/80"
+                        style={{ width: `${repaid * 100}%` }}
+                      />
                     </div>
-                  </Link>
-                )}
-              </div>
+                  ) : null}
+                </div>
+              </Link>
             );
 
             return (
@@ -883,76 +882,71 @@ export function AssetsScreen() {
               ? `${valuation.profitPercent >= 0 ? '+' : ''}${valuation.profitPercent}%`
               : null;
 
-          const savingsBody = (
-            <div className="flex items-center gap-0">
-              {reorderMode ? (
-                <AssetReorderHandle
-                  assetId={a.id}
-                  findTargetId={findTargetId}
-                  onReorder={moveAsset}
-                  onReorderEnd={() => void persistOrder()}
-                />
-              ) : null}
-              {reorderMode ? (
-                <div className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pr-3 pl-0">
-                  <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
-                  <div className="min-w-0 flex-1">
-                    <p className="min-w-0 truncate text-base font-semibold leading-5 text-slate-900">
-                      {a.name}
+          const savingsBody = reorderMode ? (
+            <AssetReorderHandle
+              assetId={a.id}
+              findTargetId={findTargetId}
+              onReorder={moveAsset}
+              onReorderEnd={() => void persistOrder()}
+            >
+              <div className="flex min-w-0 items-center gap-3 py-3.5 pr-3">
+                <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+                <div className="min-w-0 flex-1">
+                  <p className="min-w-0 truncate text-base font-semibold leading-5 text-slate-900">
+                    {a.name}
+                  </p>
+                  {a.provider === 'usd' ? (
+                    <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                      {formatUsd(a.current_amount)}
                     </p>
-                    {a.provider === 'usd' ? (
-                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
-                        {formatUsd(a.current_amount)}
-                      </p>
-                    ) : (
-                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
-                        {formatRub(a.current_amount)}
-                      </p>
-                    )}
-                  </div>
+                  ) : (
+                    <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                      {formatRub(a.current_amount)}
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <Link
-                  to="/assets/$slug"
-                  params={{ slug: assetSlug(a) }}
-                  className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5"
-                >
-                  <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
-                        {a.name}
-                      </p>
-                      {hasGoal ? (
-                        <GoalProgressBadge
-                          current={a.current_amount}
-                          goal={a.goal_amount as number}
-                        />
-                      ) : usdTrend ? (
-                        <TrendBadge
-                          value={usdTrend}
-                          positive={!usdTrend.startsWith('−') && !usdTrend.startsWith('-')}
-                        />
-                      ) : null}
-                    </div>
-                    {a.provider === 'usd' ? (
-                      <>
-                        <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
-                          {formatUsd(a.current_amount)}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          {formatRub(a.current_amount * rate)}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
-                        {formatRub(a.current_amount)}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              )}
-            </div>
+              </div>
+            </AssetReorderHandle>
+          ) : (
+            <Link
+              to="/assets/$slug"
+              params={{ slug: assetSlug(a) }}
+              className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5"
+            >
+              <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
+                    {a.name}
+                  </p>
+                  {hasGoal ? (
+                    <GoalProgressBadge
+                      current={a.current_amount}
+                      goal={a.goal_amount as number}
+                    />
+                  ) : usdTrend ? (
+                    <TrendBadge
+                      value={usdTrend}
+                      positive={!usdTrend.startsWith('−') && !usdTrend.startsWith('-')}
+                    />
+                  ) : null}
+                </div>
+                {a.provider === 'usd' ? (
+                  <>
+                    <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                      {formatUsd(a.current_amount)}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {formatRub(a.current_amount * rate)}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                    {formatRub(a.current_amount)}
+                  </p>
+                )}
+              </div>
+            </Link>
           );
 
           return (
