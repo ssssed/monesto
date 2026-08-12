@@ -407,7 +407,7 @@ export function HomeScreen() {
             durationClass="duration-700"
             className="h-full"
           >
-            <Card className="flex h-full flex-col border-0 bg-[var(--color-income-soft)] p-4 shadow-none">
+            <Card className="flex h-full flex-col border border-[var(--color-income)]/20 bg-[var(--color-income-soft)] p-4 shadow-none">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
                 Доходы
               </p>
@@ -431,7 +431,7 @@ export function HomeScreen() {
             durationClass="duration-700"
             className="h-full"
           >
-            <Card className="flex h-full flex-col border-0 bg-[var(--color-expense-soft)] p-4 shadow-none">
+            <Card className="flex h-full flex-col border border-[var(--color-expense)]/20 bg-[var(--color-expense-soft)] p-4 shadow-none">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
                 Расходы
               </p>
