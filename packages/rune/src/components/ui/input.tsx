@@ -76,6 +76,18 @@ function caretFromDigitCount(value: string, digitCount: number): number {
   return value.length;
 }
 
+function caretInFormatted(
+  display: string,
+  digitCount: number,
+  afterSeparator: boolean,
+): number {
+  if (afterSeparator) {
+    const comma = display.indexOf(',');
+    if (comma !== -1) return comma + 1;
+  }
+  return caretFromDigitCount(display, digitCount);
+}
+
 const baseInputClass =
   'flex h-12 w-full rounded-xl border border-transparent bg-[var(--color-input)] px-3.5 py-2 text-base text-[var(--color-foreground)] transition-colors placeholder:text-[var(--color-muted-foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-ring)] disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
@@ -98,49 +110,48 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ref,
   ) => {
     const innerRef = React.useRef<HTMLInputElement>(null);
-    const caretDigitsRef = React.useRef<number | null>(null);
+    const caretRef = React.useRef<{
+      digits: number;
+      afterSeparator: boolean;
+    } | null>(null);
 
     React.useImperativeHandle(ref, () => innerRef.current as HTMLInputElement);
 
     const isMoney = format === 'money';
-    const isNumberType = type === 'number';
-    /** type=number не принимает пробелы/запятые — группировку тысяч не показываем. */
-    const groupThousands = isMoney && !isNumberType;
     const relativeSuffix =
       Boolean(withRelativeSuffix) && suffix != null && suffix !== '';
     const rawValue =
       value == null ? '' : typeof value === 'number' ? String(value) : String(value);
-    const displayValue = groupThousands ? formatMoneyInput(rawValue) : rawValue;
+    /** type=number ломает пробелы/запятые — для money всегда text + decimal. */
+    const displayValue = isMoney ? formatMoneyInput(rawValue) : rawValue;
     const isEmpty = rawValue.trim() === '';
     const showSuffix = !(hideSuffixWhenEmpty && isEmpty);
     const sizerText = displayValue || String(placeholder ?? '0');
-    const resolvedType = type ?? (isMoney ? 'text' : undefined);
+    const resolvedType = isMoney ? 'text' : type;
 
     React.useLayoutEffect(() => {
-      if (
-        !groupThousands ||
-        caretDigitsRef.current == null ||
-        !innerRef.current
-      ) {
+      if (!isMoney || caretRef.current == null || !innerRef.current) {
         return;
       }
-      const pos = caretFromDigitCount(displayValue, caretDigitsRef.current);
+      const { digits, afterSeparator } = caretRef.current;
+      const pos = caretInFormatted(displayValue, digits, afterSeparator);
       innerRef.current.setSelectionRange(pos, pos);
-      caretDigitsRef.current = null;
-    }, [displayValue, groupThousands]);
+      caretRef.current = null;
+    }, [displayValue, isMoney]);
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       if (!isMoney) {
         onChange?.(event);
         return;
       }
-      const nextRaw = parseMoneyInput(event.target.value);
-      if (groupThousands) {
-        caretDigitsRef.current = countDigitsBefore(
-          event.target.value,
-          event.target.selectionStart ?? event.target.value.length,
-        );
-      }
+      const typed = event.target.value;
+      const caret = event.target.selectionStart ?? typed.length;
+      const charBefore = typed[caret - 1] ?? '';
+      caretRef.current = {
+        digits: countDigitsBefore(typed, caret),
+        afterSeparator: charBefore === '.' || charBefore === ',',
+      };
+      const nextRaw = parseMoneyInput(typed);
       const synthetic = {
         ...event,
         target: { ...event.target, value: nextRaw },
@@ -162,6 +173,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className={cn(
             baseInputClass,
             isMoney && 'tabular-nums font-bold',
+            type === 'date' &&
+              'min-w-0 max-w-full box-border [color-scheme:light]',
             className,
           )}
           value={controlled ? displayValue : undefined}

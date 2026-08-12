@@ -1,6 +1,7 @@
 import {
   Button,
   Card,
+  DatePicker,
   Input,
   Label,
   Sheet,
@@ -630,10 +631,10 @@ export function CreditDetailScreen({ slug }: { slug: string }) {
               </div>
             </div>
             {editRate.trim() && numeric(editRate) > 0 ? (
-              <div>
+              <div className="min-w-0">
                 <Label>Дата выдачи</Label>
-                <Input
-                  type="date"
+                <DatePicker
+                  placeholder="дд.мм.гггг"
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
                 />

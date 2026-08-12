@@ -11,6 +11,11 @@ export {
   CardTitle,
 } from './components/ui/card';
 export { Input, formatMoneyInput, parseMoneyInput, type InputProps } from './components/ui/input';
+export {
+  DatePicker,
+  formatDateDisplay,
+  type DatePickerProps,
+} from './components/ui/date-picker';
 export { Label } from './components/ui/label';
 export { Progress } from './components/ui/progress';
 export {

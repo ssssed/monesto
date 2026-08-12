@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  DatePicker,
   Input,
   Label,
   SlidingToggleGroup,
@@ -783,8 +784,7 @@ function EntryRow({
                   >
                     Дата
                   </Label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     className="border-0 bg-white shadow-none ring-1 ring-slate-200"
                     value={entry.specificDate ?? ''}
                     onChange={(e) => update({ specificDate: e.target.value })}

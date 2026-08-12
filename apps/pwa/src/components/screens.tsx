@@ -1,6 +1,7 @@
 import {
   Button,
   Card,
+  DatePicker,
   Input,
   Label,
   Select,
@@ -1175,12 +1176,17 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
               {isCredit ? (
                 <>
                   <div>
-                    <Label>Исходный долг, ₽</Label>
+                    <Label required>Исходный долг, ₽</Label>
                     <Input
+                      type="number"
+                      format="money"
+                      suffix="₽"
+                      withRelativeSuffix
+                      hideSuffixWhenEmpty
                       value={goal}
                       onChange={(e) => setGoal(e.target.value)}
-                      inputMode="decimal"
                       placeholder="Как остаток, если пусто"
+                      className="[&_input]:placeholder:font-normal"
                     />
                     <p className="mt-1.5 text-xs text-slate-400">
                       Нужен для прогресса погашения
@@ -1188,30 +1194,38 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label>Ставка, % годовых</Label>
+                      <Label required>Ставка, % годовых</Label>
                       <Input
+                        type="number"
+                        format="money"
+                        suffix="%"
+                        withRelativeSuffix
                         value={creditRate}
                         onChange={(e) => setCreditRate(e.target.value)}
-                        inputMode="decimal"
                         placeholder="пусто = долг"
+                        className="[&_input]:placeholder:font-normal"
                       />
                     </div>
                     <div>
-                      <Label>Срок, мес</Label>
+                      <Label required>Срок, мес</Label>
                       <Input
+                        type="number"
+                        format="money"
+                        suffix="мес."
+                        withRelativeSuffix
                         value={creditTermMonths}
                         onChange={(e) => setCreditTermMonths(e.target.value)}
-                        inputMode="numeric"
                         placeholder="60"
                         disabled={!hasInterest}
+                        className="[&_input]:placeholder:font-normal"
                       />
                     </div>
                   </div>
                   {hasInterest ? (
-                    <div>
+                    <div className="min-w-0">
                       <Label>Дата выдачи</Label>
-                      <Input
-                        type="date"
+                      <DatePicker
+                        placeholder="дд.мм.гггг"
                         value={creditStartDate}
                         onChange={(e) => setCreditStartDate(e.target.value)}
                       />
@@ -1771,19 +1785,21 @@ function AssetDetailBody({ slug }: { slug: string }) {
                 />
               </div>
               <div>
-                <Label>Цель накопления</Label>
-                <div className="relative">
-                  <Input
-                    value={editGoal}
-                    onChange={(e) => setEditGoal(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="Необязательно"
-                    className="pr-8"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                    {asset.provider === 'usd' ? '$' : '₽'}
-                  </span>
-                </div>
+                <Label>
+                  Цель накопления
+                  {asset.provider === 'usd' ? ', $' : ', ₽'}
+                </Label>
+                <Input
+                  type="number"
+                  format="money"
+                  suffix={asset.provider === 'usd' ? '$' : '₽'}
+                  withRelativeSuffix
+                  hideSuffixWhenEmpty
+                  value={editGoal}
+                  onChange={(e) => setEditGoal(e.target.value)}
+                  placeholder="Необязательно"
+                  className="[&_input]:placeholder:font-normal"
+                />
               </div>
               <AssetStylePicker
                 icon={editStyle.icon}
