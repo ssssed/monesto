@@ -134,6 +134,42 @@ describe('vacation vs salary plan — июль 16–31', () => {
     );
 
     expect(keys).not.toContain('2026-8-10');
+    expect(keys).toContain('2026-7-25');
+    expect(keys).toContain('2026-8-25');
+  });
+
+  it('в день пустой выплаты (10 авг) остаются прошлый цикл и план', () => {
+    const cycles = listReportCycles(new Date(2026, 7, 10), [10, 25], {
+      vacations: [vacationJuly],
+      monthlyAmount: MONTHLY,
+      tranches: DEFAULT_BIMONTHLY_TRANCHES,
+    });
+
+    const keys = cycles.map(
+      (c) =>
+        `${c.nominalDate.getFullYear()}-${c.nominalDate.getMonth() + 1}-${c.nominalDate.getDate()}`,
+    );
+
+    expect(keys).not.toContain('2026-8-10');
+    expect(keys).toContain('2026-7-25');
+    expect(keys).toContain('2026-8-25');
+    expect(cycles.some((c) => !c.isPreview)).toBe(true);
+    expect(cycles.some((c) => c.isPreview)).toBe(true);
+  });
+
+  it('между пустой 10-й и 25-й августа тоже прошлый + план', () => {
+    const cycles = listReportCycles(new Date(2026, 7, 15), [10, 25], {
+      vacations: [vacationJuly],
+      monthlyAmount: MONTHLY,
+      tranches: DEFAULT_BIMONTHLY_TRANCHES,
+    });
+
+    const keys = cycles.map(
+      (c) =>
+        `${c.nominalDate.getFullYear()}-${c.nominalDate.getMonth() + 1}-${c.nominalDate.getDate()}`,
+    );
+
+    expect(keys).toContain('2026-7-25');
     expect(keys).toContain('2026-8-25');
   });
 });

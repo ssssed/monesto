@@ -12,6 +12,13 @@ import type {
   MoneyFlowEntry,
   VacationPeriod,
 } from '../types';
+import {
+  applyEarlyRepayment,
+  creditRemainingMonthsFromSchedule,
+  creditScheduleContext,
+  resolveRemainingMonthsForRecalc,
+  roundMoney,
+} from '../credit/plan';
 import { assetSlug } from '../utils/slug';
 
 const STORAGE_KEY = 'monesto-pwa-v3';
@@ -94,6 +101,23 @@ function load(): AppDatabase {
       salary_tranches: income.salary_tranches ?? null,
     }));
     parsed.vacation_periods = parsed.vacation_periods ?? [];
+    parsed.expenses = (parsed.expenses ?? []).map((expense) => ({
+      ...expense,
+      linked_asset_id: expense.linked_asset_id ?? null,
+    }));
+    parsed.assets = (parsed.assets ?? []).map((asset) => ({
+      ...asset,
+      linked_expense_id: asset.linked_expense_id ?? null,
+      credit_annual_rate: asset.credit_annual_rate ?? null,
+      credit_term_months: asset.credit_term_months ?? null,
+      credit_start_date: asset.credit_start_date ?? null,
+      credit_remaining_months: asset.credit_remaining_months ?? null,
+      credit_early_repay_mode: asset.credit_early_repay_mode ?? null,
+    }));
+    parsed.distribution_rules = (parsed.distribution_rules ?? []).map((rule) => ({
+      ...rule,
+      credit_early_repay_mode: rule.credit_early_repay_mode ?? null,
+    }));
     parsed.nextIds = {
       ...emptyDb().nextIds,
       ...parsed.nextIds,
@@ -228,7 +252,15 @@ export async function getAllExpenses(): Promise<Expense[]> {
 export async function replaceAllExpenses(entries: MoneyFlowEntry[]): Promise<void> {
   withDb((db) => {
     db.expenses = entries.map((entry) => {
-      const id = db.nextIds.expense++;
+      const existingId =
+        entry.id && /^\d+$/.test(entry.id) ? Number(entry.id) : null;
+      let id: number;
+      if (existingId != null && existingId > 0) {
+        id = existingId;
+        db.nextIds.expense = Math.max(db.nextIds.expense, existingId + 1);
+      } else {
+        id = db.nextIds.expense++;
+      }
       return {
         id,
         name: entry.name,
@@ -236,8 +268,18 @@ export async function replaceAllExpenses(entries: MoneyFlowEntry[]): Promise<voi
         recurrence: entry.isOneTime ? 'one_time' : 'monthly',
         due_day: entry.dueDay ? Number(entry.dueDay) : null,
         specific_date: entry.specificDate ?? null,
+        linked_asset_id: entry.linkedAssetId
+          ? Number(entry.linkedAssetId)
+          : null,
       };
     });
+
+    // Sync asset.linked_expense_id from expenses
+    for (const asset of db.assets) {
+      if (asset.provider !== 'credit') continue;
+      const linked = db.expenses.find((e) => e.linked_asset_id === asset.id);
+      asset.linked_expense_id = linked?.id ?? null;
+    }
   });
 }
 
@@ -270,12 +312,41 @@ export async function createAsset(input: {
   bg_color?: string;
   icon_color?: string;
   cost_basis_rub?: number;
+  /** Создать связанный ежемесячный расход (для credit). */
+  credit_payment?: { amount: number; due_day: number };
+  credit_annual_rate?: number | null;
+  credit_term_months?: number | null;
+  credit_start_date?: string | null;
+  credit_remaining_months?: number | null;
+  credit_early_repay_mode?: 'reduce_term' | 'reduce_payment' | null;
 }): Promise<number> {
   return withDb((db) => {
     const id = db.nextIds.asset++;
-    const costBasis =
-      input.cost_basis_rub ??
-      (input.provider === 'rub' ? input.current_amount : 0);
+    const isCredit = input.provider === 'credit';
+    const costBasis = isCredit
+      ? 0
+      : (input.cost_basis_rub ??
+        (input.provider === 'rub' ? input.current_amount : 0));
+
+    let linkedExpenseId: number | null = null;
+    if (isCredit && input.credit_payment && input.credit_payment.amount > 0) {
+      linkedExpenseId = db.nextIds.expense++;
+      db.expenses.push({
+        id: linkedExpenseId,
+        name: `Платёж · ${input.name}`,
+        amount: input.credit_payment.amount,
+        recurrence: 'monthly',
+        due_day: input.credit_payment.due_day,
+        specific_date: null,
+        linked_asset_id: id,
+      });
+    }
+
+    const termMonths = isCredit ? (input.credit_term_months ?? null) : null;
+    const startDate = isCredit ? (input.credit_start_date ?? null) : null;
+    const remainingMonths = isCredit
+      ? (input.credit_remaining_months ?? termMonths)
+      : null;
 
     db.assets.push({
       id,
@@ -285,10 +356,19 @@ export async function createAsset(input: {
       goal_amount: input.goal_amount ?? null,
       current_amount: input.current_amount,
       steam_inventory_url: null,
-      icon: input.icon ?? 'wallet',
-      bg_color: input.bg_color ?? '#DBEAFE',
-      icon_color: input.icon_color ?? '#2563EB',
+      icon: input.icon ?? (isCredit ? 'card' : 'wallet'),
+      bg_color: input.bg_color ?? (isCredit ? '#FEF2F2' : '#DBEAFE'),
+      icon_color: input.icon_color ?? (isCredit ? '#991B1B' : '#2563EB'),
       cost_basis_rub: costBasis,
+      linked_expense_id: linkedExpenseId,
+      credit_annual_rate: isCredit ? (input.credit_annual_rate ?? null) : null,
+      credit_term_months: termMonths,
+      credit_start_date: startDate,
+      credit_remaining_months: remainingMonths,
+      credit_early_repay_mode: isCredit
+        ? (input.credit_early_repay_mode ??
+          (input.credit_annual_rate ? 'reduce_term' : null))
+        : null,
     });
 
     if (input.current_amount !== 0) {
@@ -296,7 +376,7 @@ export async function createAsset(input: {
         id: db.nextIds.transaction++,
         asset_id: id,
         amount_delta: input.current_amount,
-        note: 'Начальный баланс',
+        note: isCredit ? 'Начальный долг' : 'Начальный баланс',
         created_at: new Date().toISOString(),
         cost_rub: costBasis || null,
       });
@@ -315,6 +395,13 @@ export async function updateAsset(
     icon?: string;
     bg_color?: string;
     icon_color?: string;
+    linked_expense_id?: number | null;
+    current_amount?: number;
+    credit_annual_rate?: number | null;
+    credit_term_months?: number | null;
+    credit_start_date?: string | null;
+    credit_remaining_months?: number | null;
+    credit_early_repay_mode?: 'reduce_term' | 'reduce_payment' | null;
   },
 ): Promise<void> {
   withDb((db) => {
@@ -326,6 +413,27 @@ export async function updateAsset(
     if (input.icon !== undefined) asset.icon = input.icon;
     if (input.bg_color !== undefined) asset.bg_color = input.bg_color;
     if (input.icon_color !== undefined) asset.icon_color = input.icon_color;
+    if (input.linked_expense_id !== undefined) {
+      asset.linked_expense_id = input.linked_expense_id;
+    }
+    if (input.current_amount !== undefined) {
+      asset.current_amount = Math.max(0, input.current_amount);
+    }
+    if (input.credit_annual_rate !== undefined) {
+      asset.credit_annual_rate = input.credit_annual_rate;
+    }
+    if (input.credit_term_months !== undefined) {
+      asset.credit_term_months = input.credit_term_months;
+    }
+    if (input.credit_start_date !== undefined) {
+      asset.credit_start_date = input.credit_start_date;
+    }
+    if (input.credit_remaining_months !== undefined) {
+      asset.credit_remaining_months = input.credit_remaining_months;
+    }
+    if (input.credit_early_repay_mode !== undefined) {
+      asset.credit_early_repay_mode = input.credit_early_repay_mode;
+    }
   });
 }
 
@@ -334,10 +442,106 @@ export async function addTransaction(
   amountDelta: number,
   note?: string,
   costRubDelta?: number,
+  options?: {
+    earlyRepayMode?: 'reduce_term' | 'reduce_payment' | null;
+  },
 ): Promise<void> {
   withDb((db) => {
     const asset = db.assets.find((a) => a.id === assetId);
     if (!asset) return;
+
+    if (asset.provider === 'credit') {
+      // Положительный delta = погашение → долг уменьшается.
+      if (amountDelta >= 0) {
+        const pay = Math.abs(amountDelta);
+        const debtBefore = asset.current_amount;
+        const rate = asset.credit_annual_rate;
+        const mode =
+          options?.earlyRepayMode ??
+          asset.credit_early_repay_mode ??
+          'reduce_term';
+        const expense =
+          asset.linked_expense_id != null
+            ? (db.expenses.find((e) => e.id === asset.linked_expense_id) ?? null)
+            : (db.expenses.find((e) => e.linked_asset_id === assetId) ?? null);
+
+        let toPrincipal = pay;
+        if (rate != null && rate > 0 && expense != null) {
+          const schedule = creditScheduleContext(
+            asset,
+            expense.due_day,
+          );
+          const monthsBefore = resolveRemainingMonthsForRecalc(
+            debtBefore,
+            expense.amount,
+            rate,
+            asset.credit_remaining_months,
+            schedule,
+          );
+          if (
+            monthsBefore != null &&
+            monthsBefore > 0 &&
+            expense.amount > 0 &&
+            debtBefore > 0
+          ) {
+            const result = applyEarlyRepayment({
+              remainingDebt: debtBefore,
+              extraPayment: pay,
+              monthlyPayment: expense.amount,
+              annualPercent: rate,
+              mode,
+              remainingMonths: monthsBefore,
+              dueDay: expense.due_day,
+            });
+            toPrincipal = result.toPrincipal;
+            asset.current_amount = result.newDebt;
+            if (mode === 'reduce_payment' && result.newPayment >= 0) {
+              expense.amount = result.newPayment;
+              asset.credit_remaining_months = schedule
+                ? creditRemainingMonthsFromSchedule({
+                    startDate: schedule.startDate,
+                    termMonths: schedule.termMonths,
+                    paymentDay: schedule.paymentDay,
+                  })
+                : result.newMonthsLeft;
+            } else if (mode === 'reduce_term') {
+              asset.credit_remaining_months = result.newMonthsLeft;
+            }
+          } else {
+            asset.current_amount = Math.max(
+              0,
+              roundMoney(asset.current_amount - pay),
+            );
+          }
+        } else {
+          asset.current_amount = Math.max(
+            0,
+            roundMoney(asset.current_amount - pay),
+          );
+        }
+
+        db.asset_transactions.push({
+          id: db.nextIds.transaction++,
+          asset_id: assetId,
+          amount_delta: -toPrincipal,
+          note: note ?? 'Погашение',
+          created_at: new Date().toISOString(),
+          cost_rub: pay,
+        });
+      } else {
+        const add = Math.abs(amountDelta);
+        db.asset_transactions.push({
+          id: db.nextIds.transaction++,
+          asset_id: assetId,
+          amount_delta: add,
+          note: note ?? 'Увеличение долга',
+          created_at: new Date().toISOString(),
+          cost_rub: null,
+        });
+        asset.current_amount = roundMoney(asset.current_amount + add);
+      }
+      return;
+    }
 
     let costDelta = costRubDelta ?? 0;
     if (costRubDelta == null) {
@@ -372,6 +576,9 @@ export async function depositFromAllocation(
   amountRub: number,
   usdRubRate: number,
   note: string,
+  options?: {
+    earlyRepayMode?: 'reduce_term' | 'reduce_payment' | null;
+  },
 ): Promise<void> {
   const asset = await getAssetById(assetId);
   if (!asset) return;
@@ -379,6 +586,14 @@ export async function depositFromAllocation(
   if (asset.provider === 'usd') {
     const usdAmount = amountRub / usdRubRate;
     await addTransaction(assetId, usdAmount, note, amountRub);
+  } else if (asset.provider === 'credit') {
+    await addTransaction(
+      assetId,
+      amountRub,
+      note || 'Погашение из отчёта',
+      amountRub,
+      { earlyRepayMode: options?.earlyRepayMode },
+    );
   } else {
     await addTransaction(assetId, amountRub, note, amountRub);
   }
@@ -427,6 +642,11 @@ export async function deleteAsset(assetId: number): Promise<void> {
     db.asset_transactions = db.asset_transactions.filter(
       (tx) => tx.asset_id !== assetId,
     );
+    for (const expense of db.expenses) {
+      if (expense.linked_asset_id === assetId) {
+        expense.linked_asset_id = null;
+      }
+    }
     db.assets = db.assets.filter((a) => a.id !== assetId);
   });
 }

@@ -17,6 +17,8 @@ type Props = {
   title: string;
   balanceLabel: string;
   incomingRub: number;
+  /** Подпись рядом с суммой incoming, по умолчанию просто +сумма. */
+  incomingLabel?: string;
   icon: string;
   bgColor: string;
   iconColor: string;
@@ -32,6 +34,7 @@ export function SwipeConfirmCard({
   title,
   balanceLabel,
   incomingRub,
+  incomingLabel,
   icon,
   bgColor,
   iconColor,
@@ -242,13 +245,18 @@ export function SwipeConfirmCard({
           <div className="ml-2 flex items-center">
             {incomingRub > 0 && !rejected ? (
               <span
-                className="mr-1.5 text-sm font-bold text-blue-600"
+                className="mr-1.5 text-right text-sm font-bold text-blue-600"
                 style={{
                   transform: `scale(${1 + absProgress * 0.1})`,
                   transition: isDraggingX ? 'none' : 'transform 180ms',
                 }}
               >
                 +{formatRub(incomingRub)}
+                {incomingLabel ? (
+                  <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-blue-500/80">
+                    {incomingLabel}
+                  </span>
+                ) : null}
               </span>
             ) : rejected ? (
               <span className="mr-1.5 text-xs text-slate-400">отклонено</span>
