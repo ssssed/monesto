@@ -41,20 +41,42 @@ type Mode = 'income' | 'expense';
 const SCHEDULE_PRESETS: {
   id: Exclude<SalarySchedulePresetId, 'custom'>;
   title: string;
-  badge: string;
-  lines: string[];
+  hint: string;
+  payments: { day: number; label: string; period: string }[];
 }[] = [
   {
     id: '10-25',
-    title: '10 и 25',
-    badge: 'Классика',
-    lines: ['10-е ← 16…конец прошл.', '25-е ← 1…15 тек.'],
+    title: '10-го и 25-го',
+    hint: 'Самый частый график в РФ',
+    payments: [
+      {
+        day: 10,
+        label: 'Аванс',
+        period: 'за 16–31 прошлого месяца',
+      },
+      {
+        day: 25,
+        label: 'Зарплата',
+        period: 'за 1–15 текущего месяца',
+      },
+    ],
   },
   {
     id: '5-20',
-    title: '5 и 20',
-    badge: 'Альтернатива',
-    lines: ['5-е ← 16…конец прошл.', '20-е ← 1…15 тек.'],
+    title: '5-го и 20-го',
+    hint: 'Тот же смысл, другие даты',
+    payments: [
+      {
+        day: 5,
+        label: 'Аванс',
+        period: 'за 16–31 прошлого месяца',
+      },
+      {
+        day: 20,
+        label: 'Зарплата',
+        period: 'за 1–15 текущего месяца',
+      },
+    ],
   },
 ];
 
@@ -102,11 +124,16 @@ function SchedulePresetPicker({
   onSelect: (id: Exclude<SalarySchedulePresetId, 'custom'>) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Быстрый выбор
-      </Label>
-      <div className="grid grid-cols-2 gap-2.5">
+    <div className="space-y-2.5">
+      <div>
+        <Label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Дни выплат
+        </Label>
+        <p className="mt-1 text-[12px] leading-4 text-slate-400">
+          Зарплату платят дважды в месяц — выберите ваши даты
+        </p>
+      </div>
+      <div className="space-y-2.5">
         {SCHEDULE_PRESETS.map((preset) => {
           const active = activeId === preset.id;
           return (
@@ -115,50 +142,87 @@ function SchedulePresetPicker({
               type="button"
               onClick={() => onSelect(preset.id)}
               className={cn(
-                'relative overflow-hidden rounded-2xl border p-3.5 text-left transition-all duration-200',
+                'w-full rounded-2xl border p-3.5 text-left transition-all duration-200',
                 active
-                  ? 'border-blue-500 bg-blue-50 shadow-[0_8px_24px_rgb(37_99_235/0.16)] ring-1 ring-blue-500'
+                  ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
                   : 'border-slate-100 bg-white hover:border-blue-200 hover:bg-slate-50',
               )}
             >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <p
-                  className={cn(
-                    'text-base font-bold',
-                    active ? 'text-blue-700' : 'text-slate-900',
-                  )}
-                >
-                  {preset.title}
-                </p>
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                    active
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-500',
-                  )}
-                >
-                  {preset.badge}
-                </span>
-              </div>
-              <div className="space-y-1">
-                {preset.lines.map((line) => (
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p
-                    key={line}
                     className={cn(
-                      'text-[11px] leading-4',
-                      active ? 'text-blue-700/80' : 'text-slate-400',
+                      'text-[15px] font-bold leading-5',
+                      active ? 'text-blue-700' : 'text-slate-900',
                     )}
                   >
-                    {line}
+                    {preset.title}
                   </p>
+                  <p
+                    className={cn(
+                      'mt-0.5 text-[11px] leading-4',
+                      active ? 'text-blue-600/70' : 'text-slate-400',
+                    )}
+                  >
+                    {preset.hint}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+                    active
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-slate-200 bg-white',
+                  )}
+                >
+                  {active ? (
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                  ) : null}
+                </span>
+              </div>
+
+              <div
+                className={cn(
+                  'space-y-2 rounded-xl px-3 py-2.5',
+                  active ? 'bg-white/80' : 'bg-slate-50',
+                )}
+              >
+                {preset.payments.map((payment) => (
+                  <div
+                    key={payment.day}
+                    className="flex items-start gap-2.5"
+                  >
+                    <span
+                      className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold',
+                        active
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-slate-700 ring-1 ring-slate-200',
+                      )}
+                    >
+                      {payment.day}
+                    </span>
+                    <div className="min-w-0 pt-0.5">
+                      <p
+                        className={cn(
+                          'text-[13px] font-semibold leading-4',
+                          active ? 'text-slate-900' : 'text-slate-800',
+                        )}
+                      >
+                        {payment.label}
+                      </p>
+                      <p
+                        className={cn(
+                          'mt-0.5 text-[11px] leading-4',
+                          active ? 'text-slate-500' : 'text-slate-400',
+                        )}
+                      >
+                        {payment.period}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
-              {active ? (
-                <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
-                  <Check className="h-3 w-3" strokeWidth={3} />
-                </span>
-              ) : null}
             </button>
           );
         })}
@@ -173,9 +237,9 @@ function previewLine(entry: MoneyFlowEntry, mode: Mode): string {
     const preset = detectSalarySchedulePreset(entry.salaryTranches);
     const schedule =
       preset === '10-25'
-        ? '10 и 25'
+        ? '10 и 25 числа'
         : preset === '5-20'
-          ? '5 и 20'
+          ? '5 и 20 числа'
           : formatTranchesPreview(
               entry.salaryTranches ?? createEmptyBimonthlyTranches(),
             );
