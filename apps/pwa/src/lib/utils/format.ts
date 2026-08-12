@@ -74,5 +74,9 @@ export function expensesToEntries(expenses: Expense[]): MoneyFlowEntry[] {
     isOneTime: expense.recurrence === 'one_time',
     dueDay: expense.due_day != null ? String(expense.due_day) : '',
     specificDate: expense.specific_date ?? undefined,
+    linkedAssetId:
+      expense.linked_asset_id != null
+        ? String(expense.linked_asset_id)
+        : undefined,
   }));
 }

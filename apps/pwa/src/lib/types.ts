@@ -2,7 +2,7 @@ export type IncomeKind = 'fixed' | 'bimonthly_salary';
 export type Recurrence = 'monthly' | 'one_time';
 /** День выплаты (1–31). Раньше было жёстко 10 | 25. */
 export type SalaryPaymentDay = number;
-export type AssetProvider = 'rub' | 'usd' | 'gold' | 'steam';
+export type AssetProvider = 'rub' | 'usd' | 'gold' | 'steam' | 'credit';
 export type RuleType = 'percent' | 'fixed';
 export type RuleCurrency = 'rub' | 'asset';
 
@@ -40,6 +40,8 @@ export interface Expense {
   recurrence: Recurrence;
   due_day: number | null;
   specific_date: string | null;
+  /** Платёж по кредиту (asset provider=credit). */
+  linked_asset_id: number | null;
 }
 
 export interface Asset {
@@ -47,13 +49,38 @@ export interface Asset {
   name: string;
   provider: AssetProvider;
   purpose: string | null;
+  /** Для накоплений — цель; для кредита — исходный долг. */
   goal_amount: number | null;
+  /** Для накоплений — баланс; для кредита — остаток долга. */
   current_amount: number;
   steam_inventory_url: string | null;
   icon: string;
   bg_color: string;
   icon_color: string;
   cost_basis_rub: number;
+  /** Ежемесячный расход-платёж по кредиту. */
+  linked_expense_id: number | null;
+  /**
+   * Годовая ставка %, например 19.9. null → простой долг без процентов
+   * (остаток / платёж).
+   */
+  credit_annual_rate: number | null;
+  /** Исходный срок кредита в месяцах (при наличии ставки). */
+  credit_term_months: number | null;
+  /** Дата выдачи кредита, ISO YYYY-MM-DD. */
+  credit_start_date: string | null;
+  /**
+   * Сколько месяцев осталось по графику. Если задано — используется
+   * при пересчёте платежа; иначе считается из даты выдачи или NPER.
+   */
+  credit_remaining_months: number | null;
+  /**
+   * Как применять досрочные погашения при ставке:
+   * reduce_term — платёж тот же, срок короче;
+   * reduce_payment — срок тот же, платёж меньше.
+   * При взносе можно переопределить в модалке / правиле.
+   */
+  credit_early_repay_mode: 'reduce_term' | 'reduce_payment' | null;
 }
 
 export interface AssetTransaction {
@@ -73,6 +100,8 @@ export interface DistributionRule {
   currency: RuleCurrency;
   target_asset_id: number | null;
   sort_order: number;
+  /** Режим досрочки, если цель — кредит со ставкой. */
+  credit_early_repay_mode: 'reduce_term' | 'reduce_payment' | null;
 }
 
 /** Период отпуска: даты включительно, ISO YYYY-MM-DD. */
@@ -96,6 +125,8 @@ export interface MoneyFlowEntry {
   primaryPaymentDay?: SalaryPaymentDay;
   /** 1 или 2 транша для зарплаты по периодам. */
   salaryTranches?: SalaryTranche[];
+  /** Expense: id кредита (asset), если это платёж по кредиту. */
+  linkedAssetId?: string;
 }
 
 export interface ReportIncomeLine {

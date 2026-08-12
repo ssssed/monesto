@@ -42,6 +42,7 @@ import {
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
 import { AssetStylePicker } from '@/components/assets/AssetStylePicker';
+import { CreditDetailScreen } from '@/components/credit/CreditDetailScreen';
 import { PageHeader, PageTitle } from '@/components/layout/PageHeader';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { MoneyFlowStep } from '@/components/money-flow/MoneyFlowStep';
@@ -60,8 +61,18 @@ import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
 import * as db from '@/lib/db';
 import { calcUsdValuation } from '@/lib/exchange/usdValuation';
+import {
+  contractualAnnuityPayment,
+  creditRemainingMonthsFromSchedule,
+  creditRepaidRatio,
+  isExistingCreditLoan,
+} from '@/lib/credit/plan';
 import type { AssetIconName } from '@/lib/providers/assetIcons';
-import { ASSET_PROVIDERS, getEnabledProviders } from '@/lib/providers/assetProviders';
+import {
+  ASSET_PROVIDERS,
+  CREDIT_DEFAULTS,
+  getEnabledProviders,
+} from '@/lib/providers/assetProviders';
 import { calculateReport, isReportError } from '@/lib/report/calculateReport';
 import {
   findPrimaryIncome,
@@ -295,10 +306,34 @@ export function HomeScreen() {
       if (status === 'ok') {
         newlyConfirmed.push(item.ruleId);
         totalRub += item.amountRub;
+        const target = data.assets.find((a) => a.id === assetId);
+        const rule = data.rules.find((r) => r.id === item.ruleId);
+        if (target?.provider === 'credit') {
+          await db.depositFromAllocation(
+            assetId,
+            item.amountRub,
+            rate ?? 82,
+            'Погашение из отчёта',
+            {
+              earlyRepayMode:
+                rule?.credit_early_repay_mode ??
+                target.credit_early_repay_mode ??
+                'reduce_term',
+            },
+          );
+        }
       }
     }
     if (newlyConfirmed.length && totalRub > 0) {
-      await db.depositFromAllocation(assetId, totalRub, rate ?? 82, 'Распределение из отчёта');
+      const target = data.assets.find((a) => a.id === assetId);
+      if (target?.provider !== 'credit') {
+        await db.depositFromAllocation(
+          assetId,
+          totalRub,
+          rate ?? 82,
+          'Распределение из отчёта',
+        );
+      }
     }
     setConfirmedIds((prev) => [...new Set([...prev, ...newlyConfirmed])]);
     await reload();
@@ -490,11 +525,16 @@ export function HomeScreen() {
                 <SwipeConfirmCard
                   title={asset.name}
                   balanceLabel={
-                    asset.provider === 'usd'
-                      ? `${formatUsd(asset.nativeAmount)} · ${formatRub(asset.rubEquivalent)}`
-                      : formatRub(asset.nativeAmount)
+                    asset.provider === 'credit'
+                      ? `Долг ${formatRub(asset.nativeAmount)}`
+                      : asset.provider === 'usd'
+                        ? `${formatUsd(asset.nativeAmount)} · ${formatRub(asset.rubEquivalent)}`
+                        : formatRub(asset.nativeAmount)
                   }
                   incomingRub={displayIncoming}
+                  incomingLabel={
+                    asset.provider === 'credit' ? 'к погашению' : undefined
+                  }
                   icon={asset.icon}
                   bgColor={asset.bg_color}
                   iconColor={asset.icon_color}
@@ -570,10 +610,13 @@ export function AssetsScreen() {
 
   if (!assets) return <main className={shell}>Загрузка…</main>;
 
-  const total = assets.reduce(
+  const savings = assets.filter((a) => a.provider !== 'credit');
+  const credits = assets.filter((a) => a.provider === 'credit');
+  const total = savings.reduce(
     (sum, a) => sum + (a.provider === 'usd' ? a.current_amount * rate : a.current_amount),
     0
   );
+  const totalDebt = credits.reduce((sum, a) => sum + a.current_amount, 0);
 
   return (
     <main className={`${shell} relative space-y-4`}>
@@ -594,8 +637,13 @@ export function AssetsScreen() {
       </FadeIn>
       <FadeIn index={1} variant="scale">
         <Card className="border-0 bg-blue-50 p-5 shadow-none">
-          <p className="text-xs lowercase text-slate-400">итого</p>
+          <p className="text-xs lowercase text-slate-400">накопления</p>
           <p className="text-3xl font-bold text-slate-900">{formatRub(total)}</p>
+          {totalDebt > 0 ? (
+            <p className="mt-1.5 text-sm text-rose-700/70">
+              Долги · {formatRub(totalDebt)}
+            </p>
+          ) : null}
         </Card>
       </FadeIn>
 
@@ -604,6 +652,44 @@ export function AssetsScreen() {
       </FadeIn>
       <div className="space-y-3">
         {assets.map((a, i) => {
+          if (a.provider === 'credit') {
+            const repaid = creditRepaidRatio(a);
+            return (
+              <FadeIn key={a.id} index={3 + i}>
+                <SwipeToDelete borderRadius={16} onDelete={() => scheduleDelete(a)}>
+                  <Link
+                    to="/assets/$slug"
+                    params={{ slug: assetSlug(a) }}
+                    className="flex items-center gap-3 px-3 py-3.5"
+                  >
+                    <AssetAvatar icon={a.icon} bgColor={a.bg_color} iconColor={a.icon_color} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="min-w-0 flex-1 truncate text-base font-semibold leading-5 text-slate-900">
+                          {a.name}
+                        </p>
+                        <span className="shrink-0 rounded-full bg-[var(--color-expense-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
+                          Долг
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-lg font-bold leading-6 text-slate-900">
+                        {formatRub(a.current_amount)}
+                      </p>
+                      {repaid != null ? (
+                        <div className="mt-2 h-0.5 overflow-hidden rounded-full bg-rose-100">
+                          <div
+                            className="h-full rounded-full bg-rose-400/80"
+                            style={{ width: `${repaid * 100}%` }}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </Link>
+                </SwipeToDelete>
+              </FadeIn>
+            );
+          }
+
           const hasGoal = a.goal_amount != null && a.goal_amount > 0;
           const valuation = a.provider === 'usd' ? calcUsdValuation(a, rate) : null;
           const usdTrend =
@@ -675,11 +761,66 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
   const [goal, setGoal] = useState(asset?.goal_amount ? String(asset.goal_amount) : '');
   const [amount, setAmount] = useState(asset ? String(asset.current_amount) : '');
   const [rate, setRate] = useState('82');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentTouched, setPaymentTouched] = useState(false);
+  const [paymentDay, setPaymentDay] = useState('10');
+  const [linkExpense, setLinkExpense] = useState(true);
+  const [creditRate, setCreditRate] = useState('');
+  const [creditTermMonths, setCreditTermMonths] = useState('');
+  const [creditStartDate, setCreditStartDate] = useState('');
+  const [earlyRepayMode, setEarlyRepayMode] = useState<
+    'reduce_term' | 'reduce_payment'
+  >('reduce_term');
+  const isCredit = provider === 'credit';
   const [style, setStyle] = useState({
-    icon: (asset?.icon as AssetIconName) || defaults.icon,
-    bgColor: asset?.bg_color ?? defaults.bgColor,
-    iconColor: asset?.icon_color ?? defaults.iconColor
+    icon: (asset?.icon as AssetIconName) || (isCredit ? CREDIT_DEFAULTS.icon : defaults.icon),
+    bgColor: asset?.bg_color ?? (isCredit ? CREDIT_DEFAULTS.bgColor : defaults.bgColor),
+    iconColor: asset?.icon_color ?? (isCredit ? CREDIT_DEFAULTS.iconColor : defaults.iconColor)
   });
+
+  const annualRate = creditRate.trim() ? numeric(creditRate) : 0;
+  const termMonths = creditTermMonths.trim()
+    ? Math.max(1, Math.round(numeric(creditTermMonths)))
+    : 0;
+  const hasInterest = annualRate > 0;
+  const initialDebt =
+    numeric(goal || '0') || numeric(amount || '0');
+  const paymentDayNum = Math.min(31, Math.max(1, Number(paymentDay) || 10));
+  const isExistingLoan = isExistingCreditLoan(creditStartDate || null);
+  const suggestedPayment = useMemo(() => {
+    if (!isCredit || !hasInterest || termMonths <= 0 || initialDebt <= 0) {
+      return null;
+    }
+    return contractualAnnuityPayment({
+      initialDebt,
+      annualPercent: annualRate,
+      termMonths,
+    });
+  }, [isCredit, hasInterest, termMonths, initialDebt, annualRate]);
+  const remainingFromSchedule = useMemo(() => {
+    if (!creditStartDate || termMonths <= 0) return null;
+    return creditRemainingMonthsFromSchedule({
+      startDate: creditStartDate,
+      termMonths,
+      paymentDay: paymentDayNum,
+    });
+  }, [creditStartDate, termMonths, paymentDayNum]);
+
+  useEffect(() => {
+    if (!suggestedPayment || paymentTouched || isExistingLoan) return;
+    setPaymentAmount(String(suggestedPayment));
+  }, [suggestedPayment, paymentTouched, isExistingLoan]);
+
+  const onProviderChange = (next: Asset['provider']) => {
+    setProvider(next);
+    if (!asset && next === 'credit') {
+      setStyle({
+        icon: CREDIT_DEFAULTS.icon,
+        bgColor: CREDIT_DEFAULTS.bgColor,
+        iconColor: CREDIT_DEFAULTS.iconColor,
+      });
+    }
+  };
 
   const save = async () => {
     if (!name.trim()) return;
@@ -699,16 +840,37 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
       });
       return;
     }
+    const remaining = numeric(amount || '0');
+    const initial = goal ? numeric(goal) : remaining;
     const id = await db.createAsset({
       name,
       purpose,
       provider,
-      goal_amount: goal ? numeric(goal) : undefined,
-      current_amount: numeric(amount || '0'),
-      cost_basis_rub: provider === 'usd' ? numeric(amount || '0') * numeric(rate) : undefined,
+      goal_amount: isCredit ? (initial || remaining) : goal ? numeric(goal) : undefined,
+      current_amount: remaining,
+      cost_basis_rub: provider === 'usd' ? remaining * numeric(rate) : undefined,
       icon: style.icon,
       bg_color: style.bgColor,
-      icon_color: style.iconColor
+      icon_color: style.iconColor,
+      credit_annual_rate: isCredit && hasInterest ? annualRate : null,
+      credit_term_months: isCredit && hasInterest && termMonths > 0 ? termMonths : null,
+      credit_start_date:
+        isCredit && hasInterest && creditStartDate.trim()
+          ? creditStartDate.trim()
+          : null,
+      credit_remaining_months:
+        isCredit && hasInterest && termMonths > 0
+          ? (remainingFromSchedule ?? termMonths)
+          : null,
+      credit_early_repay_mode:
+        isCredit && hasInterest ? earlyRepayMode : null,
+      credit_payment:
+        isCredit && linkExpense && numeric(paymentAmount) > 0
+          ? {
+              amount: numeric(paymentAmount),
+              due_day: paymentDayNum,
+            }
+          : undefined,
     });
     await navigate({
       to: '/assets/$slug',
@@ -727,7 +889,7 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Например, Подушка безопасности"
+              placeholder={isCredit ? 'Например, Ипотека' : 'Например, Подушка безопасности'}
             />
           </div>
           <div>
@@ -742,8 +904,8 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
           {!asset ? (
             <>
               <div>
-                <Label required>Провайдер</Label>
-                <Select value={provider} onValueChange={(v) => setProvider(v as Asset['provider'])}>
+                <Label required>Тип</Label>
+                <Select value={provider} onValueChange={(v) => onProviderChange(v as Asset['provider'])}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -757,7 +919,11 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
                 </Select>
               </div>
               <div>
-                <Label>Текущая сумма{provider === 'rub' ? ', ₽' : ', $'}</Label>
+                <Label>
+                  {isCredit
+                    ? 'Остаток долга, ₽'
+                    : `Текущая сумма${provider === 'rub' ? ', ₽' : ', $'}`}
+                </Label>
                 <Input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -775,24 +941,150 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
                   />
                 </div>
               ) : null}
+              {isCredit ? (
+                <>
+                  <div>
+                    <Label>Исходный долг, ₽</Label>
+                    <Input
+                      value={goal}
+                      onChange={(e) => setGoal(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="Как остаток, если пусто"
+                    />
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      Нужен для прогресса погашения
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Ставка, % годовых</Label>
+                      <Input
+                        value={creditRate}
+                        onChange={(e) => setCreditRate(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="пусто = долг"
+                      />
+                    </div>
+                    <div>
+                      <Label>Срок, мес</Label>
+                      <Input
+                        value={creditTermMonths}
+                        onChange={(e) => setCreditTermMonths(e.target.value)}
+                        inputMode="numeric"
+                        placeholder="60"
+                        disabled={!hasInterest}
+                      />
+                    </div>
+                  </div>
+                  {hasInterest ? (
+                    <div>
+                      <Label>Дата выдачи</Label>
+                      <Input
+                        type="date"
+                        value={creditStartDate}
+                        onChange={(e) => setCreditStartDate(e.target.value)}
+                      />
+                      <p className="mt-1.5 text-xs text-slate-400">
+                        {isExistingLoan
+                          ? 'Кредит уже платится — укажите текущий платёж из банка'
+                          : 'Для нового кредита можно оставить сегодня'}
+                      </p>
+                    </div>
+                  ) : null}
+                  {hasInterest ? (
+                    <p className="text-xs text-slate-400">
+                      {suggestedPayment != null
+                        ? isExistingLoan
+                          ? `При выдаче платёж был бы ≈ ${suggestedPayment.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽`
+                          : `Аннуитет при выдаче ≈ ${suggestedPayment.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽`
+                        : 'Укажите исходный долг и срок'}
+                      {remainingFromSchedule != null
+                        ? ` · осталось ≈ ${remainingFromSchedule} мес.`
+                        : ''}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      Без ставки — простой долг: остаток делится на платёж
+                    </p>
+                  )}
+                  <div className="rounded-2xl border border-slate-100 bg-white p-3.5">
+                    <button
+                      type="button"
+                      onClick={() => setLinkExpense((v) => !v)}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <span
+                        className={
+                          linkExpense
+                            ? 'flex h-5 w-5 items-center justify-center rounded-full border-2 border-blue-600 bg-blue-600'
+                            : 'flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-300'
+                        }
+                      >
+                        {linkExpense ? (
+                          <span className="h-2 w-2 rounded-full bg-white" />
+                        ) : null}
+                      </span>
+                      <span>
+                        <p className="text-sm font-semibold text-slate-900">
+                          Создать обязательный платёж
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Появится в расходах и в отчёте цикла
+                        </p>
+                      </span>
+                    </button>
+                    {linkExpense ? (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Платёж / мес
+                          </Label>
+                          <Input
+                            value={paymentAmount}
+                            onChange={(e) => {
+                              setPaymentTouched(true);
+                              setPaymentAmount(e.target.value);
+                            }}
+                            inputMode="decimal"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            День
+                          </Label>
+                          <Input
+                            value={paymentDay}
+                            onChange={(e) => setPaymentDay(e.target.value)}
+                            inputMode="numeric"
+                            placeholder="10"
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
             </>
           ) : null}
 
-          <div>
-            <Label>Цель накопления</Label>
-            <div className="relative">
-              <Input
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                inputMode="decimal"
-                placeholder="Необязательно"
-                className="pr-8"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                {provider === 'usd' ? '$' : '₽'}
-              </span>
+          {!isCredit || asset ? (
+            <div>
+              <Label>{isCredit ? 'Исходный долг' : 'Цель накопления'}</Label>
+              <div className="relative">
+                <Input
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="Необязательно"
+                  className="pr-8"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  {provider === 'usd' ? '$' : '₽'}
+                </span>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <AssetStylePicker
             icon={style.icon}
@@ -822,6 +1114,51 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
 }
 
 export function AssetDetailScreen({ slug }: { slug: string }) {
+  const [probe, setProbe] = useState<{
+    state: 'loading' | 'credit' | 'asset' | 'missing';
+  }>({ state: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    void db.getAssetBySlug(slug).then((asset) => {
+      if (cancelled) return;
+      if (!asset) setProbe({ state: 'missing' });
+      else if (asset.provider === 'credit') setProbe({ state: 'credit' });
+      else setProbe({ state: 'asset' });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  if (probe.state === 'loading') {
+    return (
+      <PageTransition>
+        <main className={nestedShell}>Загрузка…</main>
+      </PageTransition>
+    );
+  }
+  if (probe.state === 'missing') {
+    return (
+      <PageTransition>
+        <ErrorPage
+          status={404}
+          title="Актив не найден"
+          message="Этот актив удалён или ссылка устарела. Вернитесь к списку активов и выберите другой."
+          homeTo="/assets"
+          homeLabel="К активам"
+        />
+      </PageTransition>
+    );
+  }
+  if (probe.state === 'credit') {
+    return <CreditDetailScreen slug={slug} />;
+  }
+
+  return <AssetDetailBody slug={slug} />;
+}
+
+function AssetDetailBody({ slug }: { slug: string }) {
   const navigate = useNavigate();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'missing'>('loading');
@@ -1590,7 +1927,13 @@ export function RulesScreen() {
                     </p>
                     <p className="mt-0.5 truncate text-sm text-slate-400">
                       {asset
-                        ? `${asset.name} · ${asset.provider === 'usd' ? '$' : '₽'}`
+                        ? `${asset.name} · ${
+                            asset.provider === 'credit'
+                              ? 'кредит'
+                              : asset.provider === 'usd'
+                                ? '$'
+                                : '₽'
+                          }`
                         : 'Без актива'}
                     </p>
                   </div>
@@ -1619,10 +1962,19 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
   const [target, setTarget] = useState(rule?.target_asset_id ? String(rule.target_asset_id) : '');
   const [type, setType] = useState<RuleType>(rule?.rule_type ?? 'percent');
   const [value, setValue] = useState(String(rule?.value ?? '10'));
+  const [creditMode, setCreditMode] = useState<'reduce_term' | 'reduce_payment'>(
+    rule?.credit_early_repay_mode ?? 'reduce_term',
+  );
 
   useEffect(() => {
     void db.getAllAssets().then(setAssets);
   }, []);
+
+  const selectedAsset = assets.find((a) => String(a.id) === target);
+  const targetIsCreditWithRate =
+    selectedAsset?.provider === 'credit' &&
+    selectedAsset.credit_annual_rate != null &&
+    selectedAsset.credit_annual_rate > 0;
 
   const save = async () => {
     if (!name.trim() || !value || !target) return;
@@ -1632,7 +1984,8 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
       value: numeric(value),
       currency: type === 'fixed' ? ('asset' as const) : ('rub' as const),
       target_asset_id: Number(target),
-      sort_order: rule?.sort_order ?? assets.length
+      sort_order: rule?.sort_order ?? assets.length,
+      credit_early_repay_mode: targetIsCreditWithRate ? creditMode : null,
     };
     if (rule) await db.updateRule(rule.id, input);
     else await db.createRule(input);
@@ -1665,7 +2018,15 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
                 <button
                   key={a.id}
                   type="button"
-                  onClick={() => setTarget(String(a.id))}
+                  onClick={() => {
+                    setTarget(String(a.id));
+                    if (
+                      a.provider === 'credit' &&
+                      a.credit_early_repay_mode
+                    ) {
+                      setCreditMode(a.credit_early_repay_mode);
+                    }
+                  }}
                   className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
                     target === String(a.id)
                       ? 'border-blue-500 ring-1 ring-blue-500'
@@ -1680,7 +2041,13 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
                   />
                   <div className="flex-1">
                     <p className="font-semibold">{a.name}</p>
-                    <p className="text-sm text-slate-400">{a.provider === 'usd' ? 'USD' : '₽'}</p>
+                    <p className="text-sm text-slate-400">
+                      {a.provider === 'credit'
+                        ? 'Кредит · долг'
+                        : a.provider === 'usd'
+                          ? 'USD'
+                          : '₽'}
+                    </p>
                   </div>
                   <span
                     className={`h-5 w-5 rounded-full border-2 ${
@@ -1696,6 +2063,44 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
               ) : null}
             </div>
           </div>
+
+          {targetIsCreditWithRate ? (
+            <div>
+              <Label>Досрочное погашение</Label>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {(
+                  [
+                    {
+                      id: 'reduce_term' as const,
+                      title: 'Сократить срок',
+                      hint: 'Платёж не меняется',
+                    },
+                    {
+                      id: 'reduce_payment' as const,
+                      title: 'Снизить платёж',
+                      hint: 'Платёж пересчитаем',
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setCreditMode(opt.id)}
+                    className={
+                      creditMode === opt.id
+                        ? 'rounded-2xl border-2 border-blue-600 bg-blue-50 px-3 py-2.5 text-left'
+                        : 'rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left'
+                    }
+                  >
+                    <p className="text-sm font-semibold text-slate-900">
+                      {opt.title}
+                    </p>
+                    <p className="text-xs text-slate-400">{opt.hint}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div>
             <Label>Тип</Label>

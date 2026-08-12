@@ -15,7 +15,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
@@ -28,12 +28,13 @@ import {
   tranchesFromPreset,
   type SalarySchedulePresetId,
 } from '@/lib/report/calculateSalaryPayment';
-import type { MoneyFlowEntry, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
+import type { Asset, MoneyFlowEntry, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
 import {
   createEmptyExpenseEntry,
   createEmptyIncomeEntry,
   formatRub,
 } from '@/lib/utils/format';
+import * as db from '@/lib/db';
 
 type Mode = 'income' | 'expense';
 
@@ -370,6 +371,7 @@ function EntryRow({
   onRemove,
   canRemove,
   onPresetApplied,
+  creditAssets,
 }: {
   entry: MoneyFlowEntry;
   mode: Mode;
@@ -380,6 +382,7 @@ function EntryRow({
   onRemove: () => void;
   canRemove: boolean;
   onPresetApplied?: () => void;
+  creditAssets: Asset[];
 }) {
   const update = (patch: Partial<MoneyFlowEntry>) =>
     onChange({ ...entry, ...patch });
@@ -389,6 +392,9 @@ function EntryRow({
   const title =
     entry.name.trim() ||
     (isIncome ? `Доход ${index + 1}` : `Расход ${index + 1}`);
+  const linkedCredit = creditAssets.find(
+    (a) => String(a.id) === entry.linkedAssetId,
+  );
 
   const scheduleKey = entry.isOneTime
     ? 'one_time'
@@ -473,6 +479,11 @@ function EntryRow({
             {entry.isPrimary ? (
               <Badge variant="soft" className="shrink-0 text-[10px]">
                 ОСН.
+              </Badge>
+            ) : null}
+            {linkedCredit ? (
+              <Badge variant="soft" className="shrink-0 text-[10px] text-rose-700">
+                КРЕДИТ
               </Badge>
             ) : null}
           </div>
@@ -764,6 +775,50 @@ function EntryRow({
             </div>
           )}
 
+          {!isIncome && creditAssets.length > 0 && !entry.isOneTime ? (
+            <div className="mb-4">
+              <Label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Платёж по кредиту
+              </Label>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => update({ linkedAssetId: undefined })}
+                  className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
+                    !entry.linkedAssetId
+                      ? 'border-blue-500 ring-1 ring-blue-500'
+                      : 'border-slate-100'
+                  }`}
+                >
+                  <p className="flex-1 text-sm font-semibold text-slate-900">
+                    Не привязан
+                  </p>
+                </button>
+                {creditAssets.map((credit) => (
+                  <button
+                    key={credit.id}
+                    type="button"
+                    onClick={() => update({ linkedAssetId: String(credit.id) })}
+                    className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
+                      entry.linkedAssetId === String(credit.id)
+                        ? 'border-blue-500 ring-1 ring-blue-500'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {credit.name}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Долг {formatRub(credit.current_amount)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {canRemove ? (
             <button
               type="button"
@@ -808,6 +863,7 @@ export function MoneyFlowStep({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState<{ id: string; name: string } | null>(null);
+  const [creditAssets, setCreditAssets] = useState<Asset[]>([]);
   const pendingRef = useRef(
     new Map<
       string,
@@ -815,6 +871,13 @@ export function MoneyFlowStep({
     >(),
   );
   const submitRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mode !== 'expense') return;
+    void db.getAllAssets().then((assets) => {
+      setCreditAssets(assets.filter((a) => a.provider === 'credit'));
+    });
+  }, [mode]);
 
   const canRemove = useMemo(
     () => entries.filter((e) => e.name.trim()).length > 0 || entries.length > 1,
@@ -1003,6 +1066,7 @@ export function MoneyFlowStep({
               onRemove={() => scheduleRemove(entry.id)}
               canRemove={canRemove}
               onPresetApplied={scrollToSubmit}
+              creditAssets={creditAssets}
             />
           ))}
         </div>
