@@ -295,6 +295,12 @@ export function HomeScreen() {
     return map;
   })();
 
+  /** Отклонённые правила не едят свободные деньги; pending + принятые — да. */
+  const effectiveAllocatedRub = report.allocations
+    .filter((item) => !rejectedIds.includes(item.ruleId))
+    .reduce((sum, item) => sum + item.amountRub, 0);
+  const freeMoney = report.remainder - effectiveAllocatedRub;
+
   const confirmAsset = async (assetId: number) => {
     if (report.isPreview) return;
     const allocations = allocationsByAsset.get(assetId) ?? [];
@@ -398,7 +404,7 @@ export function HomeScreen() {
         <FadeIn index={0} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
           <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
             <p className="text-sm text-slate-300">Свободные деньги</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">{formatRub(report.freeMoney)}</p>
+            <p className="mt-1 text-3xl font-bold tracking-tight">{formatRub(freeMoney)}</p>
           </Card>
         </FadeIn>
 
@@ -458,7 +464,7 @@ export function HomeScreen() {
             <p className="text-sm text-slate-500">Остаток до правил</p>
             <p className="text-xl font-bold text-slate-900">{formatRub(report.remainder)}</p>
             <p className="mt-1 text-xs text-slate-400">
-              Распределение: −{formatRub(report.totalAllocations)}
+              Распределение: −{formatRub(effectiveAllocatedRub)}
             </p>
           </Card>
         </FadeIn>
