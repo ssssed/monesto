@@ -1,11 +1,11 @@
 import { startOfDay, toPayoutDate } from '../calendar/workingDays';
 import { convertToRub } from '../exchange/convertToRub';
-import { getNextSchedulePaymentDate } from './calculateSalaryPayment';
 import { applyRules } from './applyRules';
 import {
   expandExpensesToLines,
   expandIncomeToLines,
   findPrimaryIncome,
+  resolveExpenseEndExclusive,
   resolveReportCycle,
   scheduleDaysFromPrimary,
 } from './dateWindow';
@@ -56,6 +56,15 @@ export function calculateReport(input: {
     scheduleDays[scheduleDays.length - 1] ??
     25;
 
+  const vacationCtx =
+    primary.income_kind === 'bimonthly_salary' && vacations.length
+      ? {
+          vacations,
+          monthlyAmount: primary.monthly_amount ?? 0,
+          tranches: primary.salary_tranches,
+        }
+      : undefined;
+
   let cycle = resolveReportCycle(input.today, cyclePaymentDay, scheduleDays);
   if (
     input.cycleNominalDate &&
@@ -64,17 +73,29 @@ export function calculateReport(input: {
     const todayStart = startOfDay(input.today);
     const nominalDate = startOfDay(input.cycleNominalDate);
     const payoutDate = toPayoutDate(nominalDate);
-    const nextNominal = getNextSchedulePaymentDate(nominalDate, scheduleDays);
     const incomeStart =
       todayStart <= nominalDate ? todayStart : nominalDate;
     cycle = {
       paymentDay: nominalDate.getDate(),
       nominalDate,
       payoutDate,
-      expenseEndExclusive: toPayoutDate(nextNominal),
+      expenseEndExclusive: resolveExpenseEndExclusive(
+        nominalDate,
+        scheduleDays,
+        vacationCtx,
+      ),
       incomeStart,
       expenseStart: payoutDate,
       isPreview: todayStart < payoutDate,
+    };
+  } else if (vacationCtx) {
+    cycle = {
+      ...cycle,
+      expenseEndExclusive: resolveExpenseEndExclusive(
+        cycle.nominalDate,
+        scheduleDays,
+        vacationCtx,
+      ),
     };
   }
 
@@ -113,7 +134,7 @@ export function calculateReport(input: {
   const totalIncome = incomeLines.reduce((sum, line) => sum + line.amount, 0);
   const totalExpenses = expenseLines.reduce(
     (sum, line) => sum + line.amount,
-    0,
+  0,
   );
   const remainder = totalIncome - totalExpenses;
 

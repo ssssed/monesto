@@ -206,22 +206,62 @@ function isEmptyPayment(
   return salary <= 0 && vacationPay <= 0;
 }
 
+export interface VacationReportContext {
+  vacations: VacationPeriod[];
+  monthlyAmount: number;
+  tranches?: SalaryTranche[] | null;
+}
+
+/**
+ * Конец окна расходов: следующая непустая выплата.
+ * Пустые циклы из‑за отпуска «поглощаются» предыдущим — расходы переезжают туда.
+ */
+export function resolveExpenseEndExclusive(
+  nominalDate: Date,
+  scheduleDays: SalaryPaymentDay[],
+  vacationCtx?: VacationReportContext,
+): Date {
+  const days = sortedPaymentDays(scheduleDays);
+  const vacations = vacationCtx?.vacations ?? [];
+  const monthlyAmount = vacationCtx?.monthlyAmount ?? 0;
+  const tranches = vacationCtx?.tranches;
+
+  if (!vacations.length || monthlyAmount <= 0) {
+    return toPayoutDate(getNextSchedulePaymentDate(nominalDate, days));
+  }
+
+  let cursor = startOfDay(nominalDate);
+  for (let i = 0; i < 8; i += 1) {
+    const next = getNextSchedulePaymentDate(cursor, days);
+    if (!isEmptyPayment(next, monthlyAmount, tranches, vacations, days)) {
+      return toPayoutDate(next);
+    }
+    cursor = next;
+  }
+
+  return toPayoutDate(getNextSchedulePaymentDate(nominalDate, days));
+}
+
 function resolveCycleForNominalDate(
   today: Date,
   nominalDate: Date,
   scheduleDays: SalaryPaymentDay[],
+  vacationCtx?: VacationReportContext,
 ): ReportCycle {
   const todayStart = startOfDay(today);
   const days = sortedPaymentDays(scheduleDays);
   const payoutDate = toPayoutDate(nominalDate);
-  const nextNominal = getNextSchedulePaymentDate(nominalDate, days);
   const incomeStart = todayStart <= nominalDate ? todayStart : nominalDate;
 
   return {
     paymentDay: nominalDate.getDate(),
     nominalDate,
     payoutDate,
-    expenseEndExclusive: toPayoutDate(nextNominal),
+    expenseEndExclusive: resolveExpenseEndExclusive(
+      nominalDate,
+      days,
+      vacationCtx,
+    ),
     incomeStart,
     expenseStart: payoutDate,
     isPreview: todayStart < payoutDate,
@@ -253,17 +293,23 @@ function findNextNonEmptyPayment(
   today: Date,
   afterDate: Date,
   scheduleDays: SalaryPaymentDay[],
-  monthlyAmount: number,
-  tranches: SalaryTranche[] | null | undefined,
-  vacations: VacationPeriod[],
+  vacationCtx: VacationReportContext,
 ): ReportCycle | null {
   const days = sortedPaymentDays(scheduleDays);
   let cursor = startOfDay(afterDate);
 
   for (let i = 0; i < 8; i += 1) {
     const next = getNextSchedulePaymentDate(cursor, days);
-    if (!isEmptyPayment(next, monthlyAmount, tranches, vacations, days)) {
-      return resolveCycleForNominalDate(today, next, days);
+    if (
+      !isEmptyPayment(
+        next,
+        vacationCtx.monthlyAmount,
+        vacationCtx.tranches,
+        vacationCtx.vacations,
+        days,
+      )
+    ) {
+      return resolveCycleForNominalDate(today, next, days, vacationCtx);
     }
     cursor = next;
   }
@@ -275,27 +321,27 @@ function findPreviousNonEmptyPayment(
   today: Date,
   beforeDate: Date,
   scheduleDays: SalaryPaymentDay[],
-  monthlyAmount: number,
-  tranches: SalaryTranche[] | null | undefined,
-  vacations: VacationPeriod[],
+  vacationCtx: VacationReportContext,
 ): ReportCycle | null {
   const days = sortedPaymentDays(scheduleDays);
   let cursor = startOfDay(beforeDate);
 
   for (let i = 0; i < 8; i += 1) {
     const prev = getPreviousSchedulePaymentDate(cursor, days);
-    if (!isEmptyPayment(prev, monthlyAmount, tranches, vacations, days)) {
-      return resolveCycleForNominalDate(today, prev, days);
+    if (
+      !isEmptyPayment(
+        prev,
+        vacationCtx.monthlyAmount,
+        vacationCtx.tranches,
+        vacationCtx.vacations,
+        days,
+      )
+    ) {
+      return resolveCycleForNominalDate(today, prev, days, vacationCtx);
     }
     cursor = prev;
   }
   return null;
-}
-
-export interface VacationReportContext {
-  vacations: VacationPeriod[];
-  monthlyAmount: number;
-  tranches?: SalaryTranche[] | null;
 }
 
 /** Доступные циклы по дням графика, отсортированные по дате выплаты. */
@@ -311,7 +357,7 @@ export function listReportCycles(
 
   const cycles = days.map((day) => resolveReportCycle(today, day, days));
 
-  if (!vacations.length || monthlyAmount <= 0) {
+  if (!vacations.length || monthlyAmount <= 0 || !vacationCtx) {
     return cycles.sort(
       (a, b) => a.payoutDate.getTime() - b.payoutDate.getTime(),
     );
@@ -330,7 +376,14 @@ export function listReportCycles(
     ) {
       continue;
     }
-    kept.push(cycle);
+    kept.push({
+      ...cycle,
+      expenseEndExclusive: resolveExpenseEndExclusive(
+        cycle.nominalDate,
+        days,
+        vacationCtx,
+      ),
+    });
   }
 
   const hasPreview = kept.some((c) => c.isPreview);
@@ -342,14 +395,7 @@ export function listReportCycles(
             kept[0]!.nominalDate,
           )
         : startOfDay(today);
-    const next = findNextNonEmptyPayment(
-      today,
-      after,
-      days,
-      monthlyAmount,
-      tranches,
-      vacations,
-    );
+    const next = findNextNonEmptyPayment(today, after, days, vacationCtx);
     if (
       next &&
       !kept.some((c) => c.nominalDate.getTime() === next.nominalDate.getTime())
@@ -369,14 +415,7 @@ export function listReportCycles(
             kept[0]!.nominalDate,
           )
         : startOfDay(today);
-    const prev = findPreviousNonEmptyPayment(
-      today,
-      before,
-      days,
-      monthlyAmount,
-      tranches,
-      vacations,
-    );
+    const prev = findPreviousNonEmptyPayment(today, before, days, vacationCtx);
     if (
       prev &&
       !kept.some((c) => c.nominalDate.getTime() === prev.nominalDate.getTime())

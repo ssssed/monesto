@@ -6,7 +6,10 @@ export function formatRub(amount: number): string {
 }
 
 export function formatUsd(amount: number): string {
-  return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+  const abs = Math.abs(amount).toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+  });
+  return amount < 0 ? `-$${abs}` : `$${abs}`;
 }
 
 export function formatMoney(amount: number, provider: 'rub' | 'usd'): string {

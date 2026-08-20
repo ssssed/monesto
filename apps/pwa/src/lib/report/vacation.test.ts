@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
+import { calculateReport } from './calculateReport';
 import {
   calculateSalaryPaymentAmount,
   DEFAULT_BIMONTHLY_TRANCHES,
 } from './calculateSalaryPayment';
-import { expandIncomeToLines, listReportCycles } from './dateWindow';
+import {
+  expandExpensesToLines,
+  expandIncomeToLines,
+  listReportCycles,
+} from './dateWindow';
 import {
   averageWorkingDaysPerMonth,
   calculateVacationPayout,
   resolveVacationPayDate,
 } from './vacation';
-import type { IncomeSource, VacationPeriod } from '../types';
+import type { Expense, IncomeSource, VacationPeriod } from '../types';
 
 const MONTHLY = 100_000;
 
@@ -171,5 +176,86 @@ describe('vacation vs salary plan — июль 16–31', () => {
 
     expect(keys).toContain('2026-7-25');
     expect(keys).toContain('2026-8-25');
+  });
+
+  it('расходы пустого цикла 10 авг переезжают в окно 25 июля', () => {
+    const vacationCtx = {
+      vacations: [vacationJuly],
+      monthlyAmount: MONTHLY,
+      tranches: DEFAULT_BIMONTHLY_TRANCHES,
+    };
+    const cycles = listReportCycles(new Date(2026, 6, 26), [10, 25], vacationCtx);
+    const july25 = cycles.find(
+      (c) =>
+        c.nominalDate.getFullYear() === 2026 &&
+        c.nominalDate.getMonth() === 6 &&
+        c.nominalDate.getDate() === 25,
+    );
+    const aug25 = cycles.find(
+      (c) =>
+        c.nominalDate.getFullYear() === 2026 &&
+        c.nominalDate.getMonth() === 7 &&
+        c.nominalDate.getDate() === 25,
+    );
+
+    expect(july25).toBeTruthy();
+    expect(aug25).toBeTruthy();
+    // Окно 25 июля тянется до 25 августа (пропуская пустую 10-ю)
+    expect(july25!.expenseEndExclusive.getTime()).toBe(
+      aug25!.expenseStart.getTime(),
+    );
+
+    const expense: Expense = {
+      id: 1,
+      name: 'Аренда',
+      amount: 50_000,
+      recurrence: 'monthly',
+      due_day: 15,
+      specific_date: null,
+      linked_asset_id: null,
+    };
+
+    const julyLines = expandExpensesToLines(
+      [expense],
+      july25!.expenseStart,
+      july25!.expenseEndExclusive,
+    );
+    const augLines = expandExpensesToLines(
+      [expense],
+      aug25!.expenseStart,
+      aug25!.expenseEndExclusive,
+    );
+
+    // 15 августа попало бы в пустой цикл 10→25; теперь в 25 июля
+    expect(julyLines.some((l) => l.name === 'Аренда')).toBe(true);
+    expect(augLines.some((l) => l.name === 'Аренда')).toBe(false);
+  });
+
+  it('calculateReport: расход 15 авг в цикле 25 июля при отпуске', () => {
+    const expense: Expense = {
+      id: 1,
+      name: 'Аренда',
+      amount: 50_000,
+      recurrence: 'monthly',
+      due_day: 15,
+      specific_date: null,
+      linked_asset_id: null,
+    };
+
+    const report = calculateReport({
+      incomes: [primarySalary],
+      expenses: [expense],
+      rules: [],
+      assets: [],
+      today: new Date(2026, 6, 26),
+      cyclePaymentDay: 25,
+      cycleNominalDate: new Date(2026, 6, 25),
+      vacations: [vacationJuly],
+    });
+
+    expect('code' in report).toBe(false);
+    if ('code' in report) return;
+    expect(report.expenseLines.some((l) => l.name === 'Аренда')).toBe(true);
+    expect(report.totalExpenses).toBe(50_000);
   });
 });
