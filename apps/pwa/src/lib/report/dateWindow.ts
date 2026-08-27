@@ -1,6 +1,5 @@
 import { startOfDay, toPayoutDate } from '../calendar/workingDays';
 import { convertToRub } from '../exchange/convertToRub';
-import { formatUsd } from '../utils/format';
 import {
   calculateSalaryPaymentAmount,
   getNextPrimaryPaymentDate,
@@ -21,6 +20,13 @@ import type {
   VacationPeriod,
 } from '../types';
 
+function formatUsdNote(amount: number): string {
+  const abs = Math.abs(amount).toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+  });
+  return amount < 0 ? `-$${abs}` : `$${abs}`;
+}
+
 function toReportAmount(
   nativeAmount: number,
   currency: IncomeSource['currency'] | Expense['currency'],
@@ -29,7 +35,7 @@ function toReportAmount(
   if (currency === 'usd') {
     return {
       amount: convertToRub(nativeAmount, 'usd', usdRubRate),
-      usdNote: formatUsd(nativeAmount),
+      usdNote: formatUsdNote(nativeAmount),
     };
   }
   return { amount: nativeAmount, usdNote: '' };

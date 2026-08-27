@@ -521,15 +521,14 @@ function EntryRow({
   expanded: boolean;
   preview?: boolean;
   onToggle: () => void;
-  onChange: (entry: MoneyFlowEntry) => void;
+  onChange: (patch: Partial<MoneyFlowEntry>) => void;
   onRemove: () => void;
   canRemove: boolean;
   onPresetApplied?: () => void;
   creditAssets: Asset[];
   usdRubRate: number;
 }) {
-  const update = (patch: Partial<MoneyFlowEntry>) =>
-    onChange({ ...entry, ...patch });
+  const update = (patch: Partial<MoneyFlowEntry>) => onChange(patch);
   const isIncome = mode === 'income';
   const currency = entry.currency ?? 'rub';
   const title =
@@ -1218,16 +1217,17 @@ export function MoneyFlowStep({
     });
   }
 
-  function updateEntry(id: string | undefined, next: MoneyFlowEntry) {
+  function updateEntry(id: string | undefined, patch: Partial<MoneyFlowEntry>) {
     if (!id) return;
-    setEntries((prev) => {
-      if (next.isPrimary && mode === 'income') {
-        return prev.map((item) =>
-          item.id === id ? next : { ...item, isPrimary: false },
-        );
-      }
-      return prev.map((e) => (e.id === id ? next : e));
-    });
+    setEntries((prev) =>
+      prev.map((item) => {
+        if (item.id === id) return { ...item, ...patch };
+        if (patch.isPrimary && mode === 'income') {
+          return { ...item, isPrimary: false };
+        }
+        return item;
+      }),
+    );
   }
 
   function add() {
@@ -1353,14 +1353,22 @@ export function MoneyFlowStep({
     setSaving(true);
     try {
       await onSubmit(
-        filled.map((entry) =>
-          entry.isBimonthlySalary
+        filled.map((entry) => {
+          const withCurrency = {
+            ...entry,
+            currency: entry.currency ?? 'rub',
+          };
+          return entry.isBimonthlySalary
             ? {
-                ...entry,
+                ...withCurrency,
                 salaryTranches: normalizeSalaryTranches(entry.salaryTranches),
               }
-            : entry,
-        ),
+            : withCurrency;
+        }),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось сохранить. Попробуйте ещё раз',
       );
     } finally {
       setSaving(false);
@@ -1453,7 +1461,7 @@ export function MoneyFlowStep({
                 if (preview) return;
                 setExpandedId(expandedId === entry.id ? null : entry.id ?? null);
               }}
-              onChange={(next) => updateEntry(entry.id, next)}
+              onChange={(patch) => updateEntry(entry.id, patch)}
               onRemove={() => scheduleRemove(entry.id)}
               canRemove={canRemove}
               onPresetApplied={scrollToSubmit}

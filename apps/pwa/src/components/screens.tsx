@@ -19,7 +19,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@monesto/rune';
-import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
+import { Link, useCanGoBack, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   ArrowDownLeft,
   ArrowUpDown,
@@ -42,6 +42,7 @@ import {
   useState,
   type ReactNode
 } from 'react';
+import { flushSync } from 'react-dom';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
 import { AssetReorderHandle } from '@/components/assets/AssetReorderHandle';
@@ -155,6 +156,7 @@ export function HomeScreen() {
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
   const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   const reload = useCallback(async () => {
     const [assets, incomes, expenses, rules, vacations] = await Promise.all([
@@ -183,6 +185,10 @@ export function HomeScreen() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (pathname === '/') void reload();
+  }, [pathname, reload]);
 
   const cycles = useMemo(() => {
     if (!data) return [];
@@ -230,7 +236,7 @@ export function HomeScreen() {
       today: new Date(),
       cyclePaymentDay: selectedCycle.paymentDay,
       cycleNominalDate: selectedCycle.nominalDate,
-      usdRubRate: rate ?? undefined,
+      usdRubRate: rate ?? 82,
     });
   }, [data, selectedCycle, rate]);
 
@@ -2110,12 +2116,30 @@ export function MoneyFlowScreen({
   const router = useRouter();
   const canGoBack = useCanGoBack();
   const [entries, setEntries] = useState<MoneyFlowEntry[] | null>(null);
+  const [entriesKey, setEntriesKey] = useState(0);
+
+  const loadEntries = useCallback(async () => {
+    if (mode === 'income') {
+      const rows = await db.getAllIncomes();
+      const mapped = incomesToEntries(rows);
+      flushSync(() => {
+        setEntries(mapped);
+        setEntriesKey((key) => key + 1);
+      });
+      return mapped;
+    }
+    const rows = await db.getAllExpenses();
+    const mapped = expensesToEntries(rows);
+    flushSync(() => {
+      setEntries(mapped);
+      setEntriesKey((key) => key + 1);
+    });
+    return mapped;
+  }, [mode]);
 
   useEffect(() => {
-    void (mode === 'income'
-      ? db.getAllIncomes().then((x) => setEntries(incomesToEntries(x)))
-      : db.getAllExpenses().then((x) => setEntries(expensesToEntries(x))));
-  }, [mode]);
+    void loadEntries();
+  }, [loadEntries, preview]);
 
   if (!entries) {
     return (
@@ -2128,6 +2152,8 @@ export function MoneyFlowScreen({
   const submit = async (next: MoneyFlowEntry[]) => {
     if (mode === 'income') await db.replaceAllIncomes(next);
     else await db.replaceAllExpenses(next);
+
+    await loadEntries();
 
     if (onboarding && mode === 'income') {
       await navigate({ to: '/onboarding/expenses' });
@@ -2155,7 +2181,7 @@ export function MoneyFlowScreen({
       ) : null}
       <div className="min-h-0 flex-1">
         <MoneyFlowStep
-          key={preview ? 'preview' : 'edit'}
+          key={`${preview ? 'preview' : 'edit'}-${entriesKey}`}
           mode={mode}
           onboarding={onboarding}
           preview={preview && !onboarding}
