@@ -1,4 +1,6 @@
 import { startOfDay, toPayoutDate } from '../calendar/workingDays';
+import { convertToRub } from '../exchange/convertToRub';
+import { formatUsd } from '../utils/format';
 import {
   calculateSalaryPaymentAmount,
   getNextPrimaryPaymentDate,
@@ -18,6 +20,20 @@ import type {
   SalaryTranche,
   VacationPeriod,
 } from '../types';
+
+function toReportAmount(
+  nativeAmount: number,
+  currency: IncomeSource['currency'] | Expense['currency'],
+  usdRubRate: number,
+): { amount: number; usdNote: string } {
+  if (currency === 'usd') {
+    return {
+      amount: convertToRub(nativeAmount, 'usd', usdRubRate),
+      usdNote: formatUsd(nativeAmount),
+    };
+  }
+  return { amount: nativeAmount, usdNote: '' };
+}
 
 export interface ReportCycle {
   paymentDay: SalaryPaymentDay;
@@ -469,6 +485,7 @@ export function expandIncomeToLines(
   targetDate: Date,
   incomeStart?: Date,
   vacations: VacationPeriod[] = [],
+  usdRubRate = 82,
 ): ReportIncomeLine[] {
   const lines: ReportIncomeLine[] = [];
   const windowStart = startOfDay(incomeStart ?? today);
@@ -493,10 +510,15 @@ export function expandIncomeToLines(
           vacations,
         );
         if (calc.amount <= 0) continue;
+        const converted = toReportAmount(
+          calc.amount,
+          income.currency ?? 'rub',
+          usdRubRate,
+        );
         lines.push({
           name: income.name,
-          amount: calc.amount,
-          detail: `${calc.periodLabel}, ${calc.workingDays} р.д.`,
+          amount: converted.amount,
+          detail: `${calc.periodLabel}, ${calc.workingDays} р.д.${converted.usdNote ? ` · ${converted.usdNote}` : ''}`,
           paymentDate: toPayoutDate(payment.date),
         });
       }
@@ -508,10 +530,15 @@ export function expandIncomeToLines(
       )) {
         // Сравниваем номинальную дату с окном цикла (как у зарплаты).
         if (payout.paymentDate >= windowStart && payout.paymentDate <= target) {
+          const converted = toReportAmount(
+            payout.amount,
+            income.currency ?? 'rub',
+            usdRubRate,
+          );
           lines.push({
             name: 'Отпускные',
-            amount: payout.amount,
-            detail: `${formatReportDate(payout.start)} – ${formatReportDate(payout.end)}, ${payout.days} дн.`,
+            amount: converted.amount,
+            detail: `${formatReportDate(payout.start)} – ${formatReportDate(payout.end)}, ${payout.days} дн.${converted.usdNote ? ` · ${converted.usdNote}` : ''}`,
             paymentDate: toPayoutDate(payout.paymentDate),
           });
         }
@@ -523,9 +550,15 @@ export function expandIncomeToLines(
       if (!income.specific_date) continue;
       const date = parseDate(income.specific_date);
       if (date >= windowStart && date <= target) {
+        const converted = toReportAmount(
+          income.amount ?? 0,
+          income.currency ?? 'rub',
+          usdRubRate,
+        );
         lines.push({
           name: income.name,
-          amount: income.amount ?? 0,
+          amount: converted.amount,
+          detail: converted.usdNote || undefined,
           paymentDate: date,
         });
       }
@@ -542,10 +575,17 @@ export function expandIncomeToLines(
         new Date(cursor.getFullYear(), cursor.getMonth(), income.payment_day),
       );
       if (paymentDate >= windowStart && paymentDate <= target) {
+        const converted = toReportAmount(
+          income.amount ?? 0,
+          income.currency ?? 'rub',
+          usdRubRate,
+        );
         lines.push({
           name: income.name,
-          amount: income.amount ?? 0,
-          detail: `${income.payment_day}-е число`,
+          amount: converted.amount,
+          detail: converted.usdNote
+            ? `${income.payment_day}-е · ${converted.usdNote}`
+            : `${income.payment_day}-е число`,
           paymentDate,
         });
       }
@@ -565,6 +605,7 @@ export function expandExpensesToLines(
   expenses: Expense[],
   expenseStart: Date,
   expenseEndExclusive: Date,
+  usdRubRate = 82,
 ): ReportExpenseLine[] {
   const lines: ReportExpenseLine[] = [];
   const rangeStart = startOfDay(expenseStart);
@@ -575,10 +616,17 @@ export function expandExpensesToLines(
       if (!expense.specific_date) continue;
       const date = parseDate(expense.specific_date);
       if (date >= rangeStart && date < endExclusive) {
+        const converted = toReportAmount(
+          expense.amount,
+          expense.currency ?? 'rub',
+          usdRubRate,
+        );
         lines.push({
           name: expense.name,
-          amount: expense.amount,
-          detail: expense.specific_date,
+          amount: converted.amount,
+          detail: converted.usdNote
+            ? `${expense.specific_date} · ${converted.usdNote}`
+            : expense.specific_date,
         });
       }
       continue;
@@ -598,10 +646,17 @@ export function expandExpensesToLines(
         new Date(cursor.getFullYear(), cursor.getMonth(), expense.due_day),
       );
       if (dueDate >= rangeStart && dueDate < endExclusive) {
+        const converted = toReportAmount(
+          expense.amount,
+          expense.currency ?? 'rub',
+          usdRubRate,
+        );
         lines.push({
           name: expense.name,
-          amount: expense.amount,
-          detail: `${expense.due_day}-е число`,
+          amount: converted.amount,
+          detail: converted.usdNote
+            ? `${expense.due_day}-е · ${converted.usdNote}`
+            : `${expense.due_day}-е число`,
         });
       }
       cursor.setMonth(cursor.getMonth() + 1);

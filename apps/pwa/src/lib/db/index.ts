@@ -98,11 +98,13 @@ function load(): AppDatabase {
     const parsed = JSON.parse(raw) as AppDatabase;
     parsed.income_sources = (parsed.income_sources ?? []).map((income) => ({
       ...income,
+      currency: income.currency ?? 'rub',
       salary_tranches: income.salary_tranches ?? null,
     }));
     parsed.vacation_periods = parsed.vacation_periods ?? [];
     parsed.expenses = (parsed.expenses ?? []).map((expense) => ({
       ...expense,
+      currency: expense.currency ?? 'rub',
       linked_asset_id: expense.linked_asset_id ?? null,
     }));
     parsed.assets = (parsed.assets ?? []).map((asset, i) => ({
@@ -207,6 +209,7 @@ export async function replaceAllIncomes(entries: MoneyFlowEntry[]): Promise<void
       return {
         id,
         name: entry.name,
+        currency: entry.currency ?? 'rub',
         income_kind: isBimonthly ? 'bimonthly_salary' : 'fixed',
         amount: isBimonthly ? null : Number(entry.amount),
         monthly_amount: isBimonthly
@@ -268,6 +271,7 @@ export async function replaceAllExpenses(entries: MoneyFlowEntry[]): Promise<voi
       return {
         id,
         name: entry.name,
+        currency: entry.currency ?? 'rub',
         amount: Number(entry.amount),
         recurrence: entry.isOneTime ? 'one_time' : 'monthly',
         due_day: entry.dueDay ? Number(entry.dueDay) : null,
@@ -340,6 +344,7 @@ export async function createAsset(input: {
       db.expenses.push({
         id: linkedExpenseId,
         name: `Платёж · ${input.name}`,
+        currency: 'rub',
         amount: input.credit_payment.amount,
         recurrence: 'monthly',
         due_day: input.credit_payment.due_day,

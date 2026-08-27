@@ -28,6 +28,7 @@ const vacationJuly: VacationPeriod = {
 const primarySalary: IncomeSource = {
   id: 1,
   name: 'Зарплата',
+  currency: 'rub',
   income_kind: 'bimonthly_salary',
   amount: null,
   monthly_amount: MONTHLY,
@@ -208,6 +209,7 @@ describe('vacation vs salary plan — июль 16–31', () => {
     const expense: Expense = {
       id: 1,
       name: 'Аренда',
+      currency: 'rub',
       amount: 50_000,
       recurrence: 'monthly',
       due_day: 15,
@@ -235,6 +237,7 @@ describe('vacation vs salary plan — июль 16–31', () => {
     const expense: Expense = {
       id: 1,
       name: 'Аренда',
+      currency: 'rub',
       amount: 50_000,
       recurrence: 'monthly',
       due_day: 15,

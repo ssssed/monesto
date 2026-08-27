@@ -37,13 +37,16 @@ import {
   tranchesFromPreset,
   type SalarySchedulePresetId,
 } from '@/lib/report/calculateSalaryPayment';
-import type { Asset, MoneyFlowEntry, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
+import type { Asset, MoneyFlowEntry, MoneyFlowCurrency, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
 import {
   createEmptyExpenseEntry,
   createEmptyIncomeEntry,
+  entryAmountRub,
   formatRub,
+  formatUsd,
 } from '@/lib/utils/format';
 import * as db from '@/lib/db';
+import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 type Mode = 'income' | 'expense';
 
@@ -240,7 +243,16 @@ function SchedulePresetPicker({
   );
 }
 
-function previewLine(entry: MoneyFlowEntry, mode: Mode): string {
+function formatEntryAmount(amount: number, currency: MoneyFlowCurrency): string {
+  return currency === 'usd' ? formatUsd(amount) : formatRub(amount);
+}
+
+function previewLine(
+  entry: MoneyFlowEntry,
+  mode: Mode,
+  usdRubRate: number,
+): string {
+  const currency = entry.currency ?? 'rub';
   if (entry.isBimonthlySalary) {
     const monthly = Number(entry.monthlyAmount ?? entry.amount ?? 0);
     const preset = detectSalarySchedulePreset(entry.salaryTranches);
@@ -252,25 +264,44 @@ function previewLine(entry: MoneyFlowEntry, mode: Mode): string {
           : formatTranchesPreview(
               entry.salaryTranches ?? createEmptyBimonthlyTranches(),
             );
-    return monthly ? `${formatRub(monthly)} / мес · ${schedule}` : schedule;
+    const amountLabel = monthly ? formatEntryAmount(monthly, currency) : '';
+    const rubHint =
+      currency === 'usd' && monthly
+        ? ` ≈ ${formatRub(entryAmountRub(entry, usdRubRate, { monthly: true }))}`
+        : '';
+    return monthly
+      ? `${amountLabel}${rubHint} / мес · ${schedule}`
+      : schedule;
   }
   if (entry.isOneTime) {
     const amount = Number(entry.amount || 0);
     const date = entry.specificDate || 'дата не указана';
-    return amount ? `${formatRub(amount)} · ${date}` : date;
+    const amountLabel = amount ? formatEntryAmount(amount, currency) : '';
+    const rubHint =
+      currency === 'usd' && amount
+        ? ` ≈ ${formatRub(entryAmountRub(entry, usdRubRate))}`
+        : '';
+    return amount ? `${amountLabel}${rubHint} · ${date}` : date;
   }
   const amount = Number(entry.amount || 0);
   const day = mode === 'income' ? entry.paymentDay : entry.dueDay;
   const dayLabel = day ? `${day}-е` : 'день?';
-  return amount ? `${formatRub(amount)} · ${dayLabel}` : dayLabel;
+  const amountLabel = amount ? formatEntryAmount(amount, currency) : '';
+  const rubHint =
+    currency === 'usd' && amount
+      ? ` ≈ ${formatRub(entryAmountRub(entry, usdRubRate))}`
+      : '';
+  return amount ? `${amountLabel}${rubHint} · ${dayLabel}` : dayLabel;
 }
 
 function MoneyFlowSummary({
   mode,
   entries,
+  usdRubRate,
 }: {
   mode: Mode;
   entries: MoneyFlowEntry[];
+  usdRubRate: number;
 }) {
   const filled = entries.filter((entry) => entry.name.trim());
   const isIncome = mode === 'income';
@@ -280,18 +311,20 @@ function MoneyFlowSummary({
       ? entries.reduce((sum, entry) => {
           if (entry.isOneTime) return sum;
           if (entry.isBimonthlySalary) {
-            return sum + Number(entry.monthlyAmount ?? entry.amount ?? 0);
+            return (
+              sum + entryAmountRub(entry, usdRubRate, { monthly: true })
+            );
           }
-          return sum + Number(entry.amount || 0);
+          return sum + entryAmountRub(entry, usdRubRate);
         }, 0)
       : entries.reduce((sum, entry) => {
           if (entry.isOneTime) return sum;
-          return sum + Number(entry.amount || 0);
+          return sum + entryAmountRub(entry, usdRubRate);
         }, 0);
 
   const oneTimeTotal = entries.reduce((sum, entry) => {
     if (!entry.isOneTime) return sum;
-    return sum + Number(entry.amount || 0);
+    return sum + entryAmountRub(entry, usdRubRate);
   }, 0);
 
   let hint: string | null = null;
@@ -310,7 +343,14 @@ function MoneyFlowSummary({
           new Date(now.getFullYear(), now.getMonth(), tranche.paymentDay),
           tranches,
         );
-        return `${tranche.paymentDay}-е ≈ ${formatRub(calc.amount)}`;
+        const rubAmount =
+          (salary.currency ?? 'rub') === 'usd'
+            ? entryAmountRub(
+                { ...salary, amount: String(calc.amount) },
+                usdRubRate,
+              )
+            : calc.amount;
+        return `${tranche.paymentDay}-е ≈ ${formatRub(rubAmount)}`;
       });
       hint = `Выплаты: ${parts.join(' · ')}`;
     }
@@ -473,6 +513,7 @@ function EntryRow({
   canRemove,
   onPresetApplied,
   creditAssets,
+  usdRubRate,
 }: {
   entry: MoneyFlowEntry;
   mode: Mode;
@@ -485,10 +526,12 @@ function EntryRow({
   canRemove: boolean;
   onPresetApplied?: () => void;
   creditAssets: Asset[];
+  usdRubRate: number;
 }) {
   const update = (patch: Partial<MoneyFlowEntry>) =>
     onChange({ ...entry, ...patch });
   const isIncome = mode === 'income';
+  const currency = entry.currency ?? 'rub';
   const title =
     entry.name.trim() ||
     (isIncome ? `Доход ${index + 1}` : `Расход ${index + 1}`);
@@ -612,7 +655,7 @@ function EntryRow({
                 ) : null}
               </div>
               <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
-                {previewLine(entry, mode)}
+                {previewLine(entry, mode, usdRubRate)}
               </p>
             </div>
           </div>
@@ -654,7 +697,7 @@ function EntryRow({
                 ) : null}
               </div>
               <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
-                {previewLine(entry, mode)}
+                {previewLine(entry, mode, usdRubRate)}
               </p>
             </div>
             {expanded ? (
@@ -764,25 +807,31 @@ function EntryRow({
 
             {/* Сумма — отдельный блок, чтобы не путали с названием */}
             <div className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
-              <Label
-                required
-                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                {entry.isBimonthlySalary && isIncome
-                  ? 'Оклад на руки / мес'
-                  : 'Сумма в рублях'}
-              </Label>
-              <p className="mt-0.5 mb-2 text-[11px] leading-4 text-slate-400">
-                {entry.isBimonthlySalary && isIncome
-                  ? 'Месячный оклад до вычета расходов'
-                  : isIncome
-                    ? 'Сколько приходит за этот доход'
-                    : 'Сколько уходит на этот платёж'}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Label
+                  required
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
+                  {entry.isBimonthlySalary && isIncome
+                    ? 'Оклад на руки / мес'
+                    : 'Сумма'}
+                </Label>
+                <SlidingToggleGroup
+                  size="sm"
+                  value={currency}
+                  onValueChange={(key) =>
+                    update({ currency: key as MoneyFlowCurrency })
+                  }
+                  options={[
+                    { value: 'rub', label: '₽' },
+                    { value: 'usd', label: '$' },
+                  ]}
+                />
+              </div>
               <div>
                 <Input
                   format="money"
-                  suffix="₽"
+                  suffix={currency === 'usd' ? '$' : '₽'}
                   withRelativeSuffix
                   className="border-0 bg-white text-lg font-bold shadow-none ring-1 ring-slate-200"
                   value={
@@ -801,6 +850,26 @@ function EntryRow({
                   placeholder="0"
                 />
               </div>
+              {currency === 'usd' &&
+              Number(
+                entry.isBimonthlySalary && isIncome
+                  ? (entry.monthlyAmount ?? entry.amount)
+                  : entry.amount,
+              ) > 0 ? (
+                <p className="mt-2 text-[11px] leading-4 text-slate-400">
+                  ≈{' '}
+                  {formatRub(
+                    entryAmountRub(
+                      entry,
+                      usdRubRate,
+                      entry.isBimonthlySalary && isIncome
+                        ? { monthly: true }
+                        : undefined,
+                    ),
+                  )}{' '}
+                  по курсу {usdRubRate.toFixed(2)} ₽/$
+                </p>
+              ) : null}
 
               {!entry.isOneTime && !entry.isBimonthlySalary ? (
                 <div className="mt-3">
@@ -1107,6 +1176,7 @@ export function MoneyFlowStep({
   preview?: boolean;
 }) {
   const navigate = useNavigate();
+  const usdRubRate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
   const [entries, setEntries] = useState<MoneyFlowEntry[]>(
     initialEntries.length
       ? initialEntries
@@ -1329,7 +1399,7 @@ export function MoneyFlowStep({
           ) : null}
         </div>
 
-        <MoneyFlowSummary mode={mode} entries={entries} />
+        <MoneyFlowSummary mode={mode} entries={entries} usdRubRate={usdRubRate} />
 
         {preview ? (
           <div className="flex items-center gap-3 rounded-2xl bg-blue-50 px-4 py-3.5 ring-1 ring-blue-100">
@@ -1388,6 +1458,7 @@ export function MoneyFlowStep({
               canRemove={canRemove}
               onPresetApplied={scrollToSubmit}
               creditAssets={creditAssets}
+              usdRubRate={usdRubRate}
             />
           ))}
         </div>

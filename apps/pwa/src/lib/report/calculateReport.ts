@@ -113,7 +113,10 @@ export function calculateReport(input: {
         rule.target_asset_id != null &&
         input.assets.find((a) => a.id === rule.target_asset_id)?.provider ===
           'usd',
-    ) || input.assets.some((asset) => asset.provider === 'usd');
+    ) ||
+    input.assets.some((asset) => asset.provider === 'usd') ||
+    input.incomes.some((income) => (income.currency ?? 'rub') === 'usd') ||
+    input.expenses.some((expense) => (expense.currency ?? 'rub') === 'usd');
 
   if (needsUsd && input.usdRubRate == null) {
     return {
@@ -130,11 +133,13 @@ export function calculateReport(input: {
     cycle.nominalDate,
     cycle.incomeStart,
     vacations,
+    usdRubRate,
   );
   const expenseLines = expandExpensesToLines(
     input.expenses,
     cycle.expenseStart,
     cycle.expenseEndExclusive,
+    usdRubRate,
   );
 
   const totalIncome = incomeLines.reduce((sum, line) => sum + line.amount, 0);

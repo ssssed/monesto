@@ -1,5 +1,6 @@
 import type { Expense, IncomeSource, MoneyFlowEntry } from '../types';
 import { createEmptyBimonthlyTranches } from '../report/calculateSalaryPayment';
+import { convertToRub } from '../exchange/convertToRub';
 
 export function formatRub(amount: number): string {
   return `${Math.round(amount).toLocaleString('ru-RU')} ₽`;
@@ -27,6 +28,7 @@ export function createEmptyIncomeEntry(): MoneyFlowEntry {
   return {
     id: `${Date.now()}-${Math.random()}`,
     name: '',
+    currency: 'rub',
     amount: '',
     isOneTime: false,
     isBimonthlySalary: false,
@@ -42,6 +44,7 @@ export function createEmptyExpenseEntry(): MoneyFlowEntry {
   return {
     id: `${Date.now()}-${Math.random()}`,
     name: '',
+    currency: 'rub',
     amount: '',
     isOneTime: false,
     dueDay: '',
@@ -52,6 +55,7 @@ export function incomesToEntries(incomes: IncomeSource[]): MoneyFlowEntry[] {
   return incomes.map((income) => ({
     id: String(income.id),
     name: income.name,
+    currency: income.currency ?? 'rub',
     amount: income.amount != null ? String(income.amount) : '',
     isOneTime: income.is_one_time,
     isBimonthlySalary: income.income_kind === 'bimonthly_salary',
@@ -69,10 +73,23 @@ export function incomesToEntries(incomes: IncomeSource[]): MoneyFlowEntry[] {
   }));
 }
 
+export function entryAmountRub(
+  entry: MoneyFlowEntry,
+  usdRubRate: number,
+  opts?: { monthly?: boolean },
+): number {
+  const currency = entry.currency ?? 'rub';
+  const raw = opts?.monthly
+    ? Number(entry.monthlyAmount ?? entry.amount ?? 0)
+    : Number(entry.amount || 0);
+  return convertToRub(raw, currency, usdRubRate);
+}
+
 export function expensesToEntries(expenses: Expense[]): MoneyFlowEntry[] {
   return expenses.map((expense) => ({
     id: String(expense.id),
     name: expense.name,
+    currency: expense.currency ?? 'rub',
     amount: String(expense.amount),
     isOneTime: expense.recurrence === 'one_time',
     dueDay: expense.due_day != null ? String(expense.due_day) : '',
