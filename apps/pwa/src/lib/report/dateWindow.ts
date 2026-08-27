@@ -118,9 +118,35 @@ export function resolveReportWindow(
   }
 
   const expenseEndExclusive = getNextSchedulePaymentDate(incomeDate, days);
-  const incomeStart = todayStart <= incomeDate ? todayStart : incomeDate;
+  const rawIncomeStart = todayStart <= incomeDate ? todayStart : incomeDate;
+  const incomeStart = clampIncomeStart(rawIncomeStart, incomeDate, days);
 
   return { incomeDate, expenseEndExclusive, incomeStart };
+}
+
+/**
+ * Не даём incomeStart залезть на день предыдущей выплаты по графику —
+ * иначе её сумма задвоится: попадёт и в свой цикл, и в этот.
+ * Актуально, когда «сегодня» само совпадает с чужой датой выплаты (напр. 25-е).
+ */
+export function clampIncomeStart(
+  candidate: Date,
+  incomeDate: Date,
+  scheduleDays: SalaryPaymentDay[],
+): Date {
+  if (scheduleDays.length <= 1) return candidate;
+  const prevScheduleDate = getPreviousSchedulePaymentDate(
+    incomeDate,
+    scheduleDays,
+  );
+  const lowerBound = startOfDay(
+    new Date(
+      prevScheduleDate.getFullYear(),
+      prevScheduleDate.getMonth(),
+      prevScheduleDate.getDate() + 1,
+    ),
+  );
+  return candidate < lowerBound ? lowerBound : candidate;
 }
 
 /** Цикл отчёта для якоря выплаты с учётом выходных. */
@@ -251,7 +277,8 @@ function resolveCycleForNominalDate(
   const todayStart = startOfDay(today);
   const days = sortedPaymentDays(scheduleDays);
   const payoutDate = toPayoutDate(nominalDate);
-  const incomeStart = todayStart <= nominalDate ? todayStart : nominalDate;
+  const rawIncomeStart = todayStart <= nominalDate ? todayStart : nominalDate;
+  const incomeStart = clampIncomeStart(rawIncomeStart, nominalDate, days);
 
   return {
     paymentDay: nominalDate.getDate(),

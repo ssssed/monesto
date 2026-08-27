@@ -2,6 +2,7 @@ import { startOfDay, toPayoutDate } from '../calendar/workingDays';
 import { convertToRub } from '../exchange/convertToRub';
 import { applyRules } from './applyRules';
 import {
+  clampIncomeStart,
   expandExpensesToLines,
   expandIncomeToLines,
   findPrimaryIncome,
@@ -73,8 +74,13 @@ export function calculateReport(input: {
     const todayStart = startOfDay(input.today);
     const nominalDate = startOfDay(input.cycleNominalDate);
     const payoutDate = toPayoutDate(nominalDate);
-    const incomeStart =
+    const rawIncomeStart =
       todayStart <= nominalDate ? todayStart : nominalDate;
+    const incomeStart = clampIncomeStart(
+      rawIncomeStart,
+      nominalDate,
+      scheduleDays,
+    );
     cycle = {
       paymentDay: nominalDate.getDate(),
       nominalDate,
