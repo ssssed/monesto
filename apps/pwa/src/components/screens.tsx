@@ -778,14 +778,20 @@ export function AssetsScreen() {
         />
       </FadeIn>
       <FadeIn index={1} variant="scale">
-        <Card className="border-0 bg-blue-50 p-5 shadow-none">
-          <p className="text-xs lowercase text-slate-400">накопления</p>
-          <p className="text-3xl font-bold text-slate-900">{formatRub(total)}</p>
+        <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
+          <p className="text-sm text-slate-300">Всего активов</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">
+            {formatRub(total)}
+          </p>
           {totalDebt > 0 ? (
-            <p className="mt-1.5 text-sm text-rose-700/70">
+            <p className="mt-3 text-sm text-rose-300/80">
               Долги · {formatRub(totalDebt)}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-3 text-sm text-slate-400">
+              В рублях по текущему курсу
+            </p>
+          )}
         </Card>
       </FadeIn>
 
