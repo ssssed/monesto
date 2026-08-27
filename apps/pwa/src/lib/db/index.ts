@@ -617,6 +617,12 @@ export async function getTransactions(
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
+export async function getAllAssetTransactions(): Promise<AssetTransaction[]> {
+  return [...load().asset_transactions].sort((a, b) =>
+    b.created_at.localeCompare(a.created_at),
+  );
+}
+
 export async function getAssetTrend(
   assetId: number,
 ): Promise<'up' | 'down' | 'flat'> {

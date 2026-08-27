@@ -63,7 +63,13 @@ import { ErrorPage } from '@/components/ui/ErrorPage';
 import { GoalProgressBadge, TrendBadge } from '@/components/ui/GoalProgressBadge';
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
+import { YearSummaryBanner } from '@/components/year-summary/YearSummaryBanner';
 import * as db from '@/lib/db';
+import { isYearSummaryEnabled } from '@/lib/features';
+import {
+  computeYearSummary,
+  type YearSummary,
+} from '@/lib/year-summary/computeYearSummary';
 import { calcUsdValuation } from '@/lib/exchange/usdValuation';
 import {
   contractualAnnuityPayment,
@@ -147,6 +153,7 @@ export function HomeScreen() {
   const [cycleKey, setCycleKey] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
+  const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
 
   const reload = useCallback(async () => {
@@ -158,7 +165,20 @@ export function HomeScreen() {
       db.getAllVacations(),
     ]);
     setData({ assets, incomes, expenses, rules, vacations });
-  }, []);
+
+    if (isYearSummaryEnabled()) {
+      const transactions = await db.getAllAssetTransactions();
+      setYearSummary(
+        computeYearSummary({
+          assets,
+          transactions,
+          usdRubRate: rate ?? 82,
+        }),
+      );
+    } else {
+      setYearSummary(null);
+    }
+  }, [rate]);
 
   useEffect(() => {
     void reload();
@@ -388,6 +408,12 @@ export function HomeScreen() {
           </p>
         </div>
       </FadeIn>
+
+      {yearSummary ? (
+        <FadeIn index={3}>
+          <YearSummaryBanner summary={yearSummary} />
+        </FadeIn>
+      ) : null}
 
       <div className="space-y-3">
         <FadeIn index={0} baseDelay={180} step={140} variant="rise" durationClass="duration-700">

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as YearSummaryRouteImport } from './routes/year-summary'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
 import { Route as AssetsSlugRouteImport } from './routes/assets/$slug'
 import { Route as AssetsNewRouteImport } from './routes/assets/new'
@@ -28,6 +29,11 @@ import { Route as SettingsRulesNewRouteImport } from './routes/settings/rules/ne
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const YearSummaryRoute = YearSummaryRouteImport.update({
+  id: '/year-summary',
+  path: '/year-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssetsIndexRoute = AssetsIndexRouteImport.update({
@@ -103,6 +109,7 @@ const SettingsRulesNewRoute = SettingsRulesNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/year-summary': typeof YearSummaryRoute
   '/assets/$slug': typeof AssetsSlugRoute
   '/assets/new': typeof AssetsNewRoute
   '/onboarding/expenses': typeof OnboardingExpensesRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/year-summary': typeof YearSummaryRoute
   '/assets/$slug': typeof AssetsSlugRoute
   '/assets/new': typeof AssetsNewRoute
   '/onboarding/expenses': typeof OnboardingExpensesRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/year-summary': typeof YearSummaryRoute
   '/assets/$slug': typeof AssetsSlugRoute
   '/assets/new': typeof AssetsNewRoute
   '/onboarding/expenses': typeof OnboardingExpensesRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/year-summary'
     | '/assets/$slug'
     | '/assets/new'
     | '/onboarding/expenses'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/year-summary'
     | '/assets/$slug'
     | '/assets/new'
     | '/onboarding/expenses'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/year-summary'
     | '/assets/$slug'
     | '/assets/new'
     | '/onboarding/expenses'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  YearSummaryRoute: typeof YearSummaryRoute
   AssetsSlugRoute: typeof AssetsSlugRoute
   AssetsNewRoute: typeof AssetsNewRoute
   OnboardingExpensesRoute: typeof OnboardingExpensesRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/year-summary': {
+      id: '/year-summary'
+      path: '/year-summary'
+      fullPath: '/year-summary'
+      preLoaderRoute: typeof YearSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assets/': {
@@ -337,6 +357,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  YearSummaryRoute: YearSummaryRoute,
   AssetsSlugRoute: AssetsSlugRoute,
   AssetsNewRoute: AssetsNewRoute,
   OnboardingExpensesRoute: OnboardingExpensesRoute,

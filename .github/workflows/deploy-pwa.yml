@@ -41,6 +41,7 @@ jobs:
       - name: Build PWA
         env:
           BASE_PATH: /monesto/
+          VITE_FEATURE_YEAR_SUMMARY: ${{ vars.VITE_FEATURE_YEAR_SUMMARY || 'true' }}
         run: npm run build -w @monesto/pwa
 
       - name: Publish to gh-pages
