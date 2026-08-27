@@ -101,11 +101,31 @@ import { assetSlug } from '@/lib/utils/slug';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 const shell = 'mx-auto w-full px-5 pt-6 pb-[110px]';
-/** Nested screens without tab bar. */
+
+function paymentsLabel(count: number): string {
+  if (count === 0) return 'Нет платежей';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} платеж`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    return `${count} платежа`;
+  }
+  return `${count} платежей`;
+}
+
+function uniqueLineNames(lines: { name: string }[]): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const line of lines) {
+    if (seen.has(line.name)) continue;
+    seen.add(line.name);
+    names.push(line.name);
+  }
+  return names;
+}
+
 const nestedShell = 'mx-auto w-full px-5 pt-6 pb-8';
-/** Full-viewport form: scrollable body + footer pinned to bottom. */
 const formShell = 'mx-auto flex h-full min-h-0 w-full flex-col px-5 pt-6';
-/** Scrollable form body — inset ring не обрезается. */
 const formScroll =
   'min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-4';
 const UNDO_MS = 7000;
@@ -115,50 +135,6 @@ const defaults = {
   iconColor: '#2563EB'
 };
 const numeric = (value: string) => Math.max(0, Number(value.replace(',', '.')) || 0);
-
-/** Схлопывает строки отчёта с одинаковым именем. */
-function aggregateNamedAmounts(
-  lines: { name: string; amount: number }[],
-): { name: string; amount: number }[] {
-  const map = new Map<string, number>();
-  for (const line of lines) {
-    map.set(line.name, (map.get(line.name) ?? 0) + line.amount);
-  }
-  return [...map.entries()].map(([name, amount]) => ({ name, amount }));
-}
-
-function ReportBreakdown({
-  lines,
-  emptyLabel,
-  tone,
-}: {
-  lines: { name: string; amount: number }[];
-  emptyLabel: string;
-  tone: 'income' | 'expense';
-}) {
-  const items = aggregateNamedAmounts(lines);
-  const text = tone === 'income' ? 'text-emerald-700/75' : 'text-rose-700/75';
-
-  if (!items.length) {
-    return <p className={`mt-1.5 text-[11px] leading-4 ${text}`}>{emptyLabel}</p>;
-  }
-
-  return (
-    <ul className="mt-1.5 space-y-1">
-      {items.map((item) => (
-        <li
-          key={item.name}
-          className={`flex items-start justify-between gap-2 text-[11px] leading-4 ${text}`}
-        >
-          <span className="min-w-0 flex-1 truncate">{item.name}</span>
-          <span className="shrink-0 font-semibold tabular-nums">
-            {formatRub(item.amount)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export function HomeScreen() {
   const [data, setData] = useState<{
@@ -301,6 +277,19 @@ export function HomeScreen() {
     .reduce((sum, item) => sum + item.amountRub, 0);
   const freeMoney = report.remainder - effectiveAllocatedRub;
 
+  const reportAssets = (report.assetSummary ?? []).filter(
+    (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
+  );
+  const rulesBudget = summarizeRulesBudget({
+    remainder: report.remainder,
+    rules: data.rules,
+    assets: data.assets,
+    usdRubRate: rate ?? 82,
+  });
+  const incomeNames = uniqueLineNames(report.incomeLines);
+  const expenseCount = uniqueLineNames(report.expenseLines).length;
+  const originStart = 9 + Math.max(reportAssets.length, 1);
+
   const confirmAsset = async (assetId: number) => {
     if (report.isPreview) return;
     const allocations = allocationsByAsset.get(assetId) ?? [];
@@ -405,66 +394,8 @@ export function HomeScreen() {
           <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
             <p className="text-sm text-slate-300">Свободные деньги</p>
             <p className="mt-1 text-3xl font-bold tracking-tight">{formatRub(freeMoney)}</p>
-          </Card>
-        </FadeIn>
-
-        <div className="grid grid-cols-2 items-stretch gap-3">
-          <FadeIn
-            index={1}
-            baseDelay={180}
-            step={140}
-            variant="rise"
-            durationClass="duration-700"
-            className="h-full"
-          >
-            <Card className="flex h-full flex-col border border-[var(--color-income)]/20 bg-[var(--color-income-soft)] p-4 shadow-none">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
-                Доходы
-              </p>
-              <p className="mt-1 text-lg font-bold text-[var(--color-income)]">
-                {formatRub(report.totalIncome)}
-              </p>
-              <div className="mt-2">
-                <ReportBreakdown
-                  lines={report.incomeLines}
-                  emptyLabel="Нет доходов в цикле"
-                  tone="income"
-                />
-              </div>
-            </Card>
-          </FadeIn>
-          <FadeIn
-            index={2}
-            baseDelay={180}
-            step={140}
-            variant="rise"
-            durationClass="duration-700"
-            className="h-full"
-          >
-            <Card className="flex h-full flex-col border border-[var(--color-expense)]/20 bg-[var(--color-expense-soft)] p-4 shadow-none">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
-                Расходы
-              </p>
-              <p className="mt-1 text-lg font-bold text-[var(--color-expense)]">
-                {formatRub(report.totalExpenses)}
-              </p>
-              <div className="mt-2">
-                <ReportBreakdown
-                  lines={report.expenseLines}
-                  emptyLabel="Нет расходов в цикле"
-                  tone="expense"
-                />
-              </div>
-            </Card>
-          </FadeIn>
-        </div>
-
-        <FadeIn index={3} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
-          <Card className="border-slate-100 p-4 shadow-sm">
-            <p className="text-sm text-slate-500">Остаток до правил</p>
-            <p className="text-xl font-bold text-slate-900">{formatRub(report.remainder)}</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Распределение: −{formatRub(effectiveAllocatedRub)}
+            <p className="mt-2 text-sm text-slate-400">
+              Распределение · {formatRub(effectiveAllocatedRub)}
             </p>
           </Card>
         </FadeIn>
@@ -472,7 +403,7 @@ export function HomeScreen() {
 
       <section className="space-y-1">
         <FadeIn index={8} baseDelay={40} step={55}>
-          <h2 className="font-bold text-slate-900">Ваши активы</h2>
+          <h2 className="font-bold text-slate-900">Что получат активы</h2>
           <p className="mb-3 text-xs leading-relaxed text-slate-400">
             {report.isPreview
               ? 'Сюда попадёт остаток после расходов по вашим правилам. В плане будущего цикла подтверждения ещё недоступны.'
@@ -480,9 +411,6 @@ export function HomeScreen() {
           </p>
         </FadeIn>
         {(() => {
-          const reportAssets = (report.assetSummary ?? []).filter(
-            (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
-          );
           if (!reportAssets.length) {
             const hasAnyAssets = data.assets.length > 0;
             return (
@@ -562,6 +490,86 @@ export function HomeScreen() {
             );
           });
         })()}
+      </section>
+
+      <section className="space-y-3">
+        <FadeIn index={originStart} baseDelay={40} step={55}>
+          <h2 className="font-bold text-slate-900">Откуда взялось</h2>
+        </FadeIn>
+
+        <div className="grid grid-cols-2 items-stretch gap-3">
+          <FadeIn
+            index={originStart + 1}
+            baseDelay={40}
+            step={55}
+            variant="rise"
+            durationClass="duration-700"
+            className="h-full"
+          >
+            <Link to="/settings/income" className="block h-full">
+              <Card className="flex h-full flex-col border border-[var(--color-income)]/20 bg-[var(--color-income-soft)] p-4 shadow-none">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
+                  Доходы
+                </p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-income)]">
+                  {formatRub(report.totalIncome)}
+                </p>
+                <p className="mt-2 truncate text-[11px] leading-4 text-emerald-700/75">
+                  {incomeNames.length ? incomeNames.join(' · ') : 'Нет доходов в цикле'}
+                </p>
+              </Card>
+            </Link>
+          </FadeIn>
+          <FadeIn
+            index={originStart + 2}
+            baseDelay={40}
+            step={55}
+            variant="rise"
+            durationClass="duration-700"
+            className="h-full"
+          >
+            <Link to="/settings/expenses" className="block h-full">
+              <Card className="flex h-full flex-col border border-[var(--color-expense)]/20 bg-[var(--color-expense-soft)] p-4 shadow-none">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
+                  Расходы
+                </p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-expense)]">
+                  {formatRub(report.totalExpenses)}
+                </p>
+                <p className="mt-2 text-[11px] leading-4 text-rose-700/75">
+                  {paymentsLabel(expenseCount)}
+                </p>
+              </Card>
+            </Link>
+          </FadeIn>
+        </div>
+
+        <FadeIn
+          index={originStart + 3}
+          baseDelay={40}
+          step={55}
+          variant="rise"
+          durationClass="duration-700"
+        >
+          <Link to="/settings/rules" className="block">
+            <Card className="border-slate-100 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <GitBranch className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900">Правила распределения</p>
+                  <p className="text-sm text-slate-400">
+                    {rulesBudget.overBudget
+                      ? `Занято ${rulesBudget.totalPercent.toFixed(1)}% — перебор`
+                      : `Занято ${rulesBudget.totalPercent.toFixed(1)}% остатка`}
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
+              </div>
+            </Card>
+          </Link>
+        </FadeIn>
       </section>
     </main>
   );
