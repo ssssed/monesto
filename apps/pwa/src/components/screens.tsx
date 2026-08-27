@@ -1468,8 +1468,11 @@ function AssetDetailBody({ slug }: { slug: string }) {
   const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof db.getTransactions>>>(
     []
   );
+  const [transferTargets, setTransferTargets] = useState<Asset[]>([]);
   const [amount, setAmount] = useState('');
   const [buyRate, setBuyRate] = useState('82');
+  const [sellRate, setSellRate] = useState('82');
+  const [transferTargetId, setTransferTargetId] = useState('');
   const [mode, setMode] = useState<'deposit' | 'withdraw' | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
@@ -1487,11 +1490,16 @@ function AssetDetailBody({ slug }: { slug: string }) {
     if (!next) {
       setAsset(null);
       setTransactions([]);
+      setTransferTargets([]);
       setLoadState('missing');
       return;
     }
     setAsset(next);
     setTransactions(await db.getTransactions(next.id));
+    const all = await db.getAllAssets();
+    setTransferTargets(
+      all.filter((a) => a.id !== next.id && a.provider === 'rub'),
+    );
     setLoadState('ready');
   }, [slug]);
 
@@ -1511,6 +1519,12 @@ function AssetDetailBody({ slug }: { slug: string }) {
       iconColor: asset.icon_color
     });
   }, [asset, editOpen]);
+
+  useEffect(() => {
+    if (mode !== 'withdraw' || !asset || asset.provider !== 'usd') return;
+    setSellRate(String(usdRate));
+    setTransferTargetId('');
+  }, [mode, asset, usdRate]);
 
   if (loadState === 'loading') {
     return (
@@ -1534,17 +1548,53 @@ function AssetDetailBody({ slug }: { slug: string }) {
     );
   }
 
+  const closeMoneySheet = () => {
+    setMode(null);
+    setAmount('');
+    setTransferTargetId('');
+  };
+
   const change = async () => {
     const value = numeric(amount);
     if (!value || !mode) return;
-    await db.addTransaction(
-      asset.id,
-      mode === 'deposit' ? value : -value,
-      mode === 'deposit' ? 'Пополнение' : 'Списание',
-      asset.provider === 'usd' && mode === 'deposit' ? value * numeric(buyRate) : undefined
-    );
-    setMode(null);
-    setAmount('');
+
+    if (mode === 'deposit') {
+      await db.addTransaction(
+        asset.id,
+        value,
+        'Пополнение',
+        asset.provider === 'usd' ? value * numeric(buyRate) : undefined,
+      );
+      closeMoneySheet();
+      await reload();
+      return;
+    }
+
+    if (asset.provider === 'usd') {
+      const rate = numeric(sellRate);
+      if (!rate || !transferTargetId) return;
+      if (value > asset.current_amount) return;
+      const target = transferTargets.find((a) => String(a.id) === transferTargetId);
+      if (!target) return;
+      const rubReceived = value * rate;
+      await db.addTransaction(
+        asset.id,
+        -value,
+        `Продажа → ${target.name} · курс ${rate}`,
+      );
+      await db.addTransaction(
+        target.id,
+        rubReceived,
+        `Из «${asset.name}» · ${formatUsd(value)} × ${rate}`,
+        rubReceived,
+      );
+      closeMoneySheet();
+      await reload();
+      return;
+    }
+
+    await db.addTransaction(asset.id, -value, 'Списание');
+    closeMoneySheet();
     await reload();
   };
 
@@ -1780,7 +1830,12 @@ function AssetDetailBody({ slug }: { slug: string }) {
           )}
         </section>
 
-        <Sheet open={mode != null} onOpenChange={(o) => !o && setMode(null)}>
+        <Sheet
+          open={mode != null}
+          onOpenChange={(o) => {
+            if (!o) closeMoneySheet();
+          }}
+        >
           <SheetContent>
             <SheetHeader>
               <SheetTitle>{mode === 'deposit' ? 'Пополнить' : 'Списать'}</SheetTitle>
@@ -1805,15 +1860,91 @@ function AssetDetailBody({ slug }: { slug: string }) {
                   />
                 </div>
               ) : null}
+              {asset.provider === 'usd' && mode === 'withdraw' ? (
+                <>
+                  <div>
+                    <Label required>Курс продажи, ₽</Label>
+                    <Input
+                      value={sellRate}
+                      onChange={(e) => setSellRate(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="По какому курсу продали"
+                    />
+                    {numeric(amount) > 0 && numeric(sellRate) > 0 ? (
+                      <p className="mt-1.5 text-xs text-slate-400">
+                        Получите {formatRub(numeric(amount) * numeric(sellRate))}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div>
+                    <Label required>Куда положить рубли</Label>
+                    {transferTargets.length ? (
+                      <div className="mt-2 space-y-2">
+                        {transferTargets.map((target) => (
+                          <button
+                            key={target.id}
+                            type="button"
+                            onClick={() => setTransferTargetId(String(target.id))}
+                            className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
+                              transferTargetId === String(target.id)
+                                ? 'border-blue-500 ring-1 ring-blue-500'
+                                : 'border-slate-100'
+                            }`}
+                          >
+                            <AssetAvatar
+                              icon={target.icon}
+                              bgColor={target.bg_color}
+                              iconColor={target.icon_color}
+                              size="sm"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-slate-900">
+                                {target.name}
+                              </p>
+                              <p className="text-sm text-slate-400">
+                                {formatRub(target.current_amount)}
+                              </p>
+                            </div>
+                            <span
+                              className={`h-5 w-5 shrink-0 rounded-full border-2 ${
+                                transferTargetId === String(target.id)
+                                  ? 'border-blue-600 bg-blue-600'
+                                  : 'border-slate-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-400">
+                        Нет рублёвого актива. Создайте, например, «Подушку», чтобы
+                        положить туда выручку.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : null}
             </SheetBody>
             <SheetFooter>
-              <Button className="w-full" size="lg" onClick={() => void change()}>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={
+                  !numeric(amount) ||
+                  (asset.provider === 'usd' &&
+                    mode === 'withdraw' &&
+                    (!numeric(sellRate) ||
+                      !transferTargetId ||
+                      numeric(amount) > asset.current_amount))
+                }
+                onClick={() => void change()}
+              >
                 Подтвердить
               </Button>
               <button
                 type="button"
                 className="w-full py-2 text-sm text-slate-400"
-                onClick={() => setMode(null)}
+                onClick={closeMoneySheet}
               >
                 Отмена
               </button>
