@@ -441,32 +441,41 @@ export function HomeScreen() {
             const hasAnyAssets = data.assets.length > 0;
             return (
               <FadeIn index={9} baseDelay={40} step={55}>
-                <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 px-4 py-4 text-center">
-                  <p className="text-sm font-semibold text-slate-600">
-                    {hasAnyAssets ? 'Пока нечего распределять' : 'Активов пока нет'}
-                  </p>
-                  <p className="mx-auto mt-1 max-w-[260px] text-xs leading-snug text-slate-400">
-                    {hasAnyAssets
-                      ? 'Добавьте правило — актив появится в отчёте цикла.'
-                      : 'Создайте актив, чтобы направлять свободные деньги.'}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-                    <Link to="/assets/new">
-                      <Button variant="secondary" size="sm">
-                        <Plus className="h-3.5 w-3.5" />
-                        Создать актив
-                      </Button>
-                    </Link>
-                    {hasAnyAssets ? (
-                      <Link
-                        to="/settings/rules/new"
-                        className="text-xs font-medium text-slate-400 transition-colors hover:text-blue-600"
+                <Link
+                  to={hasAnyAssets ? '/settings/rules/new' : '/assets/new'}
+                  className="block"
+                >
+                  <Card className="border-slate-100 p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                          hasAnyAssets
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'bg-emerald-50 text-emerald-700'
+                        }`}
                       >
-                        Добавить правило
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
+                        {hasAnyAssets ? (
+                          <GitBranch className="h-5 w-5" />
+                        ) : (
+                          <Plus className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">
+                          {hasAnyAssets
+                            ? 'Запустите распределение'
+                            : 'Создайте первый актив'}
+                        </p>
+                        <p className="text-sm text-slate-400">
+                          {hasAnyAssets
+                            ? 'Добавьте правило — свободные деньги начнут поступать в активы'
+                            : 'Без актива некуда направлять остаток после расходов'}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
+                    </div>
+                  </Card>
+                </Link>
               </FadeIn>
             );
           }
