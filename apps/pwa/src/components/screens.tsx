@@ -1157,7 +1157,8 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
     });
     await navigate({
       to: '/assets/$slug',
-      params: { slug: assetSlug({ id, name }) }
+      params: { slug: assetSlug({ id, name }) },
+      replace: true,
     });
   };
 
@@ -2145,7 +2146,8 @@ export function RulesScreen() {
     usdRubRate: rate
   });
 
-  const colors = ['#2563EB', '#34D399', '#F59E0B', '#A78BFA', '#F472B6'];
+  const segmentColors = ['#2563EB', '#34D399', '#F59E0B', '#A78BFA', '#F472B6'];
+  const showFreeSegment = !budget.overBudget && budget.freePercent > 0.05;
 
   return (
     <main className={`${shell} relative space-y-4`}>
@@ -2166,21 +2168,27 @@ export function RulesScreen() {
       <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
         <div className="mb-4 flex justify-between">
           <div>
-            <p className="text-xs text-slate-400">Занято от остатка</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Занято
+            </p>
             <p
-              className={`text-2xl font-bold ${budget.overBudget ? 'text-red-400' : ''}`}
+              className={`mt-0.5 text-3xl font-bold tracking-tight ${
+                budget.overBudget ? 'text-red-400' : ''
+              }`}
             >
               {budget.totalPercent.toFixed(1)}%
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-400">Свободно</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Свободно
+            </p>
             <p
-              className={`text-2xl font-bold ${
+              className={`mt-0.5 text-3xl font-bold tracking-tight ${
                 budget.overBudget ? 'text-red-400' : 'text-emerald-400'
               }`}
             >
-              {Math.round(budget.freePercent)}%
+              {Math.max(0, budget.freePercent).toFixed(1)}%
             </p>
           </div>
         </div>
@@ -2189,16 +2197,27 @@ export function RulesScreen() {
             Сумма правил больше 100% остатка — уменьшите проценты или фикс.
           </p>
         ) : null}
-        <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-700">
+        <div className="flex h-2.5 items-stretch gap-1">
           {budget.slices.map((slice, i) => (
             <div
               key={slice.ruleId}
+              className="min-w-1 rounded-full"
               style={{
-                width: `${Math.min(100, slice.percent)}%`,
-                backgroundColor: colors[i % colors.length]
+                flexGrow: Math.max(slice.percent, 0.4),
+                flexBasis: 0,
+                backgroundColor: segmentColors[i % segmentColors.length],
               }}
             />
           ))}
+          {showFreeSegment ? (
+            <div
+              className="min-w-1 rounded-full bg-white/15"
+              style={{
+                flexGrow: Math.max(budget.freePercent, 0.4),
+                flexBasis: 0,
+              }}
+            />
+          ) : null}
         </div>
         <p className="mt-3 text-xs text-slate-400">
           Остаток цикла ≈ {formatRub(data.remainder)}. Фикс. суммы пересчитаны в % от него.
@@ -2209,7 +2228,7 @@ export function RulesScreen() {
               <span className="flex items-center gap-2">
                 <span
                   className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: colors[i % colors.length] }}
+                  style={{ backgroundColor: segmentColors[i % segmentColors.length] }}
                 />
                 {slice.name}
               </span>
@@ -2218,6 +2237,17 @@ export function RulesScreen() {
               </span>
             </div>
           ))}
+          {showFreeSegment ? (
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-white/15" />
+                Свободно
+              </span>
+              <span className="text-slate-300">
+                {budget.freePercent.toFixed(1)}%
+              </span>
+            </div>
+          ) : null}
         </div>
       </Card>
 
@@ -2287,6 +2317,8 @@ export function RulesScreen() {
 
 export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const rate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
   const [assets, setAssets] = useState<Asset[]>([]);
   const [rules, setRules] = useState<DistributionRule[]>([]);
@@ -2389,7 +2421,11 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
     };
     if (rule) await db.updateRule(rule.id, input);
     else await db.createRule(input);
-    await navigate({ to: '/settings/rules' });
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    await navigate({ to: '/settings/rules', replace: true });
   };
 
   return (
