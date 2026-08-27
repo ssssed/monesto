@@ -19,7 +19,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@monesto/rune';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
 import {
   ArrowDownLeft,
   ArrowUpDown,
@@ -506,7 +506,11 @@ export function HomeScreen() {
             durationClass="duration-700"
             className="h-full"
           >
-            <Link to="/settings/income" className="block h-full">
+            <Link
+              to="/settings/income"
+              search={{ _mode: 'preview' }}
+              className="block h-full"
+            >
               <Card className="flex h-full flex-col border border-[var(--color-income)]/20 bg-[var(--color-income-soft)] p-4 shadow-none">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
                   Доходы
@@ -528,7 +532,11 @@ export function HomeScreen() {
             durationClass="duration-700"
             className="h-full"
           >
-            <Link to="/settings/expenses" className="block h-full">
+            <Link
+              to="/settings/expenses"
+              search={{ _mode: 'preview' }}
+              className="block h-full"
+            >
               <Card className="flex h-full flex-col border border-[var(--color-expense)]/20 bg-[var(--color-expense-soft)] p-4 shadow-none">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
                   Расходы
@@ -1918,12 +1926,16 @@ export function SettingsScreen() {
 
 export function MoneyFlowScreen({
   mode,
-  onboarding
+  onboarding,
+  preview = false,
 }: {
   mode: 'income' | 'expense';
   onboarding?: boolean;
+  preview?: boolean;
 }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const [entries, setEntries] = useState<MoneyFlowEntry[] | null>(null);
 
   useEffect(() => {
@@ -1953,6 +1965,10 @@ export function MoneyFlowScreen({
       await navigate({ to: '/' });
       return;
     }
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
     await navigate({ to: '/settings' });
   };
 
@@ -1966,8 +1982,10 @@ export function MoneyFlowScreen({
       ) : null}
       <div className="min-h-0 flex-1">
         <MoneyFlowStep
+          key={preview ? 'preview' : 'edit'}
           mode={mode}
           onboarding={onboarding}
+          preview={preview && !onboarding}
           title={mode === 'income' ? 'Ваши доходы' : 'Обязательные расходы'}
           subtitle={
             onboarding

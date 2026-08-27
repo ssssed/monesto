@@ -12,12 +12,14 @@ import {
   SlidingToggleGroup,
   cn,
 } from '@monesto/rune';
+import { useNavigate } from '@tanstack/react-router';
 import {
   ArrowDown,
   ArrowUp,
   Check,
   ChevronDown,
   ChevronUp,
+  Pencil,
   Plus,
   Trash2,
   X,
@@ -464,6 +466,7 @@ function EntryRow({
   mode,
   index,
   expanded,
+  preview,
   onToggle,
   onChange,
   onRemove,
@@ -475,6 +478,7 @@ function EntryRow({
   mode: Mode;
   index: number;
   expanded: boolean;
+  preview?: boolean;
   onToggle: () => void;
   onChange: (entry: MoneyFlowEntry) => void;
   onRemove: () => void;
@@ -563,7 +567,7 @@ function EntryRow({
 
   return (
     <SwipeToDelete
-      enabled={canRemove && !expanded}
+      enabled={canRemove && !expanded && !preview}
       onDelete={onRemove}
       borderRadius={16}
       className="mb-3"
@@ -574,54 +578,94 @@ function EntryRow({
           expanded ? toneRing : 'ring-slate-100',
         )}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50/70"
-        >
-          <div
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-              toneSoft,
-            )}
-          >
-            {isIncome ? (
-              <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
-            ) : (
-              <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
-                {title}
-              </p>
-              {entry.isPrimary ? (
-                <Badge variant="soft" className="shrink-0 text-[10px]">
-                  ОСН.
-                </Badge>
-              ) : null}
-              {linkedCredit ? (
-                <Badge
-                  variant="soft"
-                  className="shrink-0 text-[10px] text-rose-700"
-                >
-                  КРЕДИТ
-                </Badge>
-              ) : null}
+        {preview ? (
+          <div className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+            <div
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                toneSoft,
+              )}
+            >
+              {isIncome ? (
+                <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
+              ) : (
+                <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
+              )}
             </div>
-            <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
-              {previewLine(entry, mode)}
-            </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
+                  {title}
+                </p>
+                {entry.isPrimary ? (
+                  <Badge variant="soft" className="shrink-0 text-[10px]">
+                    ОСН.
+                  </Badge>
+                ) : null}
+                {linkedCredit ? (
+                  <Badge
+                    variant="soft"
+                    className="shrink-0 text-[10px] text-rose-700"
+                  >
+                    КРЕДИТ
+                  </Badge>
+                ) : null}
+              </div>
+              <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
+                {previewLine(entry, mode)}
+              </p>
+            </div>
           </div>
-          {expanded ? (
-            <ChevronUp className="h-[18px] w-[18px] shrink-0 text-slate-300" />
-          ) : (
-            <ChevronDown className="h-[18px] w-[18px] shrink-0 text-slate-300" />
-          )}
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50/70"
+          >
+            <div
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                toneSoft,
+              )}
+            >
+              {isIncome ? (
+                <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
+              ) : (
+                <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
+                  {title}
+                </p>
+                {entry.isPrimary ? (
+                  <Badge variant="soft" className="shrink-0 text-[10px]">
+                    ОСН.
+                  </Badge>
+                ) : null}
+                {linkedCredit ? (
+                  <Badge
+                    variant="soft"
+                    className="shrink-0 text-[10px] text-rose-700"
+                  >
+                    КРЕДИТ
+                  </Badge>
+                ) : null}
+              </div>
+              <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
+                {previewLine(entry, mode)}
+              </p>
+            </div>
+            {expanded ? (
+              <ChevronUp className="h-[18px] w-[18px] shrink-0 text-slate-300" />
+            ) : (
+              <ChevronDown className="h-[18px] w-[18px] shrink-0 text-slate-300" />
+            )}
+          </button>
+        )}
 
-        {expanded ? (
+        {expanded && !preview ? (
           <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
             {/* Название — текстовое поле */}
             <div className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
@@ -1051,6 +1095,7 @@ export function MoneyFlowStep({
   submitLabel,
   onSubmit,
   onboarding = false,
+  preview = false,
 }: {
   mode: Mode;
   title: string;
@@ -1059,14 +1104,16 @@ export function MoneyFlowStep({
   submitLabel: string;
   onSubmit: (entries: MoneyFlowEntry[]) => Promise<void> | void;
   onboarding?: boolean;
+  preview?: boolean;
 }) {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<MoneyFlowEntry[]>(
     initialEntries.length
       ? initialEntries
       : [mode === 'income' ? createEmptyIncomeEntry() : createEmptyExpenseEntry()],
   );
-  const [expandedId, setExpandedId] = useState<string | null>(
-    entries[0]?.id ?? null,
+  const [expandedId, setExpandedId] = useState<string | null>(() =>
+    preview ? null : (entries[0]?.id ?? null),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1284,11 +1331,43 @@ export function MoneyFlowStep({
 
         <MoneyFlowSummary mode={mode} entries={entries} />
 
+        {preview ? (
+          <div className="flex items-center gap-3 rounded-2xl bg-blue-50 px-4 py-3.5 ring-1 ring-blue-100">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-900">
+                {mode === 'income' ? 'Изменить доходы' : 'Изменить расходы'}
+              </p>
+              <p className="mt-0.5 text-[12px] leading-4 text-slate-500">
+                {mode === 'income'
+                  ? 'Отредактируйте источники или добавьте новые поступления'
+                  : 'Отредактируйте платежи или добавьте новые расходы'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0"
+              onClick={() =>
+                void navigate({
+                  to: mode === 'income' ? '/settings/income' : '/settings/expenses',
+                  search: {},
+                  replace: true,
+                })
+              }
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Изменить
+            </Button>
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-900">
             {mode === 'income' ? 'Источники' : 'Статьи'}
           </h3>
-          <p className="text-[11px] text-slate-400">Свайп влево — удалить</p>
+          {preview ? null : (
+            <p className="text-[11px] text-slate-400">Свайп влево — удалить</p>
+          )}
         </div>
 
         <div>
@@ -1298,10 +1377,12 @@ export function MoneyFlowStep({
               entry={entry}
               mode={mode}
               index={index}
-              expanded={expandedId === entry.id}
-              onToggle={() =>
-                setExpandedId(expandedId === entry.id ? null : entry.id ?? null)
-              }
+              expanded={!preview && expandedId === entry.id}
+              preview={preview}
+              onToggle={() => {
+                if (preview) return;
+                setExpandedId(expandedId === entry.id ? null : entry.id ?? null);
+              }}
               onChange={(next) => updateEntry(entry.id, next)}
               onRemove={() => scheduleRemove(entry.id)}
               canRemove={canRemove}
@@ -1311,34 +1392,38 @@ export function MoneyFlowStep({
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={add}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-300 bg-transparent py-3.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
-        >
-          <Plus className="h-4 w-4" />
-          Добавить {mode === 'income' ? 'доход' : 'расход'}
-        </button>
+        {preview ? null : (
+          <button
+            type="button"
+            onClick={add}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-300 bg-transparent py-3.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+          >
+            <Plus className="h-4 w-4" />
+            Добавить {mode === 'income' ? 'доход' : 'расход'}
+          </button>
+        )}
       </div>
 
-      <div
-        ref={submitRef}
-        className="shrink-0 space-y-2 border-t border-slate-100 bg-[#f8fafc] pt-3 pb-[max(16px,env(safe-area-inset-bottom))]"
-      >
-        {error ? (
-          <p className="text-center text-sm text-red-500">{error}</p>
-        ) : null}
-        <Button
-          type="button"
-          variant={onboarding ? 'navy' : 'default'}
-          size="lg"
-          className="w-full"
-          disabled={saving}
-          onClick={handleSubmit}
+      {preview ? null : (
+        <div
+          ref={submitRef}
+          className="shrink-0 space-y-2 border-t border-slate-100 bg-[#f8fafc] pt-3 pb-[max(16px,env(safe-area-inset-bottom))]"
         >
-          {submitLabel}
-        </Button>
-      </div>
+          {error ? (
+            <p className="text-center text-sm text-red-500">{error}</p>
+          ) : null}
+          <Button
+            type="button"
+            variant={onboarding ? 'navy' : 'default'}
+            size="lg"
+            className="w-full"
+            disabled={saving}
+            onClick={handleSubmit}
+          >
+            {submitLabel}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
