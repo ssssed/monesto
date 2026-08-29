@@ -1,5 +1,6 @@
 export type IncomeKind = 'fixed' | 'bimonthly_salary';
 export type Recurrence = 'monthly' | 'one_time';
+export type MoneyFlowCurrency = 'rub' | 'usd';
 /** День выплаты (1–31). Раньше было жёстко 10 | 25. */
 export type SalaryPaymentDay = number;
 export type AssetProvider = 'rub' | 'usd' | 'gold' | 'steam' | 'credit';
@@ -20,6 +21,7 @@ export interface SalaryTranche {
 export interface IncomeSource {
   id: number;
   name: string;
+  currency: MoneyFlowCurrency;
   income_kind: IncomeKind;
   amount: number | null;
   monthly_amount: number | null;
@@ -36,6 +38,7 @@ export interface IncomeSource {
 export interface Expense {
   id: number;
   name: string;
+  currency: MoneyFlowCurrency;
   amount: number;
   recurrence: Recurrence;
   due_day: number | null;
@@ -116,6 +119,7 @@ export interface VacationPeriod {
 export interface MoneyFlowEntry {
   id?: string;
   name: string;
+  currency?: MoneyFlowCurrency;
   amount: string;
   isOneTime?: boolean;
   isBimonthlySalary?: boolean;

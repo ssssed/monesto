@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
 import { ChevronLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -17,21 +17,35 @@ export function PageHeader({
   backLabel?: string;
   right?: ReactNode;
 }) {
+  const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    if (backTo) {
+      void navigate({ to: backTo });
+    }
+  };
+
+  const showBack = Boolean(onBack || backTo);
   const backClass =
     'absolute left-0 flex items-center gap-0.5 text-[15px] font-medium text-[var(--color-primary)]';
 
   return (
     <header className="relative mb-4 flex h-11 items-center justify-center">
-      {onBack ? (
-        <button type="button" onClick={onBack} className={backClass}>
+      {showBack ? (
+        <button type="button" onClick={handleBack} className={backClass}>
           <ChevronLeft className="h-5 w-5" />
           {backLabel}
         </button>
-      ) : backTo ? (
-        <Link to={backTo} className={backClass}>
-          <ChevronLeft className="h-5 w-5" />
-          {backLabel}
-        </Link>
       ) : null}
       <h1 className="text-[17px] font-semibold text-slate-900">{title}</h1>
       {right ? <div className="absolute right-0">{right}</div> : null}

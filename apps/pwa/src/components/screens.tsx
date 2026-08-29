@@ -19,7 +19,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@monesto/rune';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useCanGoBack, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   ArrowDownLeft,
   ArrowUpDown,
@@ -42,6 +42,7 @@ import {
   useState,
   type ReactNode
 } from 'react';
+import { flushSync } from 'react-dom';
 
 import { AssetAvatar } from '@/components/assets/AssetAvatar';
 import { AssetReorderHandle } from '@/components/assets/AssetReorderHandle';
@@ -63,7 +64,13 @@ import { ErrorPage } from '@/components/ui/ErrorPage';
 import { GoalProgressBadge, TrendBadge } from '@/components/ui/GoalProgressBadge';
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
+import { YearSummaryBanner } from '@/components/year-summary/YearSummaryBanner';
 import * as db from '@/lib/db';
+import { isYearSummaryEnabled } from '@/lib/features';
+import {
+  computeYearSummary,
+  type YearSummary,
+} from '@/lib/year-summary/computeYearSummary';
 import { calcUsdValuation } from '@/lib/exchange/usdValuation';
 import {
   contractualAnnuityPayment,
@@ -101,11 +108,31 @@ import { assetSlug } from '@/lib/utils/slug';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 const shell = 'mx-auto w-full px-5 pt-6 pb-[110px]';
-/** Nested screens without tab bar. */
+
+function paymentsLabel(count: number): string {
+  if (count === 0) return 'Нет платежей';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} платеж`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    return `${count} платежа`;
+  }
+  return `${count} платежей`;
+}
+
+function uniqueLineNames(lines: { name: string }[]): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const line of lines) {
+    if (seen.has(line.name)) continue;
+    seen.add(line.name);
+    names.push(line.name);
+  }
+  return names;
+}
+
 const nestedShell = 'mx-auto w-full px-5 pt-6 pb-8';
-/** Full-viewport form: scrollable body + footer pinned to bottom. */
 const formShell = 'mx-auto flex h-full min-h-0 w-full flex-col px-5 pt-6';
-/** Scrollable form body — inset ring не обрезается. */
 const formScroll =
   'min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-4';
 const UNDO_MS = 7000;
@@ -115,50 +142,6 @@ const defaults = {
   iconColor: '#2563EB'
 };
 const numeric = (value: string) => Math.max(0, Number(value.replace(',', '.')) || 0);
-
-/** Схлопывает строки отчёта с одинаковым именем. */
-function aggregateNamedAmounts(
-  lines: { name: string; amount: number }[],
-): { name: string; amount: number }[] {
-  const map = new Map<string, number>();
-  for (const line of lines) {
-    map.set(line.name, (map.get(line.name) ?? 0) + line.amount);
-  }
-  return [...map.entries()].map(([name, amount]) => ({ name, amount }));
-}
-
-function ReportBreakdown({
-  lines,
-  emptyLabel,
-  tone,
-}: {
-  lines: { name: string; amount: number }[];
-  emptyLabel: string;
-  tone: 'income' | 'expense';
-}) {
-  const items = aggregateNamedAmounts(lines);
-  const text = tone === 'income' ? 'text-emerald-700/75' : 'text-rose-700/75';
-
-  if (!items.length) {
-    return <p className={`mt-1.5 text-[11px] leading-4 ${text}`}>{emptyLabel}</p>;
-  }
-
-  return (
-    <ul className="mt-1.5 space-y-1">
-      {items.map((item) => (
-        <li
-          key={item.name}
-          className={`flex items-start justify-between gap-2 text-[11px] leading-4 ${text}`}
-        >
-          <span className="min-w-0 flex-1 truncate">{item.name}</span>
-          <span className="shrink-0 font-semibold tabular-nums">
-            {formatRub(item.amount)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export function HomeScreen() {
   const [data, setData] = useState<{
@@ -171,7 +154,9 @@ export function HomeScreen() {
   const [cycleKey, setCycleKey] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
+  const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   const reload = useCallback(async () => {
     const [assets, incomes, expenses, rules, vacations] = await Promise.all([
@@ -182,11 +167,28 @@ export function HomeScreen() {
       db.getAllVacations(),
     ]);
     setData({ assets, incomes, expenses, rules, vacations });
-  }, []);
+
+    if (isYearSummaryEnabled()) {
+      const transactions = await db.getAllAssetTransactions();
+      setYearSummary(
+        computeYearSummary({
+          assets,
+          transactions,
+          usdRubRate: rate ?? 82,
+        }),
+      );
+    } else {
+      setYearSummary(null);
+    }
+  }, [rate]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (pathname === '/') void reload();
+  }, [pathname, reload]);
 
   const cycles = useMemo(() => {
     if (!data) return [];
@@ -234,7 +236,7 @@ export function HomeScreen() {
       today: new Date(),
       cyclePaymentDay: selectedCycle.paymentDay,
       cycleNominalDate: selectedCycle.nominalDate,
-      usdRubRate: rate ?? undefined,
+      usdRubRate: rate ?? 82,
     });
   }, [data, selectedCycle, rate]);
 
@@ -300,6 +302,19 @@ export function HomeScreen() {
     .filter((item) => !rejectedIds.includes(item.ruleId))
     .reduce((sum, item) => sum + item.amountRub, 0);
   const freeMoney = report.remainder - effectiveAllocatedRub;
+
+  const reportAssets = (report.assetSummary ?? []).filter(
+    (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
+  );
+  const rulesBudget = summarizeRulesBudget({
+    remainder: report.remainder,
+    rules: data.rules,
+    assets: data.assets,
+    usdRubRate: rate ?? 82,
+  });
+  const incomeNames = uniqueLineNames(report.incomeLines);
+  const expenseCount = uniqueLineNames(report.expenseLines).length;
+  const originStart = 9 + Math.max(reportAssets.length, 1);
 
   const confirmAsset = async (assetId: number) => {
     if (report.isPreview) return;
@@ -400,71 +415,19 @@ export function HomeScreen() {
         </div>
       </FadeIn>
 
+      {yearSummary ? (
+        <FadeIn index={3}>
+          <YearSummaryBanner summary={yearSummary} />
+        </FadeIn>
+      ) : null}
+
       <div className="space-y-3">
         <FadeIn index={0} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
           <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
             <p className="text-sm text-slate-300">Свободные деньги</p>
             <p className="mt-1 text-3xl font-bold tracking-tight">{formatRub(freeMoney)}</p>
-          </Card>
-        </FadeIn>
-
-        <div className="grid grid-cols-2 items-stretch gap-3">
-          <FadeIn
-            index={1}
-            baseDelay={180}
-            step={140}
-            variant="rise"
-            durationClass="duration-700"
-            className="h-full"
-          >
-            <Card className="flex h-full flex-col border border-[var(--color-income)]/20 bg-[var(--color-income-soft)] p-4 shadow-none">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
-                Доходы
-              </p>
-              <p className="mt-1 text-lg font-bold text-[var(--color-income)]">
-                {formatRub(report.totalIncome)}
-              </p>
-              <div className="mt-2">
-                <ReportBreakdown
-                  lines={report.incomeLines}
-                  emptyLabel="Нет доходов в цикле"
-                  tone="income"
-                />
-              </div>
-            </Card>
-          </FadeIn>
-          <FadeIn
-            index={2}
-            baseDelay={180}
-            step={140}
-            variant="rise"
-            durationClass="duration-700"
-            className="h-full"
-          >
-            <Card className="flex h-full flex-col border border-[var(--color-expense)]/20 bg-[var(--color-expense-soft)] p-4 shadow-none">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
-                Расходы
-              </p>
-              <p className="mt-1 text-lg font-bold text-[var(--color-expense)]">
-                {formatRub(report.totalExpenses)}
-              </p>
-              <div className="mt-2">
-                <ReportBreakdown
-                  lines={report.expenseLines}
-                  emptyLabel="Нет расходов в цикле"
-                  tone="expense"
-                />
-              </div>
-            </Card>
-          </FadeIn>
-        </div>
-
-        <FadeIn index={3} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
-          <Card className="border-slate-100 p-4 shadow-sm">
-            <p className="text-sm text-slate-500">Остаток до правил</p>
-            <p className="text-xl font-bold text-slate-900">{formatRub(report.remainder)}</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Распределение: −{formatRub(effectiveAllocatedRub)}
+            <p className="mt-2 text-sm text-slate-400">
+              Распределение · {formatRub(effectiveAllocatedRub)}
             </p>
           </Card>
         </FadeIn>
@@ -472,7 +435,7 @@ export function HomeScreen() {
 
       <section className="space-y-1">
         <FadeIn index={8} baseDelay={40} step={55}>
-          <h2 className="font-bold text-slate-900">Ваши активы</h2>
+          <h2 className="font-bold text-slate-900">Что получат активы</h2>
           <p className="mb-3 text-xs leading-relaxed text-slate-400">
             {report.isPreview
               ? 'Сюда попадёт остаток после расходов по вашим правилам. В плане будущего цикла подтверждения ещё недоступны.'
@@ -480,39 +443,45 @@ export function HomeScreen() {
           </p>
         </FadeIn>
         {(() => {
-          const reportAssets = (report.assetSummary ?? []).filter(
-            (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
-          );
           if (!reportAssets.length) {
             const hasAnyAssets = data.assets.length > 0;
             return (
               <FadeIn index={9} baseDelay={40} step={55}>
-                <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50/60 px-4 py-4 text-center">
-                  <p className="text-sm font-semibold text-slate-600">
-                    {hasAnyAssets ? 'Пока нечего распределять' : 'Активов пока нет'}
-                  </p>
-                  <p className="mx-auto mt-1 max-w-[260px] text-xs leading-snug text-slate-400">
-                    {hasAnyAssets
-                      ? 'Добавьте правило — актив появится в отчёте цикла.'
-                      : 'Создайте актив, чтобы направлять свободные деньги.'}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-                    <Link to="/assets/new">
-                      <Button variant="secondary" size="sm">
-                        <Plus className="h-3.5 w-3.5" />
-                        Создать актив
-                      </Button>
-                    </Link>
-                    {hasAnyAssets ? (
-                      <Link
-                        to="/settings/rules/new"
-                        className="text-xs font-medium text-slate-400 transition-colors hover:text-blue-600"
+                <Link
+                  to={hasAnyAssets ? '/settings/rules/new' : '/assets/new'}
+                  className="block"
+                >
+                  <Card className="border-slate-100 p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                          hasAnyAssets
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'bg-emerald-50 text-emerald-700'
+                        }`}
                       >
-                        Добавить правило
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
+                        {hasAnyAssets ? (
+                          <GitBranch className="h-5 w-5" />
+                        ) : (
+                          <Plus className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">
+                          {hasAnyAssets
+                            ? 'Запустите распределение'
+                            : 'Создайте первый актив'}
+                        </p>
+                        <p className="text-sm text-slate-400">
+                          {hasAnyAssets
+                            ? 'Добавьте правило — свободные деньги начнут поступать в активы'
+                            : 'Без актива некуда направлять остаток после расходов'}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
+                    </div>
+                  </Card>
+                </Link>
               </FadeIn>
             );
           }
@@ -562,6 +531,94 @@ export function HomeScreen() {
             );
           });
         })()}
+      </section>
+
+      <section className="space-y-3">
+        <FadeIn index={originStart} baseDelay={40} step={55}>
+          <h2 className="font-bold text-slate-900">Откуда взялось</h2>
+        </FadeIn>
+
+        <div className="grid grid-cols-2 items-stretch gap-3">
+          <FadeIn
+            index={originStart + 1}
+            baseDelay={40}
+            step={55}
+            variant="rise"
+            durationClass="duration-700"
+            className="h-full"
+          >
+            <Link
+              to="/settings/income"
+              search={{ _mode: 'preview' }}
+              className="block h-full"
+            >
+              <Card className="flex h-full flex-col border border-[var(--color-income)]/20 bg-[var(--color-income-soft)] p-4 shadow-none">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-income)]">
+                  Доходы
+                </p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-income)]">
+                  {formatRub(report.totalIncome)}
+                </p>
+                <p className="mt-2 truncate text-[11px] leading-4 text-emerald-700/75">
+                  {incomeNames.length ? incomeNames.join(' · ') : 'Нет доходов в цикле'}
+                </p>
+              </Card>
+            </Link>
+          </FadeIn>
+          <FadeIn
+            index={originStart + 2}
+            baseDelay={40}
+            step={55}
+            variant="rise"
+            durationClass="duration-700"
+            className="h-full"
+          >
+            <Link
+              to="/settings/expenses"
+              search={{ _mode: 'preview' }}
+              className="block h-full"
+            >
+              <Card className="flex h-full flex-col border border-[var(--color-expense)]/20 bg-[var(--color-expense-soft)] p-4 shadow-none">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-expense)]">
+                  Расходы
+                </p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-expense)]">
+                  {formatRub(report.totalExpenses)}
+                </p>
+                <p className="mt-2 text-[11px] leading-4 text-rose-700/75">
+                  {paymentsLabel(expenseCount)}
+                </p>
+              </Card>
+            </Link>
+          </FadeIn>
+        </div>
+
+        <FadeIn
+          index={originStart + 3}
+          baseDelay={40}
+          step={55}
+          variant="rise"
+          durationClass="duration-700"
+        >
+          <Link to="/settings/rules" className="block">
+            <Card className="border-slate-100 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <GitBranch className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900">Правила распределения</p>
+                  <p className="text-sm text-slate-400">
+                    {rulesBudget.overBudget
+                      ? `Занято ${rulesBudget.totalPercent.toFixed(1)}% — перебор`
+                      : `Занято ${rulesBudget.totalPercent.toFixed(1)}% остатка`}
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
+              </div>
+            </Card>
+          </Link>
+        </FadeIn>
       </section>
     </main>
   );
@@ -762,14 +819,20 @@ export function AssetsScreen() {
         />
       </FadeIn>
       <FadeIn index={1} variant="scale">
-        <Card className="border-0 bg-blue-50 p-5 shadow-none">
-          <p className="text-xs lowercase text-slate-400">накопления</p>
-          <p className="text-3xl font-bold text-slate-900">{formatRub(total)}</p>
+        <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
+          <p className="text-sm text-slate-300">Всего активов</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">
+            {formatRub(total)}
+          </p>
           {totalDebt > 0 ? (
-            <p className="mt-1.5 text-sm text-rose-700/70">
+            <p className="mt-3 text-sm text-rose-300/80">
               Долги · {formatRub(totalDebt)}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-3 text-sm text-slate-400">
+              В рублях по текущему курсу
+            </p>
+          )}
         </Card>
       </FadeIn>
 
@@ -1100,7 +1163,8 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
     });
     await navigate({
       to: '/assets/$slug',
-      params: { slug: assetSlug({ id, name }) }
+      params: { slug: assetSlug({ id, name }) },
+      replace: true,
     });
   };
 
@@ -1410,8 +1474,11 @@ function AssetDetailBody({ slug }: { slug: string }) {
   const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof db.getTransactions>>>(
     []
   );
+  const [transferTargets, setTransferTargets] = useState<Asset[]>([]);
   const [amount, setAmount] = useState('');
   const [buyRate, setBuyRate] = useState('82');
+  const [sellRate, setSellRate] = useState('82');
+  const [transferTargetId, setTransferTargetId] = useState('');
   const [mode, setMode] = useState<'deposit' | 'withdraw' | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
@@ -1429,11 +1496,16 @@ function AssetDetailBody({ slug }: { slug: string }) {
     if (!next) {
       setAsset(null);
       setTransactions([]);
+      setTransferTargets([]);
       setLoadState('missing');
       return;
     }
     setAsset(next);
     setTransactions(await db.getTransactions(next.id));
+    const all = await db.getAllAssets();
+    setTransferTargets(
+      all.filter((a) => a.id !== next.id && a.provider === 'rub'),
+    );
     setLoadState('ready');
   }, [slug]);
 
@@ -1453,6 +1525,12 @@ function AssetDetailBody({ slug }: { slug: string }) {
       iconColor: asset.icon_color
     });
   }, [asset, editOpen]);
+
+  useEffect(() => {
+    if (mode !== 'withdraw' || !asset || asset.provider !== 'usd') return;
+    setSellRate(String(usdRate));
+    setTransferTargetId('');
+  }, [mode, asset, usdRate]);
 
   if (loadState === 'loading') {
     return (
@@ -1476,17 +1554,53 @@ function AssetDetailBody({ slug }: { slug: string }) {
     );
   }
 
+  const closeMoneySheet = () => {
+    setMode(null);
+    setAmount('');
+    setTransferTargetId('');
+  };
+
   const change = async () => {
     const value = numeric(amount);
     if (!value || !mode) return;
-    await db.addTransaction(
-      asset.id,
-      mode === 'deposit' ? value : -value,
-      mode === 'deposit' ? 'Пополнение' : 'Списание',
-      asset.provider === 'usd' && mode === 'deposit' ? value * numeric(buyRate) : undefined
-    );
-    setMode(null);
-    setAmount('');
+
+    if (mode === 'deposit') {
+      await db.addTransaction(
+        asset.id,
+        value,
+        'Пополнение',
+        asset.provider === 'usd' ? value * numeric(buyRate) : undefined,
+      );
+      closeMoneySheet();
+      await reload();
+      return;
+    }
+
+    if (asset.provider === 'usd') {
+      const rate = numeric(sellRate);
+      if (!rate || !transferTargetId) return;
+      if (value > asset.current_amount) return;
+      const target = transferTargets.find((a) => String(a.id) === transferTargetId);
+      if (!target) return;
+      const rubReceived = value * rate;
+      await db.addTransaction(
+        asset.id,
+        -value,
+        `Продажа → ${target.name} · курс ${rate}`,
+      );
+      await db.addTransaction(
+        target.id,
+        rubReceived,
+        `Из «${asset.name}» · ${formatUsd(value)} × ${rate}`,
+        rubReceived,
+      );
+      closeMoneySheet();
+      await reload();
+      return;
+    }
+
+    await db.addTransaction(asset.id, -value, 'Списание');
+    closeMoneySheet();
     await reload();
   };
 
@@ -1722,7 +1836,12 @@ function AssetDetailBody({ slug }: { slug: string }) {
           )}
         </section>
 
-        <Sheet open={mode != null} onOpenChange={(o) => !o && setMode(null)}>
+        <Sheet
+          open={mode != null}
+          onOpenChange={(o) => {
+            if (!o) closeMoneySheet();
+          }}
+        >
           <SheetContent>
             <SheetHeader>
               <SheetTitle>{mode === 'deposit' ? 'Пополнить' : 'Списать'}</SheetTitle>
@@ -1747,15 +1866,91 @@ function AssetDetailBody({ slug }: { slug: string }) {
                   />
                 </div>
               ) : null}
+              {asset.provider === 'usd' && mode === 'withdraw' ? (
+                <>
+                  <div>
+                    <Label required>Курс продажи, ₽</Label>
+                    <Input
+                      value={sellRate}
+                      onChange={(e) => setSellRate(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="По какому курсу продали"
+                    />
+                    {numeric(amount) > 0 && numeric(sellRate) > 0 ? (
+                      <p className="mt-1.5 text-xs text-slate-400">
+                        Получите {formatRub(numeric(amount) * numeric(sellRate))}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div>
+                    <Label required>Куда положить рубли</Label>
+                    {transferTargets.length ? (
+                      <div className="mt-2 space-y-2">
+                        {transferTargets.map((target) => (
+                          <button
+                            key={target.id}
+                            type="button"
+                            onClick={() => setTransferTargetId(String(target.id))}
+                            className={`flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left ${
+                              transferTargetId === String(target.id)
+                                ? 'border-blue-500 ring-1 ring-blue-500'
+                                : 'border-slate-100'
+                            }`}
+                          >
+                            <AssetAvatar
+                              icon={target.icon}
+                              bgColor={target.bg_color}
+                              iconColor={target.icon_color}
+                              size="sm"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-slate-900">
+                                {target.name}
+                              </p>
+                              <p className="text-sm text-slate-400">
+                                {formatRub(target.current_amount)}
+                              </p>
+                            </div>
+                            <span
+                              className={`h-5 w-5 shrink-0 rounded-full border-2 ${
+                                transferTargetId === String(target.id)
+                                  ? 'border-blue-600 bg-blue-600'
+                                  : 'border-slate-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-400">
+                        Нет рублёвого актива. Создайте, например, «Подушку», чтобы
+                        положить туда выручку.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : null}
             </SheetBody>
             <SheetFooter>
-              <Button className="w-full" size="lg" onClick={() => void change()}>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={
+                  !numeric(amount) ||
+                  (asset.provider === 'usd' &&
+                    mode === 'withdraw' &&
+                    (!numeric(sellRate) ||
+                      !transferTargetId ||
+                      numeric(amount) > asset.current_amount))
+                }
+                onClick={() => void change()}
+              >
                 Подтвердить
               </Button>
               <button
                 type="button"
                 className="w-full py-2 text-sm text-slate-400"
-                onClick={() => setMode(null)}
+                onClick={closeMoneySheet}
               >
                 Отмена
               </button>
@@ -1910,19 +2105,41 @@ export function SettingsScreen() {
 
 export function MoneyFlowScreen({
   mode,
-  onboarding
+  onboarding,
+  preview = false,
 }: {
   mode: 'income' | 'expense';
   onboarding?: boolean;
+  preview?: boolean;
 }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const [entries, setEntries] = useState<MoneyFlowEntry[] | null>(null);
+  const [entriesKey, setEntriesKey] = useState(0);
+
+  const loadEntries = useCallback(async () => {
+    if (mode === 'income') {
+      const rows = await db.getAllIncomes();
+      const mapped = incomesToEntries(rows);
+      flushSync(() => {
+        setEntries(mapped);
+        setEntriesKey((key) => key + 1);
+      });
+      return mapped;
+    }
+    const rows = await db.getAllExpenses();
+    const mapped = expensesToEntries(rows);
+    flushSync(() => {
+      setEntries(mapped);
+      setEntriesKey((key) => key + 1);
+    });
+    return mapped;
+  }, [mode]);
 
   useEffect(() => {
-    void (mode === 'income'
-      ? db.getAllIncomes().then((x) => setEntries(incomesToEntries(x)))
-      : db.getAllExpenses().then((x) => setEntries(expensesToEntries(x))));
-  }, [mode]);
+    void loadEntries();
+  }, [loadEntries, preview]);
 
   if (!entries) {
     return (
@@ -1936,6 +2153,8 @@ export function MoneyFlowScreen({
     if (mode === 'income') await db.replaceAllIncomes(next);
     else await db.replaceAllExpenses(next);
 
+    await loadEntries();
+
     if (onboarding && mode === 'income') {
       await navigate({ to: '/onboarding/expenses' });
       return;
@@ -1943,6 +2162,10 @@ export function MoneyFlowScreen({
     if (onboarding && mode === 'expense') {
       await db.completeOnboarding();
       await navigate({ to: '/' });
+      return;
+    }
+    if (canGoBack) {
+      router.history.back();
       return;
     }
     await navigate({ to: '/settings' });
@@ -1958,8 +2181,10 @@ export function MoneyFlowScreen({
       ) : null}
       <div className="min-h-0 flex-1">
         <MoneyFlowStep
+          key={`${preview ? 'preview' : 'edit'}-${entriesKey}`}
           mode={mode}
           onboarding={onboarding}
+          preview={preview && !onboarding}
           title={mode === 'income' ? 'Ваши доходы' : 'Обязательные расходы'}
           subtitle={
             onboarding
@@ -2078,7 +2303,8 @@ export function RulesScreen() {
     usdRubRate: rate
   });
 
-  const colors = ['#2563EB', '#34D399', '#F59E0B', '#A78BFA', '#F472B6'];
+  const segmentColors = ['#2563EB', '#34D399', '#F59E0B', '#A78BFA', '#F472B6'];
+  const showFreeSegment = !budget.overBudget && budget.freePercent > 0.05;
 
   return (
     <main className={`${shell} relative space-y-4`}>
@@ -2099,21 +2325,27 @@ export function RulesScreen() {
       <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
         <div className="mb-4 flex justify-between">
           <div>
-            <p className="text-xs text-slate-400">Занято от остатка</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Занято
+            </p>
             <p
-              className={`text-2xl font-bold ${budget.overBudget ? 'text-red-400' : ''}`}
+              className={`mt-0.5 text-3xl font-bold tracking-tight ${
+                budget.overBudget ? 'text-red-400' : ''
+              }`}
             >
               {budget.totalPercent.toFixed(1)}%
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-400">Свободно</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Свободно
+            </p>
             <p
-              className={`text-2xl font-bold ${
+              className={`mt-0.5 text-3xl font-bold tracking-tight ${
                 budget.overBudget ? 'text-red-400' : 'text-emerald-400'
               }`}
             >
-              {Math.round(budget.freePercent)}%
+              {Math.max(0, budget.freePercent).toFixed(1)}%
             </p>
           </div>
         </div>
@@ -2122,16 +2354,27 @@ export function RulesScreen() {
             Сумма правил больше 100% остатка — уменьшите проценты или фикс.
           </p>
         ) : null}
-        <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-700">
+        <div className="flex h-2.5 items-stretch gap-1">
           {budget.slices.map((slice, i) => (
             <div
               key={slice.ruleId}
+              className="min-w-1 rounded-full"
               style={{
-                width: `${Math.min(100, slice.percent)}%`,
-                backgroundColor: colors[i % colors.length]
+                flexGrow: Math.max(slice.percent, 0.4),
+                flexBasis: 0,
+                backgroundColor: segmentColors[i % segmentColors.length],
               }}
             />
           ))}
+          {showFreeSegment ? (
+            <div
+              className="min-w-1 rounded-full bg-white/15"
+              style={{
+                flexGrow: Math.max(budget.freePercent, 0.4),
+                flexBasis: 0,
+              }}
+            />
+          ) : null}
         </div>
         <p className="mt-3 text-xs text-slate-400">
           Остаток цикла ≈ {formatRub(data.remainder)}. Фикс. суммы пересчитаны в % от него.
@@ -2142,7 +2385,7 @@ export function RulesScreen() {
               <span className="flex items-center gap-2">
                 <span
                   className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: colors[i % colors.length] }}
+                  style={{ backgroundColor: segmentColors[i % segmentColors.length] }}
                 />
                 {slice.name}
               </span>
@@ -2151,6 +2394,17 @@ export function RulesScreen() {
               </span>
             </div>
           ))}
+          {showFreeSegment ? (
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-white/15" />
+                Свободно
+              </span>
+              <span className="text-slate-300">
+                {budget.freePercent.toFixed(1)}%
+              </span>
+            </div>
+          ) : null}
         </div>
       </Card>
 
@@ -2220,6 +2474,8 @@ export function RulesScreen() {
 
 export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const rate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
   const [assets, setAssets] = useState<Asset[]>([]);
   const [rules, setRules] = useState<DistributionRule[]>([]);
@@ -2322,7 +2578,11 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
     };
     if (rule) await db.updateRule(rule.id, input);
     else await db.createRule(input);
-    await navigate({ to: '/settings/rules' });
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    await navigate({ to: '/settings/rules', replace: true });
   };
 
   return (

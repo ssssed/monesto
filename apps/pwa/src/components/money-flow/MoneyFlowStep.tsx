@@ -12,12 +12,14 @@ import {
   SlidingToggleGroup,
   cn,
 } from '@monesto/rune';
+import { useNavigate } from '@tanstack/react-router';
 import {
   ArrowDown,
   ArrowUp,
   Check,
   ChevronDown,
   ChevronUp,
+  Pencil,
   Plus,
   Trash2,
   X,
@@ -35,13 +37,16 @@ import {
   tranchesFromPreset,
   type SalarySchedulePresetId,
 } from '@/lib/report/calculateSalaryPayment';
-import type { Asset, MoneyFlowEntry, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
+import type { Asset, MoneyFlowEntry, MoneyFlowCurrency, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
 import {
   createEmptyExpenseEntry,
   createEmptyIncomeEntry,
+  entryAmountRub,
   formatRub,
+  formatUsd,
 } from '@/lib/utils/format';
 import * as db from '@/lib/db';
+import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 type Mode = 'income' | 'expense';
 
@@ -238,7 +243,16 @@ function SchedulePresetPicker({
   );
 }
 
-function previewLine(entry: MoneyFlowEntry, mode: Mode): string {
+function formatEntryAmount(amount: number, currency: MoneyFlowCurrency): string {
+  return currency === 'usd' ? formatUsd(amount) : formatRub(amount);
+}
+
+function previewLine(
+  entry: MoneyFlowEntry,
+  mode: Mode,
+  usdRubRate: number,
+): string {
+  const currency = entry.currency ?? 'rub';
   if (entry.isBimonthlySalary) {
     const monthly = Number(entry.monthlyAmount ?? entry.amount ?? 0);
     const preset = detectSalarySchedulePreset(entry.salaryTranches);
@@ -250,25 +264,44 @@ function previewLine(entry: MoneyFlowEntry, mode: Mode): string {
           : formatTranchesPreview(
               entry.salaryTranches ?? createEmptyBimonthlyTranches(),
             );
-    return monthly ? `${formatRub(monthly)} / мес · ${schedule}` : schedule;
+    const amountLabel = monthly ? formatEntryAmount(monthly, currency) : '';
+    const rubHint =
+      currency === 'usd' && monthly
+        ? ` ≈ ${formatRub(entryAmountRub(entry, usdRubRate, { monthly: true }))}`
+        : '';
+    return monthly
+      ? `${amountLabel}${rubHint} / мес · ${schedule}`
+      : schedule;
   }
   if (entry.isOneTime) {
     const amount = Number(entry.amount || 0);
     const date = entry.specificDate || 'дата не указана';
-    return amount ? `${formatRub(amount)} · ${date}` : date;
+    const amountLabel = amount ? formatEntryAmount(amount, currency) : '';
+    const rubHint =
+      currency === 'usd' && amount
+        ? ` ≈ ${formatRub(entryAmountRub(entry, usdRubRate))}`
+        : '';
+    return amount ? `${amountLabel}${rubHint} · ${date}` : date;
   }
   const amount = Number(entry.amount || 0);
   const day = mode === 'income' ? entry.paymentDay : entry.dueDay;
   const dayLabel = day ? `${day}-е` : 'день?';
-  return amount ? `${formatRub(amount)} · ${dayLabel}` : dayLabel;
+  const amountLabel = amount ? formatEntryAmount(amount, currency) : '';
+  const rubHint =
+    currency === 'usd' && amount
+      ? ` ≈ ${formatRub(entryAmountRub(entry, usdRubRate))}`
+      : '';
+  return amount ? `${amountLabel}${rubHint} · ${dayLabel}` : dayLabel;
 }
 
 function MoneyFlowSummary({
   mode,
   entries,
+  usdRubRate,
 }: {
   mode: Mode;
   entries: MoneyFlowEntry[];
+  usdRubRate: number;
 }) {
   const filled = entries.filter((entry) => entry.name.trim());
   const isIncome = mode === 'income';
@@ -278,18 +311,20 @@ function MoneyFlowSummary({
       ? entries.reduce((sum, entry) => {
           if (entry.isOneTime) return sum;
           if (entry.isBimonthlySalary) {
-            return sum + Number(entry.monthlyAmount ?? entry.amount ?? 0);
+            return (
+              sum + entryAmountRub(entry, usdRubRate, { monthly: true })
+            );
           }
-          return sum + Number(entry.amount || 0);
+          return sum + entryAmountRub(entry, usdRubRate);
         }, 0)
       : entries.reduce((sum, entry) => {
           if (entry.isOneTime) return sum;
-          return sum + Number(entry.amount || 0);
+          return sum + entryAmountRub(entry, usdRubRate);
         }, 0);
 
   const oneTimeTotal = entries.reduce((sum, entry) => {
     if (!entry.isOneTime) return sum;
-    return sum + Number(entry.amount || 0);
+    return sum + entryAmountRub(entry, usdRubRate);
   }, 0);
 
   let hint: string | null = null;
@@ -308,7 +343,14 @@ function MoneyFlowSummary({
           new Date(now.getFullYear(), now.getMonth(), tranche.paymentDay),
           tranches,
         );
-        return `${tranche.paymentDay}-е ≈ ${formatRub(calc.amount)}`;
+        const rubAmount =
+          (salary.currency ?? 'rub') === 'usd'
+            ? entryAmountRub(
+                { ...salary, amount: String(calc.amount) },
+                usdRubRate,
+              )
+            : calc.amount;
+        return `${tranche.paymentDay}-е ≈ ${formatRub(rubAmount)}`;
       });
       hint = `Выплаты: ${parts.join(' · ')}`;
     }
@@ -464,27 +506,31 @@ function EntryRow({
   mode,
   index,
   expanded,
+  preview,
   onToggle,
   onChange,
   onRemove,
   canRemove,
   onPresetApplied,
   creditAssets,
+  usdRubRate,
 }: {
   entry: MoneyFlowEntry;
   mode: Mode;
   index: number;
   expanded: boolean;
+  preview?: boolean;
   onToggle: () => void;
-  onChange: (entry: MoneyFlowEntry) => void;
+  onChange: (patch: Partial<MoneyFlowEntry>) => void;
   onRemove: () => void;
   canRemove: boolean;
   onPresetApplied?: () => void;
   creditAssets: Asset[];
+  usdRubRate: number;
 }) {
-  const update = (patch: Partial<MoneyFlowEntry>) =>
-    onChange({ ...entry, ...patch });
+  const update = (patch: Partial<MoneyFlowEntry>) => onChange(patch);
   const isIncome = mode === 'income';
+  const currency = entry.currency ?? 'rub';
   const title =
     entry.name.trim() ||
     (isIncome ? `Доход ${index + 1}` : `Расход ${index + 1}`);
@@ -563,7 +609,7 @@ function EntryRow({
 
   return (
     <SwipeToDelete
-      enabled={canRemove && !expanded}
+      enabled={canRemove && !expanded && !preview}
       onDelete={onRemove}
       borderRadius={16}
       className="mb-3"
@@ -574,54 +620,94 @@ function EntryRow({
           expanded ? toneRing : 'ring-slate-100',
         )}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50/70"
-        >
-          <div
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-              toneSoft,
-            )}
-          >
-            {isIncome ? (
-              <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
-            ) : (
-              <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
-                {title}
-              </p>
-              {entry.isPrimary ? (
-                <Badge variant="soft" className="shrink-0 text-[10px]">
-                  ОСН.
-                </Badge>
-              ) : null}
-              {linkedCredit ? (
-                <Badge
-                  variant="soft"
-                  className="shrink-0 text-[10px] text-rose-700"
-                >
-                  КРЕДИТ
-                </Badge>
-              ) : null}
+        {preview ? (
+          <div className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+            <div
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                toneSoft,
+              )}
+            >
+              {isIncome ? (
+                <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
+              ) : (
+                <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
+              )}
             </div>
-            <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
-              {previewLine(entry, mode)}
-            </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
+                  {title}
+                </p>
+                {entry.isPrimary ? (
+                  <Badge variant="soft" className="shrink-0 text-[10px]">
+                    ОСН.
+                  </Badge>
+                ) : null}
+                {linkedCredit ? (
+                  <Badge
+                    variant="soft"
+                    className="shrink-0 text-[10px] text-rose-700"
+                  >
+                    КРЕДИТ
+                  </Badge>
+                ) : null}
+              </div>
+              <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
+                {previewLine(entry, mode, usdRubRate)}
+              </p>
+            </div>
           </div>
-          {expanded ? (
-            <ChevronUp className="h-[18px] w-[18px] shrink-0 text-slate-300" />
-          ) : (
-            <ChevronDown className="h-[18px] w-[18px] shrink-0 text-slate-300" />
-          )}
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50/70"
+          >
+            <div
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                toneSoft,
+              )}
+            >
+              {isIncome ? (
+                <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2} />
+              ) : (
+                <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2} />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900">
+                  {title}
+                </p>
+                {entry.isPrimary ? (
+                  <Badge variant="soft" className="shrink-0 text-[10px]">
+                    ОСН.
+                  </Badge>
+                ) : null}
+                {linkedCredit ? (
+                  <Badge
+                    variant="soft"
+                    className="shrink-0 text-[10px] text-rose-700"
+                  >
+                    КРЕДИТ
+                  </Badge>
+                ) : null}
+              </div>
+              <p className={cn('mt-0.5 truncate text-sm font-medium', toneMoneyText)}>
+                {previewLine(entry, mode, usdRubRate)}
+              </p>
+            </div>
+            {expanded ? (
+              <ChevronUp className="h-[18px] w-[18px] shrink-0 text-slate-300" />
+            ) : (
+              <ChevronDown className="h-[18px] w-[18px] shrink-0 text-slate-300" />
+            )}
+          </button>
+        )}
 
-        {expanded ? (
+        {expanded && !preview ? (
           <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
             {/* Название — текстовое поле */}
             <div className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
@@ -720,25 +806,31 @@ function EntryRow({
 
             {/* Сумма — отдельный блок, чтобы не путали с названием */}
             <div className="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
-              <Label
-                required
-                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
-              >
-                {entry.isBimonthlySalary && isIncome
-                  ? 'Оклад на руки / мес'
-                  : 'Сумма в рублях'}
-              </Label>
-              <p className="mt-0.5 mb-2 text-[11px] leading-4 text-slate-400">
-                {entry.isBimonthlySalary && isIncome
-                  ? 'Месячный оклад до вычета расходов'
-                  : isIncome
-                    ? 'Сколько приходит за этот доход'
-                    : 'Сколько уходит на этот платёж'}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Label
+                  required
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
+                  {entry.isBimonthlySalary && isIncome
+                    ? 'Оклад на руки / мес'
+                    : 'Сумма'}
+                </Label>
+                <SlidingToggleGroup
+                  size="sm"
+                  value={currency}
+                  onValueChange={(key) =>
+                    update({ currency: key as MoneyFlowCurrency })
+                  }
+                  options={[
+                    { value: 'rub', label: '₽' },
+                    { value: 'usd', label: '$' },
+                  ]}
+                />
+              </div>
               <div>
                 <Input
                   format="money"
-                  suffix="₽"
+                  suffix={currency === 'usd' ? '$' : '₽'}
                   withRelativeSuffix
                   className="border-0 bg-white text-lg font-bold shadow-none ring-1 ring-slate-200"
                   value={
@@ -757,6 +849,26 @@ function EntryRow({
                   placeholder="0"
                 />
               </div>
+              {currency === 'usd' &&
+              Number(
+                entry.isBimonthlySalary && isIncome
+                  ? (entry.monthlyAmount ?? entry.amount)
+                  : entry.amount,
+              ) > 0 ? (
+                <p className="mt-2 text-[11px] leading-4 text-slate-400">
+                  ≈{' '}
+                  {formatRub(
+                    entryAmountRub(
+                      entry,
+                      usdRubRate,
+                      entry.isBimonthlySalary && isIncome
+                        ? { monthly: true }
+                        : undefined,
+                    ),
+                  )}{' '}
+                  по курсу {usdRubRate.toFixed(2)} ₽/$
+                </p>
+              ) : null}
 
               {!entry.isOneTime && !entry.isBimonthlySalary ? (
                 <div className="mt-3">
@@ -1051,6 +1163,7 @@ export function MoneyFlowStep({
   submitLabel,
   onSubmit,
   onboarding = false,
+  preview = false,
 }: {
   mode: Mode;
   title: string;
@@ -1059,14 +1172,17 @@ export function MoneyFlowStep({
   submitLabel: string;
   onSubmit: (entries: MoneyFlowEntry[]) => Promise<void> | void;
   onboarding?: boolean;
+  preview?: boolean;
 }) {
+  const navigate = useNavigate();
+  const usdRubRate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
   const [entries, setEntries] = useState<MoneyFlowEntry[]>(
     initialEntries.length
       ? initialEntries
       : [mode === 'income' ? createEmptyIncomeEntry() : createEmptyExpenseEntry()],
   );
-  const [expandedId, setExpandedId] = useState<string | null>(
-    entries[0]?.id ?? null,
+  const [expandedId, setExpandedId] = useState<string | null>(() =>
+    preview ? null : (entries[0]?.id ?? null),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1101,16 +1217,17 @@ export function MoneyFlowStep({
     });
   }
 
-  function updateEntry(id: string | undefined, next: MoneyFlowEntry) {
+  function updateEntry(id: string | undefined, patch: Partial<MoneyFlowEntry>) {
     if (!id) return;
-    setEntries((prev) => {
-      if (next.isPrimary && mode === 'income') {
-        return prev.map((item) =>
-          item.id === id ? next : { ...item, isPrimary: false },
-        );
-      }
-      return prev.map((e) => (e.id === id ? next : e));
-    });
+    setEntries((prev) =>
+      prev.map((item) => {
+        if (item.id === id) return { ...item, ...patch };
+        if (patch.isPrimary && mode === 'income') {
+          return { ...item, isPrimary: false };
+        }
+        return item;
+      }),
+    );
   }
 
   function add() {
@@ -1236,14 +1353,22 @@ export function MoneyFlowStep({
     setSaving(true);
     try {
       await onSubmit(
-        filled.map((entry) =>
-          entry.isBimonthlySalary
+        filled.map((entry) => {
+          const withCurrency = {
+            ...entry,
+            currency: entry.currency ?? 'rub',
+          };
+          return entry.isBimonthlySalary
             ? {
-                ...entry,
+                ...withCurrency,
                 salaryTranches: normalizeSalaryTranches(entry.salaryTranches),
               }
-            : entry,
-        ),
+            : withCurrency;
+        }),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Не удалось сохранить. Попробуйте ещё раз',
       );
     } finally {
       setSaving(false);
@@ -1282,13 +1407,45 @@ export function MoneyFlowStep({
           ) : null}
         </div>
 
-        <MoneyFlowSummary mode={mode} entries={entries} />
+        <MoneyFlowSummary mode={mode} entries={entries} usdRubRate={usdRubRate} />
+
+        {preview ? (
+          <div className="flex items-center gap-3 rounded-2xl bg-blue-50 px-4 py-3.5 ring-1 ring-blue-100">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-900">
+                {mode === 'income' ? 'Изменить доходы' : 'Изменить расходы'}
+              </p>
+              <p className="mt-0.5 text-[12px] leading-4 text-slate-500">
+                {mode === 'income'
+                  ? 'Отредактируйте источники или добавьте новые поступления'
+                  : 'Отредактируйте платежи или добавьте новые расходы'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0"
+              onClick={() =>
+                void navigate({
+                  to: mode === 'income' ? '/settings/income' : '/settings/expenses',
+                  search: {},
+                  replace: true,
+                })
+              }
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Изменить
+            </Button>
+          </div>
+        ) : null}
 
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-900">
             {mode === 'income' ? 'Источники' : 'Статьи'}
           </h3>
-          <p className="text-[11px] text-slate-400">Свайп влево — удалить</p>
+          {preview ? null : (
+            <p className="text-[11px] text-slate-400">Свайп влево — удалить</p>
+          )}
         </div>
 
         <div>
@@ -1298,47 +1455,54 @@ export function MoneyFlowStep({
               entry={entry}
               mode={mode}
               index={index}
-              expanded={expandedId === entry.id}
-              onToggle={() =>
-                setExpandedId(expandedId === entry.id ? null : entry.id ?? null)
-              }
-              onChange={(next) => updateEntry(entry.id, next)}
+              expanded={!preview && expandedId === entry.id}
+              preview={preview}
+              onToggle={() => {
+                if (preview) return;
+                setExpandedId(expandedId === entry.id ? null : entry.id ?? null);
+              }}
+              onChange={(patch) => updateEntry(entry.id, patch)}
               onRemove={() => scheduleRemove(entry.id)}
               canRemove={canRemove}
               onPresetApplied={scrollToSubmit}
               creditAssets={creditAssets}
+              usdRubRate={usdRubRate}
             />
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={add}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-300 bg-transparent py-3.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
-        >
-          <Plus className="h-4 w-4" />
-          Добавить {mode === 'income' ? 'доход' : 'расход'}
-        </button>
+        {preview ? null : (
+          <button
+            type="button"
+            onClick={add}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-300 bg-transparent py-3.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+          >
+            <Plus className="h-4 w-4" />
+            Добавить {mode === 'income' ? 'доход' : 'расход'}
+          </button>
+        )}
       </div>
 
-      <div
-        ref={submitRef}
-        className="shrink-0 space-y-2 border-t border-slate-100 bg-[#f8fafc] pt-3 pb-[max(16px,env(safe-area-inset-bottom))]"
-      >
-        {error ? (
-          <p className="text-center text-sm text-red-500">{error}</p>
-        ) : null}
-        <Button
-          type="button"
-          variant={onboarding ? 'navy' : 'default'}
-          size="lg"
-          className="w-full"
-          disabled={saving}
-          onClick={handleSubmit}
+      {preview ? null : (
+        <div
+          ref={submitRef}
+          className="shrink-0 space-y-2 border-t border-slate-100 bg-[#f8fafc] pt-3 pb-[max(16px,env(safe-area-inset-bottom))]"
         >
-          {submitLabel}
-        </Button>
-      </div>
+          {error ? (
+            <p className="text-center text-sm text-red-500">{error}</p>
+          ) : null}
+          <Button
+            type="button"
+            variant={onboarding ? 'navy' : 'default'}
+            size="lg"
+            className="w-full"
+            disabled={saving}
+            onClick={handleSubmit}
+          >
+            {submitLabel}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,8 +2,8 @@ import { Send } from 'lucide-react';
 
 const APP_VERSION = __APP_VERSION__;
 const TELEGRAM_URL =
-  import.meta.env.VITE_TELEGRAM_URL ?? 'https://t.me/monesto_app';
-const TELEGRAM_NAME = import.meta.env.VITE_TELEGRAM_NAME ?? '@monesto_app';
+  import.meta.env.VITE_TELEGRAM_URL ?? 'https://t.me/monesto_news';
+const TELEGRAM_NAME = import.meta.env.VITE_TELEGRAM_NAME ?? '@monesto_news';
 
 /** Compact about strip — mirrors webapp settings info-section. */
 export function AppAboutFooter() {
