@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Проверка формата сообщения коммита: `type(имя-ветки): описание`.
+ * @fileoverview Проверка формата сообщения коммита: `type: описание`.
  */
 
 const fs = require("node:fs");
-const { execSync } = require("node:child_process");
 
 /** Допустимые типы коммита (без perf и style). */
 const ALLOWED_TYPES = [
@@ -57,53 +56,31 @@ function isExemptMessage(props) {
 }
 
 /**
- * Возвращает имя текущей ветки или `null`, если определить нельзя.
- * @returns {string | null}
- */
-function getCurrentBranchName() {
-  try {
-    return execSync("git rev-parse --abbrev-ref HEAD", {
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Проверяет сообщение коммита на соответствие `type(ветка): описание`, где `ветка` совпадает с текущей.
+ * Проверяет сообщение коммита на соответствие `type: описание`.
  * @param {object} props
  * @param {string} props.firstLine — первая значимая строка сообщения
- * @param {string} props.branch — имя текущей ветки
  * @returns {{ ok: true } | { ok: false, error: string }}
  */
 function validateCommitSubject(props) {
-  const { firstLine, branch } = props;
+  const { firstLine } = props;
   const types = ALLOWED_TYPES.join("|");
-  const re = new RegExp(`^(${types})\\((.+)\\):\\s*(.+)$`);
+  const re = new RegExp(`^(${types}):\\s*(.+)$`);
   const match = firstLine.match(re);
   if (!match) {
     return {
       ok: false,
       error: [
         "Сообщение коммита должно быть в формате:",
-        `  <тип>(${branch}): <краткое описание>`,
+        "  <тип>: <краткое описание>",
         "",
         `Допустимые типы: ${ALLOWED_TYPES.join(", ")}`,
         "",
         "Пример:",
-        `  feat(${branch}): добавить форму входа`,
+        "  feat: добавить форму входа",
       ].join("\n"),
     };
   }
-  const scope = match[2];
-  const description = match[3].trim();
-  if (scope !== branch) {
-    return {
-      ok: false,
-      error: `В скобках должно быть имя текущей ветки "${branch}", указано: "${scope}".`,
-    };
-  }
+  const description = match[2].trim();
   if (!description) {
     return {
       ok: false,
@@ -144,15 +121,7 @@ function main(props) {
     process.exit(0);
   }
 
-  const branch = getCurrentBranchName();
-  if (!branch || branch === "HEAD") {
-    console.error(
-      "Не удалось сопоставить сообщение с веткой: detached HEAD или не git-репозиторий. Оформите коммит на именованной ветке или используйте merge/revert с автоматическим сообщением.",
-    );
-    process.exit(1);
-  }
-
-  const result = validateCommitSubject({ firstLine, branch });
+  const result = validateCommitSubject({ firstLine });
   if (!result.ok) {
     console.error(result.error);
     process.exit(1);
