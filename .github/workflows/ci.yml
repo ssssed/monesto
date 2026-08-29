@@ -39,103 +39,177 @@ jobs:
               return;
             }
 
-            const branchRe = /^(feature|fix)\/.+$/;
+            const kinds = ["release", "fix", "feature", "crit", "hotfix"];
+            const kindsAlt = kinds.join("|");
+
+            const branchRe = new RegExp(`^(${kindsAlt})\\/.+$`);
             if (!branchRe.test(headRef)) {
               core.setFailed(
                 [
                   "Неверное имя ветки.",
-                  "Ожидается: feature/<название> или fix/<название> (латиница, kebab-case, без пробелов).",
+                  `Ожидается: <${kindsAlt}>/<название> (латиница, kebab-case, без пробелов).`,
                   `Текущая ветка: ${headRef}`,
                 ].join("\n")
               );
               return;
             }
 
-            const titleRe = /^(feature|fix)\/([^:]+):\s+\S.*$/;
+            const branchSlugMatch = headRef.match(new RegExp(`^(${kindsAlt})\\/(.+)$`));
+            const branchKind = branchSlugMatch[1];
+            const branchSlug = branchSlugMatch[2];
+
+            // release/<slug> — двоеточие с описанием опционально.
+            // fix|feature|crit|hotfix/<slug>: <описание> — двоеточие с описанием обязательно.
+            const titleRe =
+              branchKind === "release"
+                ? new RegExp(`^release\\/([^:]+)(?::\\s+\\S.*)?$`)
+                : new RegExp(`^(${kindsAlt})\\/([^:]+):\\s+\\S.*$`);
             const titleMatch = title.match(titleRe);
             if (!titleMatch) {
+              const example =
+                branchKind === "release"
+                  ? "release/<slug> (опционально: release/<slug>: <короткое описание>)"
+                  : `${branchKind}/<slug>: <короткое описание>`;
               core.setFailed(
                 [
                   "Неверный заголовок PR.",
-                  "Ожидается: feature/<slug>: <короткое описание> или fix/<slug>: <короткое описание>",
-                  "После двоеточия обязательны пробел и текст описания.",
+                  `Ожидается: ${example}`,
+                  branchKind === "release"
+                    ? "Если указано двоеточие — после него обязательны пробел и текст описания."
+                    : "После двоеточия обязательны пробел и текст описания.",
                   `Текущий заголовок: ${title}`,
                 ].join("\n")
               );
               return;
             }
 
-            const branchSlugMatch = headRef.match(/^(feature|fix)\/(.+)$/);
-            const titleKind = titleMatch[1];
-            const titleSlug = titleMatch[2];
-            const branchKind = branchSlugMatch[1];
-            const branchSlug = branchSlugMatch[2];
+            const titleKind = branchKind === "release" ? "release" : titleMatch[1];
+            const titleSlug = branchKind === "release" ? titleMatch[1] : titleMatch[2];
             if (titleKind !== branchKind || titleSlug !== branchSlug) {
               core.setFailed(
                 [
                   "Префикс и slug в заголовке PR должны совпадать с веткой.",
-                  `Ветка: ${headRef} → ожидается заголовок: ${branchKind}/${branchSlug}: <описание>`,
+                  `Ветка: ${headRef} → ожидается заголовок, начинающийся с: ${branchKind}/${branchSlug}`,
                   `Сейчас заголовок: ${title}`,
                 ].join("\n")
               );
               return;
             }
 
-            const minBodyLen = 80;
-            if (bodyWithoutComments.length < minBodyLen) {
-              core.setFailed(
-                [
-                  "Описание PR слишком короткое или пустое.",
-                  `После удаления HTML-комментариев нужно не менее ${minBodyLen} символов текста.`,
-                  "Заполните разделы шаблона (описание, тип изменения и т.д.).",
-                ].join("\n")
-              );
-              return;
-            }
-
-            /**
-             * Извлекает текст описания: приоритет у раздела ## Описание, иначе первый блок после ###,
-             * иначе тело без строк-заголовков markdown (чтобы не отклонять осмысленные PR без шаблона).
-             * @param {object} props
-             * @param {string} props.body
-             * @returns {string}
-             */
-            function extractDescriptionText(props) {
-              const { body } = props;
-              const underH2Desc = body.match(
-                /##\s+Описание\s*\n+([\s\S]*?)(?=\n## |\n##$|$)/
-              );
-              if (underH2Desc) {
-                return underH2Desc[1].trim();
-              }
-
-              const underFirstH3 = body.match(
-                /^###[^\n]*\r?\n+([\s\S]*?)(?=\n### |\n## |\n##$|$)/m
-              );
-              if (underFirstH3) {
-                return underFirstH3[1].trim();
-              }
-
-              return body
-                .replace(/^#{1,6}\s+.*$/gm, "")
-                .replace(/^\s*[-*]\s+\[[ x]\]\s+.*$/gm, "")
-                .trim();
-            }
-
-            const minDescLen = 30;
-            const descText = extractDescriptionText({ body: bodyWithoutComments });
-            if (descText.length < minDescLen) {
-              core.setFailed(
-                [
-                  "Раздел с описанием слишком короткий или пустой.",
-                  `Нужно не менее ${minDescLen} символов: укажите блок «## Описание», либо начните с «### Заголовок», либо опишите изменения в тексте PR.`,
-                  "Если используете шаблон — заполните раздел «Описание» под соответствующим заголовком.",
-                ].join("\n")
-              );
-              return;
-            }
-
             core.info("Проверки PR: OK.");
+
+  pr-description:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Сборка описания PR из коммитов
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const headRef = pr.head.ref;
+
+            if (headRef.startsWith("dependabot/")) {
+              core.info("Пропуск: ветка dependabot.");
+              return;
+            }
+
+            // Секции по типу коммита (Conventional Commits: "type(scope): текст").
+            // Порядок массива — порядок секций в итоговом описании.
+            const typeSections = [
+              { types: ["feat", "feature"], title: "Добавлено" },
+              { types: ["fix"], title: "Исправлено" },
+              { types: ["perf"], title: "Производительность" },
+              { types: ["refactor"], title: "Изменено" },
+              { types: ["release"], title: "Релиз" },
+              { types: ["docs"], title: "Документация" },
+              { types: ["style"], title: "Стили" },
+              { types: ["test"], title: "Тесты" },
+              { types: ["build", "ci"], title: "Сборка/CI" },
+              { types: ["revert"], title: "Откат" },
+              { types: ["chore"], title: "Прочее" },
+            ];
+
+            const typeToSection = new Map();
+            for (const section of typeSections) {
+              for (const type of section.types) {
+                typeToSection.set(type, section.title);
+              }
+            }
+
+            const commitRe = /^(\w+)(?:\(([^)]*)\))?!?:\s*(.+)$/;
+
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const grouped = new Map();
+            const other = [];
+            const seen = new Set();
+
+            for (const c of commits) {
+              const subject = c.commit.message.split("\n")[0].trim();
+              if (!subject || subject.startsWith("Merge ")) continue;
+              if (seen.has(subject)) continue;
+              seen.add(subject);
+
+              const match = subject.match(commitRe);
+              if (!match) {
+                other.push(subject);
+                continue;
+              }
+
+              const [, type, , text] = match;
+              const sectionTitle = typeToSection.get(type.toLowerCase());
+              if (!sectionTitle) {
+                other.push(subject);
+                continue;
+              }
+
+              if (!grouped.has(sectionTitle)) grouped.set(sectionTitle, []);
+              grouped.get(sectionTitle).push(text.trim());
+            }
+
+            const lines = [];
+            for (const section of typeSections) {
+              const items = grouped.get(section.title);
+              if (!items || items.length === 0) continue;
+              lines.push(`## ${section.title}`, "");
+              for (const item of items) lines.push(`- ${item}`);
+              lines.push("");
+            }
+
+            if (other.length > 0) {
+              lines.push("## Прочие изменения", "");
+              for (const item of other) lines.push(`- ${item}`);
+              lines.push("");
+            }
+
+            if (lines.length === 0) {
+              lines.push("_Нет коммитов для описания._");
+            }
+
+            const marker = "<!-- auto-generated-pr-description -->";
+            const body = [marker, "", ...lines].join("\n").trimEnd() + "\n";
+
+            if ((pr.body ?? "").trim() === body.trim()) {
+              core.info("Описание PR уже актуально.");
+              return;
+            }
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              body,
+            });
+
+            core.info("Описание PR обновлено из коммитов.");
 
   verify:
     needs: pr-conventions
