@@ -262,3 +262,88 @@ describe('vacation vs salary plan — июль 16–31', () => {
     expect(report.totalExpenses).toBe(50_000);
   });
 });
+
+describe('разовые доходы/расходы по окну цикла', () => {
+  const bonus: IncomeSource = {
+    id: 2,
+    name: 'Премия',
+    currency: 'rub',
+    income_kind: 'regular',
+    amount: 20_000,
+    monthly_amount: null,
+    is_one_time: true,
+    recurrence: 'one_time',
+    payment_day: null,
+    is_primary: false,
+    primary_payment_day: null,
+    specific_date: '2026-08-30',
+    salary_tranches: null,
+  };
+
+  const oneTimeExpense: Expense = {
+    id: 2,
+    name: 'Ремонт',
+    currency: 'rub',
+    amount: 5_000,
+    recurrence: 'one_time',
+    due_day: null,
+    specific_date: '2026-08-30',
+    linked_asset_id: null,
+  };
+
+  it('премия 30 авг в цикле 25 авг, не в плане 10 сен', () => {
+    const current = calculateReport({
+      incomes: [primarySalary, bonus],
+      expenses: [],
+      rules: [],
+      assets: [],
+      today: new Date(2026, 7, 30),
+      cyclePaymentDay: 25,
+      cycleNominalDate: new Date(2026, 7, 25),
+    });
+    const nextPlan = calculateReport({
+      incomes: [primarySalary, bonus],
+      expenses: [],
+      rules: [],
+      assets: [],
+      today: new Date(2026, 7, 30),
+      cyclePaymentDay: 10,
+      cycleNominalDate: new Date(2026, 8, 10),
+    });
+
+    expect('code' in current).toBe(false);
+    expect('code' in nextPlan).toBe(false);
+    if ('code' in current || 'code' in nextPlan) return;
+
+    expect(current.incomeLines.some((l) => l.name === 'Премия')).toBe(true);
+    expect(nextPlan.incomeLines.some((l) => l.name === 'Премия')).toBe(false);
+  });
+
+  it('разовый расход 30 авг в цикле 25 авг, не в плане 10 сен', () => {
+    const current = calculateReport({
+      incomes: [primarySalary],
+      expenses: [oneTimeExpense],
+      rules: [],
+      assets: [],
+      today: new Date(2026, 7, 30),
+      cyclePaymentDay: 25,
+      cycleNominalDate: new Date(2026, 7, 25),
+    });
+    const nextPlan = calculateReport({
+      incomes: [primarySalary],
+      expenses: [oneTimeExpense],
+      rules: [],
+      assets: [],
+      today: new Date(2026, 7, 30),
+      cyclePaymentDay: 10,
+      cycleNominalDate: new Date(2026, 8, 10),
+    });
+
+    expect('code' in current).toBe(false);
+    expect('code' in nextPlan).toBe(false);
+    if ('code' in current || 'code' in nextPlan) return;
+
+    expect(current.expenseLines.some((l) => l.name === 'Ремонт')).toBe(true);
+    expect(nextPlan.expenseLines.some((l) => l.name === 'Ремонт')).toBe(false);
+  });
+});

@@ -137,6 +137,10 @@ export function calculateReport(input: {
     cycle.incomeStart,
     vacations,
     usdRubRate,
+    {
+      start: cycle.expenseStart,
+      endExclusive: cycle.expenseEndExclusive,
+    },
   );
   const carryInRub = Math.max(0, Math.round(input.carryInRub ?? 0));
   if (carryInRub > 0) {

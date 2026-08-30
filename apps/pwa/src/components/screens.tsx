@@ -27,6 +27,7 @@ import {
   CalendarDays,
   ChevronRight,
   GitBranch,
+  Minus,
   Pencil,
   Plus,
   Receipt,
@@ -59,6 +60,7 @@ import {
   CarryoverEditSheet,
   CarryoverIncomeCard,
 } from '@/components/report/CarryoverEditSheet';
+import { QuickOneTimeSheet } from '@/components/report/QuickOneTimeSheet';
 import { SwipeConfirmCard } from '@/components/report/SwipeConfirmCard';
 import { DangerClearButton } from '@/components/ui/DangerClearButton';
 import { AppAboutFooter } from '@/components/ui/AppAboutFooter';
@@ -164,6 +166,9 @@ export function HomeScreen() {
   const [carryEditOpen, setCarryEditOpen] = useState(false);
   const [carryDraft, setCarryDraft] = useState('');
   const [trackingStartedAt, setTrackingStartedAt] = useState<Date | null>(null);
+  const [quickOneTimeMode, setQuickOneTimeMode] = useState<
+    'income' | 'expense' | null
+  >(null);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -494,25 +499,49 @@ export function HomeScreen() {
 
       <div className="space-y-3">
         <FadeIn index={0} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
-          <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
-            <p className="text-sm text-slate-300">Свободные деньги</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">
-              {showCarryWidget ? (
-                <>
-                  <span>{formatRub(freeBare)}</span>
-                  <span className="text-amber-300">
-                    {' '}
-                    + {formatRub(carryAmount)}
-                  </span>
-                </>
-              ) : (
-                formatRub(freeMoney)
-              )}
-            </p>
-            <p className="mt-2 text-sm text-slate-400">
-              Распределение · {formatRub(effectiveAllocatedRub)}
-            </p>
-          </Card>
+          <div className="flex items-stretch gap-3">
+            <Card className="min-w-0 flex-1 border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
+              <p className="text-sm text-slate-300">Свободные деньги</p>
+              <p className="mt-1 text-3xl font-bold tracking-tight">
+                {showCarryWidget ? (
+                  <>
+                    <span>{formatRub(freeBare)}</span>
+                    <span className="text-amber-300">
+                      {' '}
+                      + {formatRub(carryAmount)}
+                    </span>
+                  </>
+                ) : (
+                  formatRub(freeMoney)
+                )}
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                Распределение · {formatRub(effectiveAllocatedRub)}
+              </p>
+            </Card>
+            <div className="flex shrink-0 flex-col justify-center gap-2 self-stretch">
+              <button
+                type="button"
+                aria-label="Добавить разовый доход"
+                onClick={() => setQuickOneTimeMode('income')}
+                className="flex flex-1 items-center"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label="Добавить разовый расход"
+                onClick={() => setQuickOneTimeMode('expense')}
+                className="flex flex-1 items-center"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
+                  <Minus className="h-6 w-6" strokeWidth={2.5} />
+                </span>
+              </button>
+            </div>
+          </div>
         </FadeIn>
 
         {showCarryWidget ? (
@@ -559,6 +588,19 @@ export function HomeScreen() {
             setCarryTick((n) => n + 1);
             setCarryEditOpen(false);
           });
+        }}
+      />
+
+      <QuickOneTimeSheet
+        open={quickOneTimeMode != null}
+        mode={quickOneTimeMode}
+        expenseStart={selectedCycle.expenseStart}
+        expenseEndExclusive={selectedCycle.expenseEndExclusive}
+        onOpenChange={(open) => {
+          if (!open) setQuickOneTimeMode(null);
+        }}
+        onDone={() => {
+          void reload();
         }}
       />
 

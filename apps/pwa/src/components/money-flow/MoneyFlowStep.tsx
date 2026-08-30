@@ -46,8 +46,10 @@ import {
 import {
   findPrimaryIncome,
   listReportCycles,
+  parseDate,
   scheduleDaysFromPrimary,
 } from '@/lib/report/dateWindow';
+import { startOfDay } from '@/lib/calendar/workingDays';
 import {
   resolveCarryIn,
   type CarryInResult,
@@ -772,6 +774,7 @@ function EntryRow({
                           isOneTime: key === 'one_time',
                           isBimonthlySalary:
                             key === 'one_time' ? false : entry.isBimonthlySalary,
+                          ...(key === 'one_time' ? { isPrimary: false } : {}),
                         }
                       : { isOneTime: key === 'one_time' },
                   )
@@ -1011,7 +1014,7 @@ function EntryRow({
               </div>
             ) : null}
 
-            {isIncome ? (
+            {isIncome && !entry.isOneTime ? (
               <div>
                 <button
                   type="button"
@@ -1225,6 +1228,10 @@ export function MoneyFlowStep({
   const [carryTick, setCarryTick] = useState(0);
   const [carryEditOpen, setCarryEditOpen] = useState(false);
   const [carryDraft, setCarryDraft] = useState('');
+  const [cyclePeriod, setCyclePeriod] = useState<{
+    start: Date;
+    endExclusive: Date;
+  } | null>(null);
   const pendingRef = useRef(
     new Map<
       string,
@@ -1241,9 +1248,10 @@ export function MoneyFlowStep({
   }, [mode]);
 
   useEffect(() => {
-    if (!preview || mode !== 'income') {
+    if (!preview) {
       setCarryIn(null);
       setCarryCycleKey(null);
+      setCyclePeriod(null);
       return;
     }
     let cancelled = false;
@@ -1270,6 +1278,15 @@ export function MoneyFlowStep({
       const selected =
         cycles.find((c) => !c.isPreview) ?? cycles[0] ?? null;
       if (!selected || cancelled) return;
+      setCyclePeriod({
+        start: startOfDay(selected.expenseStart),
+        endExclusive: startOfDay(selected.expenseEndExclusive),
+      });
+      if (mode !== 'income') {
+        setCarryIn(null);
+        setCarryCycleKey(null);
+        return;
+      }
       const anchor =
         cycles.find((c) => !c.isPreview) ?? cycles[0] ?? selected;
       const trackingStartedAt = db.ensureTrackingStartedAt(anchor.nominalDate);
@@ -1296,6 +1313,16 @@ export function MoneyFlowStep({
       cancelled = true;
     };
   }, [preview, mode, usdRubRate, carryTick]);
+
+  const visibleEntries = useMemo(() => {
+    if (!preview || !cyclePeriod) return entries;
+    return entries.filter((entry) => {
+      if (!entry.isOneTime) return true;
+      if (!entry.specificDate) return false;
+      const date = parseDate(entry.specificDate);
+      return date >= cyclePeriod.start && date < cyclePeriod.endExclusive;
+    });
+  }, [preview, entries, cyclePeriod]);
 
   const canRemove = useMemo(
     () => entries.filter((e) => e.name.trim()).length > 0 || entries.length > 1,
@@ -1503,7 +1530,7 @@ export function MoneyFlowStep({
 
         <MoneyFlowSummary
           mode={mode}
-          entries={entries}
+          entries={visibleEntries}
           usdRubRate={usdRubRate}
           carryInRub={
             preview && mode === 'income' ? (carryIn?.amountRub ?? 0) : 0
@@ -1565,7 +1592,7 @@ export function MoneyFlowStep({
               />
             </div>
           ) : null}
-          {entries.map((entry, index) => (
+          {visibleEntries.map((entry, index) => (
             <EntryRow
               key={entry.id}
               entry={entry}
