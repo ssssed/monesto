@@ -1895,18 +1895,10 @@ function AssetDetailBody({ slug }: { slug: string }) {
         ) : null}
 
         <div className="grid grid-cols-2 gap-3">
-          <Button
-            size="lg"
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={() => setMode('deposit')}
-          >
+          <Button size="lg" onClick={() => setMode('deposit')}>
             Пополнить
           </Button>
-          <Button
-            size="lg"
-            className="bg-rose-600 text-white hover:bg-rose-700"
-            onClick={() => setMode('withdraw')}
-          >
+          <Button size="lg" variant="destructive" onClick={() => setMode('withdraw')}>
             Списать
           </Button>
         </div>
