@@ -393,6 +393,25 @@ function findPreviousNonEmptyPayment(
   return null;
 }
 
+export function findPreviousReportCycle(
+  today: Date,
+  beforeNominalDate: Date,
+  scheduleDays?: SalaryPaymentDay[],
+  vacationCtx?: VacationReportContext,
+): ReportCycle | null {
+  const days = sortedPaymentDays(scheduleDays);
+  if (!vacationCtx?.vacations.length || (vacationCtx.monthlyAmount ?? 0) <= 0) {
+    const prev = getPreviousSchedulePaymentDate(beforeNominalDate, days);
+    return resolveCycleForNominalDate(today, prev, days, vacationCtx);
+  }
+  return findPreviousNonEmptyPayment(
+    today,
+    beforeNominalDate,
+    days,
+    vacationCtx,
+  );
+}
+
 /** Доступные циклы по дням графика, отсортированные по дате выплаты. */
 export function listReportCycles(
   today: Date,
@@ -492,10 +511,17 @@ export function expandIncomeToLines(
   incomeStart?: Date,
   vacations: VacationPeriod[] = [],
   usdRubRate = 82,
+  oneTimeRange?: { start: Date; endExclusive: Date },
 ): ReportIncomeLine[] {
   const lines: ReportIncomeLine[] = [];
   const windowStart = startOfDay(incomeStart ?? today);
   const target = startOfDay(targetDate);
+  const oneTimeStart = oneTimeRange
+    ? startOfDay(oneTimeRange.start)
+    : windowStart;
+  const oneTimeEndExclusive = oneTimeRange
+    ? startOfDay(oneTimeRange.endExclusive)
+    : null;
 
   for (const income of incomes) {
     if (income.income_kind === 'bimonthly_salary') {
@@ -555,7 +581,10 @@ export function expandIncomeToLines(
     if (income.is_one_time || income.recurrence === 'one_time') {
       if (!income.specific_date) continue;
       const date = parseDate(income.specific_date);
-      if (date >= windowStart && date <= target) {
+      const inRange = oneTimeEndExclusive
+        ? date >= oneTimeStart && date < oneTimeEndExclusive
+        : date >= windowStart && date <= target;
+      if (inRange) {
         const converted = toReportAmount(
           income.amount ?? 0,
           income.currency ?? 'rub',

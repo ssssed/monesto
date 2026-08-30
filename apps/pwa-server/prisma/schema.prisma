@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums (mirror apps/pwa/src/lib/types.ts exactly — see plan for rationale)
+// ---------------------------------------------------------------------------
+
+enum MoneyFlowCurrency {
+  rub
+  usd
+}
+
+enum AssetProvider {
+  rub
+  usd
+  gold
+  steam
+  credit
+}
+
+enum IncomeKind {
+  fixed
+  bimonthly_salary
+}
+
+enum Recurrence {
+  monthly
+  one_time
+}
+
+enum RuleType {
+  percent
+  fixed
+}
+
+enum RuleCurrency {
+  rub
+  asset
+}
+
+enum CreditEarlyRepayMode {
+  reduce_term
+  reduce_payment
+}
+
+enum FxProviderCode {
+  open_er_api
+}
+
+// ---------------------------------------------------------------------------
+// Auth / users
+// ---------------------------------------------------------------------------
+
+model User {
+  id                Int       @id @default(autoincrement())
+  email             String?   @unique
+  telegramId        String?   @unique @map("telegram_id")
+  telegramUsername  String?   @map("telegram_username")
+  firstName         String?   @map("first_name")
+  lastName          String?   @map("last_name")
+  baseCurrency      MoneyFlowCurrency @default(usd) @map("base_currency")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  trackingStartedAt DateTime? @map("tracking_started_at") @db.Date
+
+  sessions              Session[]
+  incomeSources         IncomeSource[]
+  expenses              Expense[]
+  assets                Asset[]
+  distributionRules     DistributionRule[]
+  vacationPeriods       VacationPeriod[]
+  allocationConfirmations AllocationConfirmation[]
+  allocationRejections    AllocationRejection[]
+  cycleCarryovers         CycleCarryover[]
+
+  @@map("users")
+}
+
+model EmailVerificationCode {
+  id         Int       @id @default(autoincrement())
+  email      String
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  attempts   Int       @default(0)
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("email_verification_codes")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    Int      @map("user_id")
+  token     String   @unique
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  sessions AdminSession[]
+
+  @@map("admin_users")
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  adminId   Int      @map("admin_id")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("admin_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Feature flags
+// ---------------------------------------------------------------------------
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedBy   Int?     @map("updated_by")
+
+  @@map("feature_flags")
+}
+
+// ---------------------------------------------------------------------------
+// FX rates
+// ---------------------------------------------------------------------------
+
+model FxRate {
+  id        Int            @id @default(autoincrement())
+  base      String
+  quote     String
+  rate      Decimal
+  provider  FxProviderCode
+  fetchedAt DateTime       @map("fetched_at")
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@index([base, quote, fetchedAt])
+  @@map("fx_rates")
+}
+
+// ---------------------------------------------------------------------------
+// Finance domain (mirrors apps/pwa/src/lib/types.ts)
+// ---------------------------------------------------------------------------
+
+model IncomeSource {
+  id                Int               @id @default(autoincrement())
+  userId            Int               @map("user_id")
+  name              String
+  currency          MoneyFlowCurrency
+  incomeKind        IncomeKind        @map("income_kind")
+  amount            Decimal?
+  monthlyAmount     Decimal?          @map("monthly_amount")
+  isOneTime         Boolean           @default(false) @map("is_one_time")
+  recurrence        Recurrence
+  paymentDay        Int?              @map("payment_day")
+  isPrimary         Boolean           @default(false) @map("is_primary")
+  primaryPaymentDay Int?              @map("primary_payment_day")
+  specificDate      DateTime?         @map("specific_date") @db.Date
+  /// SalaryTranche[] as defined in apps/pwa/src/lib/types.ts; null → default 10/25 split.
+  salaryTranches    Json?             @map("salary_tranches")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("income_sources")
+}
+
+model Expense {
+  id            Int               @id @default(autoincrement())
+  userId        Int               @map("user_id")
+  name          String
+  currency      MoneyFlowCurrency
+  amount        Decimal
+  recurrence    Recurrence
+  dueDay        Int?              @map("due_day")
+  specificDate  DateTime?         @map("specific_date") @db.Date
+  linkedAssetId Int?              @map("linked_asset_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAsset Asset? @relation(fields: [linkedAssetId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("expenses")
+}
+
+model Asset {
+  id                    Int                   @id @default(autoincrement())
+  userId                Int                   @map("user_id")
+  name                  String
+  provider              AssetProvider
+  purpose               String?
+  goalAmount            Decimal?              @map("goal_amount")
+  currentAmount         Decimal               @default(0) @map("current_amount")
+  icon                  String
+  bgColor               String                @map("bg_color")
+  iconColor             String                @map("icon_color")
+  costBasisRub          Decimal               @default(0) @map("cost_basis_rub")
+  linkedExpenseId       Int?                  @map("linked_expense_id")
+  creditAnnualRate      Decimal?              @map("credit_annual_rate")
+  creditTermMonths      Int?                  @map("credit_term_months")
+  creditStartDate       DateTime?             @map("credit_start_date") @db.Date
+  creditRemainingMonths Int?                  @map("credit_remaining_months")
+  creditEarlyRepayMode  CreditEarlyRepayMode? @map("credit_early_repay_mode")
+  sortOrder             Int                   @default(0) @map("sort_order")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      AssetTransaction[]
+  expenses          Expense[]
+  distributionRules DistributionRule[]
+
+  @@index([userId])
+  @@map("assets")
+}
+
+model AssetTransaction {
+  id          Int      @id @default(autoincrement())
+  assetId     Int      @map("asset_id")
+  amountDelta Decimal  @map("amount_delta")
+  note        String?
+  costRub     Decimal? @map("cost_rub")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@map("asset_transactions")
+}
+
+model DistributionRule {
+  id                   Int                   @id @default(autoincrement())
+  userId               Int                   @map("user_id")
+  name                 String
+  ruleType             RuleType              @map("rule_type")
+  value                Decimal
+  currency             RuleCurrency
+  targetAssetId        Int?                  @map("target_asset_id")
+  sortOrder            Int                   @default(0) @map("sort_order")
+  creditEarlyRepayMode CreditEarlyRepayMode? @map("credit_early_repay_mode")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetAsset Asset? @relation(fields: [targetAssetId], references: [id], onDelete: SetNull)
+
+  allocationConfirmations AllocationConfirmation[]
+  allocationRejections    AllocationRejection[]
+
+  @@index([userId])
+  @@map("distribution_rules")
+}
+
+model AllocationConfirmation {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  ruleId      Int      @map("rule_id")
+  cycleKey    String   @map("cycle_key")
+  amountRub   Decimal  @map("amount_rub")
+  confirmedAt DateTime @default(now()) @map("confirmed_at")
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule DistributionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, cycleKey])
+  @@index([userId, cycleKey])
+  @@map("allocation_confirmations")
+}
+
+model AllocationRejection {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  ruleId     Int      @map("rule_id")
+  cycleKey   String   @map("cycle_key")
+  rejectedAt DateTime @default(now()) @map("rejected_at")
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule DistributionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, cycleKey])
+  @@index([userId, cycleKey])
+  @@map("allocation_rejections")
+}
+
+model CycleCarryover {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  cycleKey  String   @map("cycle_key")
+  amountRub Decimal  @map("amount_rub")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cycleKey])
+  @@index([userId])
+  @@map("cycle_carryovers")
+}
+
+model VacationPeriod {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("vacation_periods")
+}

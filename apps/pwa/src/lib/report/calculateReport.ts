@@ -28,6 +28,8 @@ function toCycleKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+export const CARRYOVER_INCOME_NAME = 'Остаток с прошлого цикла';
+
 export function calculateReport(input: {
   incomes: IncomeSource[];
   expenses: Expense[];
@@ -40,6 +42,7 @@ export function calculateReport(input: {
   /** Номинальная дата цикла (если цикл сдвинут из‑за отпуска). */
   cycleNominalDate?: Date;
   vacations?: VacationPeriod[];
+  carryInRub?: number;
 }): ReportResult | ReportError {
   const primary = findPrimaryIncome(input.incomes);
   if (!primary) {
@@ -134,7 +137,21 @@ export function calculateReport(input: {
     cycle.incomeStart,
     vacations,
     usdRubRate,
+    {
+      start: cycle.expenseStart,
+      endExclusive: cycle.expenseEndExclusive,
+    },
   );
+  const carryInRub = Math.max(0, Math.round(input.carryInRub ?? 0));
+  if (carryInRub > 0) {
+    incomeLines.unshift({
+      name: CARRYOVER_INCOME_NAME,
+      amount: carryInRub,
+      detail: 'свободные деньги прошлого цикла',
+      paymentDate: cycle.incomeStart,
+      kind: 'carryover',
+    });
+  }
   const expenseLines = expandExpensesToLines(
     input.expenses,
     cycle.expenseStart,
@@ -148,9 +165,10 @@ export function calculateReport(input: {
   0,
   );
   const remainder = totalIncome - totalExpenses;
+  const remainderForRules = Math.max(0, remainder - carryInRub);
 
   const allocations = applyRules(
-    remainder,
+    remainderForRules,
     input.rules,
     input.assets,
     usdRubRate,
@@ -201,6 +219,7 @@ export function calculateReport(input: {
     allocations,
     totalAllocations,
     freeMoney,
+    carryInRub,
     assetSummary,
   };
 }

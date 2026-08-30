@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "@monesto/rune/styles.css";
+
+@source "../../../packages/rune/src";
+@source "../src";
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f8fafc;
+}
