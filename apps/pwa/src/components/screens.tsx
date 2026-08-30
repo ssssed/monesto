@@ -116,7 +116,59 @@ import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 const shell = 'mx-auto w-full px-5 pt-6 pb-[110px]';
 
+function FreeMoneyQuickActions({
+  onIncome,
+  onExpense,
+}: {
+  onIncome: () => void;
+  onExpense: () => void;
+}) {
+  const colRef = useRef<HTMLDivElement>(null);
+  const [side, setSide] = useState(56);
+
+  useLayoutEffect(() => {
+    const el = colRef.current;
+    if (!el) return;
+    const update = () => {
+      const gap = 8;
+      setSide(Math.max(44, Math.round((el.clientHeight - gap) / 2)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={colRef}
+      className="flex shrink-0 flex-col gap-2 self-stretch"
+      style={{ width: side }}
+    >
+      <button
+        type="button"
+        aria-label="Добавить разовый доход"
+        onClick={onIncome}
+        className="flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+        style={{ width: side, height: side }}
+      >
+        <Plus className="h-6 w-6" strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        aria-label="Добавить разовый расход"
+        onClick={onExpense}
+        className="flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+        style={{ width: side, height: side }}
+      >
+        <Minus className="h-6 w-6" strokeWidth={2.5} />
+      </button>
+    </div>
+  );
+}
+
 function paymentsLabel(count: number): string {
+
   if (count === 0) return 'Нет платежей';
   const mod10 = count % 10;
   const mod100 = count % 100;
@@ -502,45 +554,24 @@ export function HomeScreen() {
           <div className="flex items-stretch gap-3">
             <Card className="min-w-0 flex-1 border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
               <p className="text-sm text-slate-300">Свободные деньги</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight">
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="break-words text-3xl font-bold leading-tight tracking-tight">
+                  {showCarryWidget ? formatRub(freeBare) : formatRub(freeMoney)}
+                </span>
                 {showCarryWidget ? (
-                  <>
-                    <span>{formatRub(freeBare)}</span>
-                    <span className="text-amber-300">
-                      {' '}
-                      + {formatRub(carryAmount)}
-                    </span>
-                  </>
-                ) : (
-                  formatRub(freeMoney)
-                )}
+                  <span className="shrink-0 text-base font-semibold leading-snug text-amber-300">
+                    + {formatRub(carryAmount)}
+                  </span>
+                ) : null}
               </p>
               <p className="mt-2 text-sm text-slate-400">
                 Распределение · {formatRub(effectiveAllocatedRub)}
               </p>
             </Card>
-            <div className="flex shrink-0 flex-col justify-center gap-2 self-stretch">
-              <button
-                type="button"
-                aria-label="Добавить разовый доход"
-                onClick={() => setQuickOneTimeMode('income')}
-                className="flex flex-1 items-center"
-              >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
-                  <Plus className="h-6 w-6" strokeWidth={2.5} />
-                </span>
-              </button>
-              <button
-                type="button"
-                aria-label="Добавить разовый расход"
-                onClick={() => setQuickOneTimeMode('expense')}
-                className="flex flex-1 items-center"
-              >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
-                  <Minus className="h-6 w-6" strokeWidth={2.5} />
-                </span>
-              </button>
-            </div>
+            <FreeMoneyQuickActions
+              onIncome={() => setQuickOneTimeMode('income')}
+              onExpense={() => setQuickOneTimeMode('expense')}
+            />
           </div>
         </FadeIn>
 
