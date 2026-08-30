@@ -2,6 +2,7 @@ import {
   clampIncomeStart,
   expandExpensesToLines,
   expandIncomeToLines,
+  findPreviousReportCycle,
   findPrimaryIncome,
   listReportCycles,
   parseDate,
@@ -271,6 +272,81 @@ describe('expandIncomeToLines', () => {
     );
     const vacationLine = lines.find((l) => l.kind === 'vacation_payout');
     expect(vacationLine?.vacationId).toBe(7);
+  });
+
+  it('with oneTimeRange, clamps a one-time income to [start, endExclusive)', () => {
+    const withinRange = income({
+      id: 1,
+      recurrence: 'one_time',
+      specificDate: '2026-07-25',
+      amount: 3000,
+    });
+    const onEndExclusive = income({
+      id: 2,
+      recurrence: 'one_time',
+      specificDate: '2026-08-25',
+      amount: 3000,
+    });
+    const lines = expandIncomeToLines(
+      [withinRange, onEndExclusive],
+      new Date(2026, 6, 1),
+      new Date(2026, 6, 31),
+      new Date(2026, 6, 1),
+      [],
+      82,
+      { start: new Date(2026, 6, 25), endExclusive: new Date(2026, 7, 25) },
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0].paymentDate).toBe('2026-07-25');
+  });
+
+  it('with oneTimeRange, excludes a one-time income before the range start', () => {
+    const before = income({
+      recurrence: 'one_time',
+      specificDate: '2026-07-01',
+      amount: 3000,
+    });
+    const lines = expandIncomeToLines(
+      [before],
+      new Date(2026, 6, 1),
+      new Date(2026, 6, 31),
+      new Date(2026, 6, 1),
+      [],
+      82,
+      { start: new Date(2026, 6, 25), endExclusive: new Date(2026, 7, 25) },
+    );
+    expect(lines).toHaveLength(0);
+  });
+});
+
+describe('findPreviousReportCycle', () => {
+  it('returns the previous cycle for a single payment day', () => {
+    const today = new Date(2026, 6, 26);
+    const prev = findPreviousReportCycle(today, new Date(2026, 7, 25), [25]);
+    expect(prev).not.toBeNull();
+    expect(prev?.nominalDate).toEqual(new Date(2026, 6, 25));
+  });
+
+  it('resolves a previous cycle strictly before the given date when a vacation context is present', () => {
+    const today = new Date(2026, 8, 1);
+    const primary = income({
+      incomeKind: 'bimonthly_salary',
+      monthlyAmount: 100_000,
+      salaryTranches: DEFAULT_BIMONTHLY_TRANCHES,
+      isPrimary: true,
+    });
+    const vacations: VacationPeriodCalc[] = [
+      { id: 1, startDate: '2026-07-01', endDate: '2026-07-31' },
+    ];
+    const scheduleDays = scheduleDaysFromPrimary(primary);
+    const beforeDate = new Date(2026, 7, 25);
+    const prev = findPreviousReportCycle(today, beforeDate, scheduleDays, {
+      vacations,
+      monthlyAmount: 100_000,
+      tranches: primary.salaryTranches,
+    });
+    expect(prev).not.toBeNull();
+    expect(prev!.nominalDate.getTime()).toBeLessThan(beforeDate.getTime());
   });
 });
 

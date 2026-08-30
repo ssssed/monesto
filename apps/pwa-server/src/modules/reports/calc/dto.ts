@@ -23,10 +23,11 @@ export type ReportIncomeLineKind =
   | 'bimonthly_salary'
   | 'vacation_payout'
   | 'one_time'
-  | 'fixed_day';
+  | 'fixed_day'
+  | 'carryover';
 
 export interface ReportIncomeLineDto {
-  incomeSourceId: number;
+  incomeSourceId: number | null;
   name: string;
   currency: MoneyFlowCurrency;
   nativeAmount: number;
@@ -80,6 +81,9 @@ export interface ReportResultDto {
   allocations: RuleAllocationDto[];
   totalAllocations: number;
   freeMoney: number;
+  carryInRub: number;
+  carrySuggestedRub: number;
+  carryIsOverride: boolean;
   assetSummary: AssetSummaryDto[];
   usdRubRate: number;
 }

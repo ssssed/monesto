@@ -363,6 +363,58 @@ function findPreviousNonEmptyPayment(
   return null;
 }
 
+export function findPreviousReportCycle(
+  today: Date,
+  beforeNominalDate: Date,
+  scheduleDays?: SalaryPaymentDay[],
+  vacationCtx?: VacationReportContext,
+): ReportCycle | null {
+  const days = sortedPaymentDays(scheduleDays);
+  if (!vacationCtx?.vacations.length || (vacationCtx.monthlyAmount ?? 0) <= 0) {
+    const prev = getPreviousSchedulePaymentDate(beforeNominalDate, days);
+    return resolveCycleForNominalDate(today, prev, days, vacationCtx);
+  }
+  return findPreviousNonEmptyPayment(
+    today,
+    beforeNominalDate,
+    days,
+    vacationCtx,
+  );
+}
+
+/** Цикл для расчёта отчёта: якорь по умолчанию либо явная номинальная дата. */
+export function resolveCycleForCalculation(
+  today: Date,
+  cyclePaymentDay: SalaryPaymentDay,
+  cycleNominalDate: Date | undefined,
+  scheduleDays: SalaryPaymentDay[],
+  vacationCtx?: VacationReportContext,
+): ReportCycle {
+  const cycle = resolveReportCycle(today, cyclePaymentDay, scheduleDays);
+  if (
+    cycleNominalDate &&
+    cycleNominalDate.getTime() !== cycle.nominalDate.getTime()
+  ) {
+    return resolveCycleForNominalDate(
+      today,
+      startOfDay(cycleNominalDate),
+      scheduleDays,
+      vacationCtx,
+    );
+  }
+  if (vacationCtx) {
+    return {
+      ...cycle,
+      expenseEndExclusive: resolveExpenseEndExclusive(
+        cycle.nominalDate,
+        scheduleDays,
+        vacationCtx,
+      ),
+    };
+  }
+  return cycle;
+}
+
 /** Доступные циклы по дням графика, отсортированные по дате выплаты. */
 export function listReportCycles(
   today: Date,
@@ -451,10 +503,17 @@ export function expandIncomeToLines(
   incomeStart: Date | undefined,
   vacations: VacationPeriodCalc[],
   usdRubRate: number,
+  oneTimeRange?: { start: Date; endExclusive: Date },
 ): ReportIncomeLineDto[] {
   const lines: ReportIncomeLineDto[] = [];
   const windowStart = startOfDay(incomeStart ?? today);
   const target = startOfDay(targetDate);
+  const oneTimeStart = oneTimeRange
+    ? startOfDay(oneTimeRange.start)
+    : windowStart;
+  const oneTimeEndExclusive = oneTimeRange
+    ? startOfDay(oneTimeRange.endExclusive)
+    : null;
 
   for (const income of incomes) {
     const currency = income.currency === 'usd' ? 'usd' : 'rub';
@@ -525,7 +584,10 @@ export function expandIncomeToLines(
     if (income.isOneTime || income.recurrence === 'one_time') {
       if (!income.specificDate) continue;
       const date = parseDate(income.specificDate);
-      if (date >= windowStart && date <= target) {
+      const inRange = oneTimeEndExclusive
+        ? date >= oneTimeStart && date < oneTimeEndExclusive
+        : date >= windowStart && date <= target;
+      if (inRange) {
         const converted = toReportAmounts(
           income.amount ?? 0,
           currency,

@@ -13,6 +13,8 @@ describe('ReportsController', () => {
       getYearSummary: jest.fn(),
       getRulesBudget: jest.fn(),
       getDraftRulesBudget: jest.fn(),
+      setCarryoverOverride: jest.fn(),
+      clearCarryoverOverride: jest.fn(),
     } as unknown as jest.Mocked<ReportsService>;
     controller = new ReportsController(service);
   });
@@ -45,5 +47,19 @@ describe('ReportsController', () => {
     const dto = { name: 'Draft' } as any;
     controller.getDraftRulesBudget(dto, session);
     expect(service.getDraftRulesBudget).toHaveBeenCalledWith(1, dto);
+  });
+
+  it('setCarryover delegates body and userId', () => {
+    const dto = { cycleKey: '2026-07-25', amountRub: 5_000 };
+    controller.setCarryover(dto, session);
+    expect(service.setCarryoverOverride).toHaveBeenCalledWith(1, dto);
+  });
+
+  it('clearCarryover delegates cycleKey and userId', () => {
+    controller.clearCarryover('2026-07-25', session);
+    expect(service.clearCarryoverOverride).toHaveBeenCalledWith(
+      1,
+      '2026-07-25',
+    );
   });
 });

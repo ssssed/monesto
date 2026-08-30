@@ -21,7 +21,9 @@ import {
   parseDate,
   scheduleDaysFromPrimary,
   listReportCycles,
+  resolveCycleForCalculation,
 } from './calc/date-window';
+import { resolveCarryIn } from './calc/resolve-carry-in';
 import { toIsoDate } from './calc/vacation-pay';
 import { computeYearSummary, type YearSummary } from './calc/year-summary';
 import {
@@ -49,6 +51,7 @@ import { GetCurrentReportQueryDto } from './dto/get-current-report-query.dto';
 import { GetCyclesQueryDto } from './dto/get-cycles-query.dto';
 import { GetRulesBudgetQueryDto } from './dto/get-rules-budget-query.dto';
 import { GetYearSummaryQueryDto } from './dto/get-year-summary-query.dto';
+import { SetCarryoverDto } from './dto/set-carryover.dto';
 
 /** open.er-api не отвечает / курс ещё не загружен — тот же fallback, что был у клиента. */
 const FALLBACK_USD_RUB = 82;
@@ -81,15 +84,26 @@ export class ReportsService {
     const data = await this.loadUserFinanceData(userId);
     const usdRubRate = await this.resolveUsdRubRate();
     const today = query.today ? parseDate(toDateOnly(query.today)) : new Date();
+    const cycleNominalDate = query.cycleNominalDate
+      ? parseDate(toDateOnly(query.cycleNominalDate))
+      : undefined;
+
+    const carry = await this.resolveCarryInForCycle(
+      userId,
+      data,
+      today,
+      usdRubRate,
+      query.cyclePaymentDay,
+      cycleNominalDate,
+    );
 
     const calc = this.runCalculateReport({
       ...data,
       today,
       usdRubRate,
       cyclePaymentDay: query.cyclePaymentDay,
-      cycleNominalDate: query.cycleNominalDate
-        ? parseDate(toDateOnly(query.cycleNominalDate))
-        : undefined,
+      cycleNominalDate,
+      carryInRub: carry.amountRub,
     });
 
     const statuses = await this.getAllocationStatuses(
@@ -100,11 +114,35 @@ export class ReportsService {
 
     return {
       ...calc,
+      carrySuggestedRub: carry.suggestedRub,
+      carryIsOverride: carry.isOverride,
       allocations: calc.allocations.map((allocation) => ({
         ...allocation,
         status: statuses.get(allocation.ruleId) ?? 'pending',
       })),
     };
+  }
+
+  async setCarryoverOverride(
+    userId: number,
+    dto: SetCarryoverDto,
+  ): Promise<{ status: 'ok' }> {
+    await this.prisma.cycleCarryover.upsert({
+      where: { userId_cycleKey: { userId, cycleKey: dto.cycleKey } },
+      create: { userId, cycleKey: dto.cycleKey, amountRub: dto.amountRub },
+      update: { amountRub: dto.amountRub },
+    });
+    return { status: 'ok' };
+  }
+
+  async clearCarryoverOverride(
+    userId: number,
+    cycleKey: string,
+  ): Promise<{ status: 'ok' }> {
+    await this.prisma.cycleCarryover.deleteMany({
+      where: { userId, cycleKey },
+    });
+    return { status: 'ok' };
   }
 
   async listCycles(
@@ -336,13 +374,120 @@ export class ReportsService {
   private async computeReportForCycleKey(userId: number, cycleKey: string) {
     const data = await this.loadUserFinanceData(userId);
     const usdRubRate = await this.resolveUsdRubRate();
+    const today = new Date();
+    const cycleNominalDate = parseDate(cycleKey);
+    const carry = await this.resolveCarryInForCycle(
+      userId,
+      data,
+      today,
+      usdRubRate,
+      undefined,
+      cycleNominalDate,
+    );
     const calc = this.runCalculateReport({
       ...data,
-      today: new Date(),
+      today,
       usdRubRate,
-      cycleNominalDate: parseDate(cycleKey),
+      cycleNominalDate,
+      carryInRub: carry.amountRub,
     });
     return { calc, data, usdRubRate };
+  }
+
+  /**
+   * Переносимый остаток предыдущего цикла: как в клиентском useMemo в
+   * screens.tsx — trackingStartedAt якорится на текущем (не preview) цикле
+   * независимо от того, какой cycleKey запросили, а сам carry-in считается
+   * рекурсивно назад по циклам (см. resolve-carry-in.ts).
+   */
+  private async resolveCarryInForCycle(
+    userId: number,
+    data: UserFinanceData,
+    today: Date,
+    usdRubRate: number,
+    cyclePaymentDay: number | undefined,
+    cycleNominalDate: Date | undefined,
+  ): Promise<{ amountRub: number; suggestedRub: number; isOverride: boolean }> {
+    const primary = findPrimaryIncome(data.incomes);
+    if (!primary) return { amountRub: 0, suggestedRub: 0, isOverride: false };
+
+    const scheduleDays = scheduleDaysFromPrimary(primary);
+    const resolvedPaymentDay =
+      cyclePaymentDay ??
+      primary.primaryPaymentDay ??
+      scheduleDays[scheduleDays.length - 1] ??
+      25;
+    const vacationCtx =
+      primary.incomeKind === 'bimonthly_salary' && data.vacations.length
+        ? {
+            vacations: data.vacations,
+            monthlyAmount: primary.monthlyAmount ?? 0,
+            tranches: primary.salaryTranches,
+          }
+        : undefined;
+
+    const cycle = resolveCycleForCalculation(
+      today,
+      resolvedPaymentDay,
+      cycleNominalDate,
+      scheduleDays,
+      vacationCtx,
+    );
+
+    const currentCycles = listReportCycles(today, scheduleDays, vacationCtx);
+    const anchor =
+      currentCycles.find((c) => !c.isPreview) ?? currentCycles[0] ?? null;
+    const trackingStartedAt = anchor
+      ? await this.ensureTrackingStartedAt(userId, anchor.nominalDate)
+      : null;
+
+    const [overrides, rejections] = await Promise.all([
+      this.prisma.cycleCarryover.findMany({ where: { userId } }),
+      this.prisma.allocationRejection.findMany({ where: { userId } }),
+    ]);
+    const overrideMap = new Map(
+      overrides.map((o) => [o.cycleKey, Number(o.amountRub)]),
+    );
+    const rejectedByCycle = new Map<string, number[]>();
+    for (const rejection of rejections) {
+      const arr = rejectedByCycle.get(rejection.cycleKey) ?? [];
+      arr.push(rejection.ruleId);
+      rejectedByCycle.set(rejection.cycleKey, arr);
+    }
+
+    return resolveCarryIn({
+      today,
+      cycle,
+      scheduleDays,
+      vacationCtx,
+      incomes: data.incomes,
+      expenses: data.expenses,
+      rules: data.rules,
+      assets: data.assets,
+      vacations: data.vacations,
+      usdRubRate,
+      getOverride: (cycleKey) => overrideMap.get(cycleKey) ?? null,
+      getRejectedIds: (cycleKey) => rejectedByCycle.get(cycleKey) ?? [],
+      trackingStartedAt,
+    });
+  }
+
+  private async ensureTrackingStartedAt(
+    userId: number,
+    nominalDate: Date,
+  ): Promise<Date> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { trackingStartedAt: true },
+    });
+    if (user.trackingStartedAt) return user.trackingStartedAt;
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { trackingStartedAt: nominalDate },
+      select: { trackingStartedAt: true },
+    });
+    return updated.trackingStartedAt ?? nominalDate;
   }
 
   private async loadUserFinanceData(userId: number): Promise<UserFinanceData> {

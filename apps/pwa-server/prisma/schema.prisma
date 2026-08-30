@@ -67,6 +67,8 @@ model User {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
+  trackingStartedAt DateTime? @map("tracking_started_at") @db.Date
+
   sessions              Session[]
   incomeSources         IncomeSource[]
   expenses              Expense[]
@@ -75,6 +77,7 @@ model User {
   vacationPeriods       VacationPeriod[]
   allocationConfirmations AllocationConfirmation[]
   allocationRejections    AllocationRejection[]
+  cycleCarryovers         CycleCarryover[]
 
   @@map("users")
 }
@@ -308,6 +311,20 @@ model AllocationRejection {
   @@unique([ruleId, cycleKey])
   @@index([userId, cycleKey])
   @@map("allocation_rejections")
+}
+
+model CycleCarryover {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  cycleKey  String   @map("cycle_key")
+  amountRub Decimal  @map("amount_rub")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cycleKey])
+  @@index([userId])
+  @@map("cycle_carryovers")
 }
 
 model VacationPeriod {

@@ -1,13 +1,10 @@
-import { startOfDay, toPayoutDate } from './working-days';
 import { convertToRub } from './convert-to-rub';
 import { applyRules, RuleAllocationCalc } from './apply-rules';
 import {
-  clampIncomeStart,
   expandExpensesToLines,
   expandIncomeToLines,
   findPrimaryIncome,
-  resolveExpenseEndExclusive,
-  resolveReportCycle,
+  resolveCycleForCalculation,
   scheduleDaysFromPrimary,
 } from './date-window';
 import { toIsoDate } from './vacation-pay';
@@ -51,9 +48,12 @@ export interface ReportResultCalc {
   allocations: RuleAllocationCalc[];
   totalAllocations: number;
   freeMoney: number;
+  carryInRub: number;
   assetSummary: AssetSummaryDto[];
   usdRubRate: number;
 }
+
+export const CARRYOVER_INCOME_NAME = 'Остаток с прошлого цикла';
 
 export function calculateReport(input: {
   incomes: IncomeSourceCalc[];
@@ -67,6 +67,7 @@ export function calculateReport(input: {
   /** Номинальная дата цикла (если цикл сдвинут из‑за отпуска). */
   cycleNominalDate?: Date;
   vacations?: VacationPeriodCalc[];
+  carryInRub?: number;
 }): ReportResultCalc {
   const primary = findPrimaryIncome(input.incomes);
   if (!primary) {
@@ -93,43 +94,13 @@ export function calculateReport(input: {
         }
       : undefined;
 
-  let cycle = resolveReportCycle(input.today, cyclePaymentDay, scheduleDays);
-  if (
-    input.cycleNominalDate &&
-    input.cycleNominalDate.getTime() !== cycle.nominalDate.getTime()
-  ) {
-    const todayStart = startOfDay(input.today);
-    const nominalDate = startOfDay(input.cycleNominalDate);
-    const payoutDate = toPayoutDate(nominalDate);
-    const rawIncomeStart = todayStart <= nominalDate ? todayStart : nominalDate;
-    const incomeStart = clampIncomeStart(
-      rawIncomeStart,
-      nominalDate,
-      scheduleDays,
-    );
-    cycle = {
-      paymentDay: nominalDate.getDate(),
-      nominalDate,
-      payoutDate,
-      expenseEndExclusive: resolveExpenseEndExclusive(
-        nominalDate,
-        scheduleDays,
-        vacationCtx,
-      ),
-      incomeStart,
-      expenseStart: payoutDate,
-      isPreview: todayStart < payoutDate,
-    };
-  } else if (vacationCtx) {
-    cycle = {
-      ...cycle,
-      expenseEndExclusive: resolveExpenseEndExclusive(
-        cycle.nominalDate,
-        scheduleDays,
-        vacationCtx,
-      ),
-    };
-  }
+  const cycle = resolveCycleForCalculation(
+    input.today,
+    cyclePaymentDay,
+    input.cycleNominalDate,
+    scheduleDays,
+    vacationCtx,
+  );
 
   const needsUsd =
     input.rules.some(
@@ -160,7 +131,20 @@ export function calculateReport(input: {
     cycle.incomeStart,
     vacations,
     usdRubRate,
+    { start: cycle.expenseStart, endExclusive: cycle.expenseEndExclusive },
   );
+  const carryInRub = Math.max(0, Math.round(input.carryInRub ?? 0));
+  if (carryInRub > 0) {
+    incomeLines.unshift({
+      incomeSourceId: null,
+      name: CARRYOVER_INCOME_NAME,
+      currency: 'rub',
+      nativeAmount: carryInRub,
+      amountRub: carryInRub,
+      paymentDate: toIsoDate(cycle.incomeStart),
+      kind: 'carryover',
+    });
+  }
   const expenseLines = expandExpensesToLines(
     input.expenses,
     cycle.expenseStart,
@@ -177,9 +161,10 @@ export function calculateReport(input: {
     0,
   );
   const remainder = totalIncome - totalExpenses;
+  const remainderForRules = Math.max(0, remainder - carryInRub);
 
   const allocations = applyRules(
-    remainder,
+    remainderForRules,
     input.rules,
     input.assets,
     usdRubRate,
@@ -229,6 +214,7 @@ export function calculateReport(input: {
     allocations,
     totalAllocations,
     freeMoney,
+    carryInRub,
     assetSummary,
     usdRubRate,
   };

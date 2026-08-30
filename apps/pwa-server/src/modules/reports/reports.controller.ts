@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -17,6 +18,7 @@ import { GetCurrentReportQueryDto } from './dto/get-current-report-query.dto';
 import { GetCyclesQueryDto } from './dto/get-cycles-query.dto';
 import { GetRulesBudgetQueryDto } from './dto/get-rules-budget-query.dto';
 import { GetYearSummaryQueryDto } from './dto/get-year-summary-query.dto';
+import { SetCarryoverDto } from './dto/set-carryover.dto';
 import { ReportsService } from './reports.service';
 
 @ApiTags('reports')
@@ -108,5 +110,27 @@ export class ReportsController {
       ruleId,
       dto.cycleKey,
     );
+  }
+
+  @Post('carryover')
+  @ApiOperation({
+    summary: 'Задать сумму переноса остатка с прошлого цикла вручную для цикла',
+  })
+  setCarryover(
+    @Body() dto: SetCarryoverDto,
+    @AuthSession() session: AuthSessionPayload,
+  ) {
+    return this.reportsService.setCarryoverOverride(session.userId, dto);
+  }
+
+  @Delete('carryover/:cycleKey')
+  @ApiOperation({
+    summary: 'Убрать ручной перенос — вернуться к расчётной сумме',
+  })
+  clearCarryover(
+    @Param('cycleKey') cycleKey: string,
+    @AuthSession() session: AuthSessionPayload,
+  ) {
+    return this.reportsService.clearCarryoverOverride(session.userId, cycleKey);
   }
 }

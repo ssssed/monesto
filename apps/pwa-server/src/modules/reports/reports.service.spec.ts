@@ -51,6 +51,21 @@ describe('ReportsService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
       },
+      cycleCarryover: {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+      user: {
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ trackingStartedAt: null }),
+        update: jest
+          .fn()
+          .mockImplementation(({ data }: any) =>
+            Promise.resolve({ trackingStartedAt: data.trackingStartedAt }),
+          ),
+      },
     };
     fxRateService = { getLatest: jest.fn() };
     assetsService = { createTransaction: jest.fn() };
@@ -125,6 +140,106 @@ describe('ReportsService', () => {
 
       const result = await service.getCurrentReport(1, { today: '2026-07-01' });
       expect(result.cycleKey).toMatch(/^2026-07-25$/);
+    });
+
+    it('leaves carryInRub at 0 and sets trackingStartedAt on first ever call', async () => {
+      prisma.incomeSource.findMany.mockResolvedValue([primaryIncomeRow]);
+      fxRateService.getLatest.mockRejectedValue(new Error('not found'));
+
+      const result = await service.getCurrentReport(1, { today: '2026-07-01' });
+
+      expect(result.carryInRub).toBe(0);
+      expect(result.carrySuggestedRub).toBe(0);
+      expect(result.carryIsOverride).toBe(false);
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { trackingStartedAt: expect.any(Date) },
+        select: { trackingStartedAt: true },
+      });
+    });
+
+    it('does not touch trackingStartedAt again once it is already set', async () => {
+      prisma.incomeSource.findMany.mockResolvedValue([primaryIncomeRow]);
+      fxRateService.getLatest.mockRejectedValue(new Error('not found'));
+      prisma.user.findUniqueOrThrow.mockResolvedValue({
+        trackingStartedAt: new Date(2026, 0, 1),
+      });
+
+      await service.getCurrentReport(1, { today: '2026-07-01' });
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('carries free money forward once tracking started before the previous cycle', async () => {
+      prisma.incomeSource.findMany.mockResolvedValue([primaryIncomeRow]);
+      prisma.expense.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Rent',
+          currency: 'rub',
+          amount: { toString: () => '20000', valueOf: () => 20_000 } as any,
+          recurrence: 'monthly',
+          dueDay: 1,
+          specificDate: null,
+          linkedAssetId: null,
+        },
+      ]);
+      fxRateService.getLatest.mockRejectedValue(new Error('not found'));
+      prisma.user.findUniqueOrThrow.mockResolvedValue({
+        trackingStartedAt: new Date(2026, 0, 1),
+      });
+
+      const result = await service.getCurrentReport(1, { today: '2026-07-26' });
+
+      expect(result.carryInRub).toBeGreaterThan(0);
+      expect(result.carrySuggestedRub).toBe(result.carryInRub);
+      expect(result.carryIsOverride).toBe(false);
+      expect(result.incomeLines.some((line) => line.kind === 'carryover')).toBe(
+        true,
+      );
+    });
+
+    it('uses a manual carryover override instead of the suggested amount', async () => {
+      prisma.incomeSource.findMany.mockResolvedValue([primaryIncomeRow]);
+      fxRateService.getLatest.mockRejectedValue(new Error('not found'));
+      prisma.user.findUniqueOrThrow.mockResolvedValue({
+        trackingStartedAt: new Date(2026, 0, 1),
+      });
+      prisma.cycleCarryover.findMany.mockResolvedValue([
+        { cycleKey: '2026-08-25', amountRub: num(7_777) },
+      ]);
+
+      const result = await service.getCurrentReport(1, { today: '2026-07-26' });
+
+      expect(result.carryIsOverride).toBe(true);
+      expect(result.carryInRub).toBe(7_777);
+    });
+  });
+
+  describe('setCarryoverOverride', () => {
+    it('upserts the override for the given cycle', async () => {
+      const result = await service.setCarryoverOverride(1, {
+        cycleKey: '2026-07-25',
+        amountRub: 5_000,
+      });
+
+      expect(prisma.cycleCarryover.upsert).toHaveBeenCalledWith({
+        where: { userId_cycleKey: { userId: 1, cycleKey: '2026-07-25' } },
+        create: { userId: 1, cycleKey: '2026-07-25', amountRub: 5_000 },
+        update: { amountRub: 5_000 },
+      });
+      expect(result).toEqual({ status: 'ok' });
+    });
+  });
+
+  describe('clearCarryoverOverride', () => {
+    it('deletes the override for the given cycle', async () => {
+      const result = await service.clearCarryoverOverride(1, '2026-07-25');
+
+      expect(prisma.cycleCarryover.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 1, cycleKey: '2026-07-25' },
+      });
+      expect(result).toEqual({ status: 'ok' });
     });
   });
 
