@@ -29,6 +29,12 @@ import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
 import {
+  CarryoverEditSheet,
+  CarryoverIncomeCard,
+} from '@/components/report/CarryoverEditSheet';
+import { reportCycleKey } from '@/components/report/ReportCycleSwitcher';
+import * as db from '@/lib/db';
+import {
   calculateSalaryPaymentAmount,
   createDefaultTranche,
   createEmptyBimonthlyTranches,
@@ -37,6 +43,15 @@ import {
   tranchesFromPreset,
   type SalarySchedulePresetId,
 } from '@/lib/report/calculateSalaryPayment';
+import {
+  findPrimaryIncome,
+  listReportCycles,
+  scheduleDaysFromPrimary,
+} from '@/lib/report/dateWindow';
+import {
+  resolveCarryIn,
+  type CarryInResult,
+} from '@/lib/report/resolveCarryIn';
 import type { Asset, MoneyFlowEntry, MoneyFlowCurrency, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
 import {
   createEmptyExpenseEntry,
@@ -45,7 +60,6 @@ import {
   formatRub,
   formatUsd,
 } from '@/lib/utils/format';
-import * as db from '@/lib/db';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
 type Mode = 'income' | 'expense';
@@ -298,10 +312,12 @@ function MoneyFlowSummary({
   mode,
   entries,
   usdRubRate,
+  carryInRub = 0,
 }: {
   mode: Mode;
   entries: MoneyFlowEntry[];
   usdRubRate: number;
+  carryInRub?: number;
 }) {
   const filled = entries.filter((entry) => entry.name.trim());
   const isIncome = mode === 'income';
@@ -356,6 +372,8 @@ function MoneyFlowSummary({
     }
   }
 
+  const sourceCount = filled.length + (isIncome && carryInRub > 0 ? 1 : 0);
+
   return (
     <div className="rounded-2xl bg-[var(--color-navy)] p-5 text-white shadow-lg">
       <div className="flex items-end justify-between gap-3">
@@ -364,14 +382,24 @@ function MoneyFlowSummary({
             {isIncome ? 'Доходы за месяц' : 'Расходы за месяц'}
           </p>
           <p className="mt-1 text-3xl font-bold tracking-tight">
-            {formatRub(monthlyTotal)}
+            {isIncome && carryInRub > 0 ? (
+              <>
+                <span>{formatRub(monthlyTotal)}</span>
+                <span className="text-amber-300">
+                  {' '}
+                  + {formatRub(carryInRub)}
+                </span>
+              </>
+            ) : (
+              formatRub(monthlyTotal)
+            )}
           </p>
         </div>
         <div className="rounded-xl bg-white/10 px-3 py-2 text-right">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-white/45">
             Записей
           </p>
-          <p className="text-lg font-bold">{filled.length}</p>
+          <p className="text-lg font-bold">{sourceCount}</p>
         </div>
       </div>
       {oneTimeTotal > 0 ? (
@@ -799,7 +827,7 @@ function EntryRow({
                 <p className="mt-2 text-[11px] leading-4 text-slate-400">
                   {scheduleKey === 'periods'
                     ? 'Два раза в месяц — пресет или ручная настройка'
-                    : 'Одна сумма в выбранный день месяца'}
+                    : 'Одна сумма в день получения'}
                 </p>
               </div>
             ) : null}
@@ -876,7 +904,7 @@ function EntryRow({
                     required
                     className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
                   >
-                    День месяца
+                    {isIncome ? 'День получения' : 'День платежа'}
                   </Label>
                   <Input
                     type="number"
@@ -896,6 +924,11 @@ function EntryRow({
                     }}
                     placeholder="1–31"
                   />
+                  <p className="mt-1.5 text-[11px] leading-4 text-slate-400">
+                    {isIncome
+                      ? 'Число месяца, когда приходят эти деньги'
+                      : 'Число месяца, когда списывается платёж'}
+                  </p>
                 </div>
               ) : null}
 
@@ -988,7 +1021,6 @@ function EntryRow({
                       update({ isPrimary: false });
                       return;
                     }
-                    // Готовые пресеты: ориентир всегда на позднюю выплату (20 / 25).
                     const laterDay = Math.max(
                       ...tranches.map((t) => t.paymentDay),
                       25,
@@ -1026,7 +1058,7 @@ function EntryRow({
                       Основная зарплата
                     </p>
                     <p className="text-xs text-slate-400">
-                      По ней строится отчёт к выплате
+                      По её периодам и датам строится план цикла
                     </p>
                   </div>
                 </button>
@@ -1188,6 +1220,11 @@ export function MoneyFlowStep({
   const [error, setError] = useState('');
   const [toast, setToast] = useState<{ id: string; name: string } | null>(null);
   const [creditAssets, setCreditAssets] = useState<Asset[]>([]);
+  const [carryIn, setCarryIn] = useState<CarryInResult | null>(null);
+  const [carryCycleKey, setCarryCycleKey] = useState<string | null>(null);
+  const [carryTick, setCarryTick] = useState(0);
+  const [carryEditOpen, setCarryEditOpen] = useState(false);
+  const [carryDraft, setCarryDraft] = useState('');
   const pendingRef = useRef(
     new Map<
       string,
@@ -1202,6 +1239,63 @@ export function MoneyFlowStep({
       setCreditAssets(assets.filter((a) => a.provider === 'credit'));
     });
   }, [mode]);
+
+  useEffect(() => {
+    if (!preview || mode !== 'income') {
+      setCarryIn(null);
+      setCarryCycleKey(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const [incomes, expenses, rules, assets, vacations] = await Promise.all([
+        db.getAllIncomes(),
+        db.getAllExpenses(),
+        db.getAllRules(),
+        db.getAllAssets(),
+        db.getAllVacations(),
+      ]);
+      const primary = findPrimaryIncome(incomes);
+      const vacationCtx =
+        primary?.income_kind === 'bimonthly_salary'
+          ? {
+              vacations,
+              monthlyAmount: primary.monthly_amount ?? 0,
+              tranches: primary.salary_tranches,
+            }
+          : undefined;
+      const today = new Date();
+      const scheduleDays = scheduleDaysFromPrimary(primary);
+      const cycles = listReportCycles(today, scheduleDays, vacationCtx);
+      const selected =
+        cycles.find((c) => !c.isPreview) ?? cycles[0] ?? null;
+      if (!selected || cancelled) return;
+      const anchor =
+        cycles.find((c) => !c.isPreview) ?? cycles[0] ?? selected;
+      const trackingStartedAt = db.ensureTrackingStartedAt(anchor.nominalDate);
+      const next = resolveCarryIn({
+        today,
+        cycle: selected,
+        scheduleDays,
+        vacationCtx,
+        incomes,
+        expenses,
+        rules,
+        assets,
+        vacations,
+        usdRubRate,
+        getOverride: db.getCarryoverOverrideSync,
+        getRejectedIds: db.getRejectedRuleIdsSync,
+        trackingStartedAt,
+      });
+      if (cancelled) return;
+      setCarryIn(next);
+      setCarryCycleKey(reportCycleKey(selected));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [preview, mode, usdRubRate, carryTick]);
 
   const canRemove = useMemo(
     () => entries.filter((e) => e.name.trim()).length > 0 || entries.length > 1,
@@ -1407,7 +1501,14 @@ export function MoneyFlowStep({
           ) : null}
         </div>
 
-        <MoneyFlowSummary mode={mode} entries={entries} usdRubRate={usdRubRate} />
+        <MoneyFlowSummary
+          mode={mode}
+          entries={entries}
+          usdRubRate={usdRubRate}
+          carryInRub={
+            preview && mode === 'income' ? (carryIn?.amountRub ?? 0) : 0
+          }
+        />
 
         {preview ? (
           <div className="flex items-center gap-3 rounded-2xl bg-blue-50 px-4 py-3.5 ring-1 ring-blue-100">
@@ -1449,6 +1550,21 @@ export function MoneyFlowStep({
         </div>
 
         <div>
+          {preview &&
+          mode === 'income' &&
+          carryIn?.hasPreviousCycle &&
+          (carryIn.amountRub > 0 || carryIn.isOverride) ? (
+            <div className="mb-3">
+              <CarryoverIncomeCard
+                amountRub={carryIn.amountRub}
+                isOverride={carryIn.isOverride}
+                onEdit={() => {
+                  setCarryDraft(String(carryIn.amountRub || ''));
+                  setCarryEditOpen(true);
+                }}
+              />
+            </div>
+          ) : null}
           {entries.map((entry, index) => (
             <EntryRow
               key={entry.id}
@@ -1470,6 +1586,36 @@ export function MoneyFlowStep({
             />
           ))}
         </div>
+
+        {preview && mode === 'income' && carryCycleKey ? (
+          <CarryoverEditSheet
+            open={carryEditOpen}
+            onOpenChange={(open) => {
+              setCarryEditOpen(open);
+              if (!open) setCarryDraft('');
+            }}
+            suggestedRub={carryIn?.suggestedRub ?? 0}
+            isOverride={Boolean(carryIn?.isOverride)}
+            draft={carryDraft}
+            onDraftChange={setCarryDraft}
+            onSave={() => {
+              const amount = Math.max(
+                0,
+                Number(carryDraft.replace(',', '.')) || 0,
+              );
+              void db.setCarryoverOverride(carryCycleKey, amount).then(() => {
+                setCarryTick((n) => n + 1);
+                setCarryEditOpen(false);
+              });
+            }}
+            onReset={() => {
+              void db.clearCarryoverOverride(carryCycleKey).then(() => {
+                setCarryTick((n) => n + 1);
+                setCarryEditOpen(false);
+              });
+            }}
+          />
+        ) : null}
 
         {preview ? null : (
           <button

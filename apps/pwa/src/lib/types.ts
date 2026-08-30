@@ -140,6 +140,7 @@ export interface ReportIncomeLine {
   amount: number;
   detail?: string;
   paymentDate: Date;
+  kind?: 'carryover';
 }
 
 export interface ReportExpenseLine {
@@ -174,6 +175,7 @@ export interface ReportResult {
   allocations: RuleAllocation[];
   totalAllocations: number;
   freeMoney: number;
+  carryInRub: number;
   assetSummary?: {
     id: number;
     name: string;

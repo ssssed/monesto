@@ -55,6 +55,10 @@ import {
   ReportCycleSwitcher,
   reportCycleKey,
 } from '@/components/report/ReportCycleSwitcher';
+import {
+  CarryoverEditSheet,
+  CarryoverIncomeCard,
+} from '@/components/report/CarryoverEditSheet';
 import { SwipeConfirmCard } from '@/components/report/SwipeConfirmCard';
 import { DangerClearButton } from '@/components/ui/DangerClearButton';
 import { AppAboutFooter } from '@/components/ui/AppAboutFooter';
@@ -91,6 +95,7 @@ import {
   listReportCycles,
   scheduleDaysFromPrimary,
 } from '@/lib/report/dateWindow';
+import { resolveCarryIn } from '@/lib/report/resolveCarryIn';
 import {
   freeRulesPercent,
   summarizeDraftRulesBudget,
@@ -155,6 +160,10 @@ export function HomeScreen() {
   const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
   const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
+  const [carryTick, setCarryTick] = useState(0);
+  const [carryEditOpen, setCarryEditOpen] = useState(false);
+  const [carryDraft, setCarryDraft] = useState('');
+  const [trackingStartedAt, setTrackingStartedAt] = useState<Date | null>(null);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -190,23 +199,26 @@ export function HomeScreen() {
     if (pathname === '/') void reload();
   }, [pathname, reload]);
 
+  const vacationCtx = useMemo(() => {
+    if (!data) return undefined;
+    const primary = findPrimaryIncome(data.incomes);
+    if (primary?.income_kind !== 'bimonthly_salary') return undefined;
+    return {
+      vacations: data.vacations,
+      monthlyAmount: primary.monthly_amount ?? 0,
+      tranches: primary.salary_tranches,
+    };
+  }, [data]);
+
   const cycles = useMemo(() => {
     if (!data) return [];
     const primary = findPrimaryIncome(data.incomes);
-    const vacationCtx =
-      primary?.income_kind === 'bimonthly_salary'
-        ? {
-            vacations: data.vacations,
-            monthlyAmount: primary.monthly_amount ?? 0,
-            tranches: primary.salary_tranches,
-          }
-        : undefined;
     return listReportCycles(
       new Date(),
       scheduleDaysFromPrimary(primary),
       vacationCtx,
     );
-  }, [data]);
+  }, [data, vacationCtx]);
 
   const selectedCycle =
     cycles.find((c) => reportCycleKey(c) === cycleKey) ??
@@ -225,7 +237,53 @@ export function HomeScreen() {
     }
   }, [cycles, cycleKey]);
 
+  useEffect(() => {
+    const anchor =
+      cycles.find((c) => !c.isPreview) ?? cycles[0] ?? null;
+    if (!anchor) {
+      setTrackingStartedAt(db.getTrackingStartedAtSync());
+      return;
+    }
+    setTrackingStartedAt(db.ensureTrackingStartedAt(anchor.nominalDate));
+  }, [cycles]);
+
+  const carryIn = useMemo(() => {
+    if (!data || !selectedCycle) return null;
+    const primary = findPrimaryIncome(data.incomes);
+    return resolveCarryIn({
+      today: new Date(),
+      cycle: selectedCycle,
+      scheduleDays: scheduleDaysFromPrimary(primary),
+      vacationCtx,
+      incomes: data.incomes,
+      expenses: data.expenses,
+      rules: data.rules,
+      assets: data.assets,
+      vacations: data.vacations,
+      usdRubRate: rate ?? 82,
+      getOverride: db.getCarryoverOverrideSync,
+      getRejectedIds: db.getRejectedRuleIdsSync,
+      trackingStartedAt,
+    });
+  }, [data, selectedCycle, vacationCtx, rate, carryTick, trackingStartedAt]);
+
   const report = useMemo(() => {
+    if (!data || !selectedCycle || !carryIn) return null;
+    return calculateReport({
+      incomes: data.incomes,
+      expenses: data.expenses,
+      rules: data.rules,
+      assets: data.assets,
+      vacations: data.vacations,
+      today: new Date(),
+      cyclePaymentDay: selectedCycle.paymentDay,
+      cycleNominalDate: selectedCycle.nominalDate,
+      usdRubRate: rate ?? 82,
+      carryInRub: carryIn.amountRub,
+    });
+  }, [data, selectedCycle, rate, carryIn]);
+
+  const reportBare = useMemo(() => {
     if (!data || !selectedCycle) return null;
     return calculateReport({
       incomes: data.incomes,
@@ -237,6 +295,7 @@ export function HomeScreen() {
       cyclePaymentDay: selectedCycle.paymentDay,
       cycleNominalDate: selectedCycle.nominalDate,
       usdRubRate: rate ?? 82,
+      carryInRub: 0,
     });
   }, [data, selectedCycle, rate]);
 
@@ -302,12 +361,24 @@ export function HomeScreen() {
     .filter((item) => !rejectedIds.includes(item.ruleId))
     .reduce((sum, item) => sum + item.amountRub, 0);
   const freeMoney = report.remainder - effectiveAllocatedRub;
+  const freeBare =
+    reportBare && !isReportError(reportBare)
+      ? reportBare.remainder -
+        reportBare.allocations
+          .filter((item) => !rejectedIds.includes(item.ruleId))
+          .reduce((sum, item) => sum + item.amountRub, 0)
+      : freeMoney;
+  const carryAmount = carryIn?.amountRub ?? 0;
+  const showCarryWidget =
+    Boolean(carryIn?.hasPreviousCycle) &&
+    carryAmount > 0 &&
+    !carryIn?.isOverride;
 
   const reportAssets = (report.assetSummary ?? []).filter(
     (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
   );
   const rulesBudget = summarizeRulesBudget({
-    remainder: report.remainder,
+    remainder: Math.max(0, report.remainder - (report.carryInRub ?? 0)),
     rules: data.rules,
     assets: data.assets,
     usdRubRate: rate ?? 82,
@@ -425,13 +496,71 @@ export function HomeScreen() {
         <FadeIn index={0} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
           <Card className="border-0 bg-[var(--color-navy)] p-5 text-white shadow-lg">
             <p className="text-sm text-slate-300">Свободные деньги</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">{formatRub(freeMoney)}</p>
+            <p className="mt-1 text-3xl font-bold tracking-tight">
+              {showCarryWidget ? (
+                <>
+                  <span>{formatRub(freeBare)}</span>
+                  <span className="text-amber-300">
+                    {' '}
+                    + {formatRub(carryAmount)}
+                  </span>
+                </>
+              ) : (
+                formatRub(freeMoney)
+              )}
+            </p>
             <p className="mt-2 text-sm text-slate-400">
               Распределение · {formatRub(effectiveAllocatedRub)}
             </p>
           </Card>
         </FadeIn>
+
+        {showCarryWidget ? (
+          <FadeIn index={1} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
+            <CarryoverIncomeCard
+              amountRub={carryAmount}
+              isOverride={false}
+              editable={!report.isPreview}
+              onEdit={
+                report.isPreview
+                  ? undefined
+                  : () => {
+                      setCarryDraft(String(carryAmount || ''));
+                      setCarryEditOpen(true);
+                    }
+              }
+            />
+          </FadeIn>
+        ) : null}
       </div>
+
+      <CarryoverEditSheet
+        open={carryEditOpen && !report.isPreview}
+        onOpenChange={(open) => {
+          setCarryEditOpen(open);
+          if (!open) setCarryDraft('');
+        }}
+        suggestedRub={carryIn?.suggestedRub ?? 0}
+        isOverride={Boolean(carryIn?.isOverride)}
+        draft={carryDraft}
+        onDraftChange={setCarryDraft}
+        onSave={() => {
+          if (!report || isReportError(report)) return;
+          void db
+            .setCarryoverOverride(report.cycleKey, numeric(carryDraft))
+            .then(() => {
+              setCarryTick((n) => n + 1);
+              setCarryEditOpen(false);
+            });
+        }}
+        onReset={() => {
+          if (!report || isReportError(report)) return;
+          void db.clearCarryoverOverride(report.cycleKey).then(() => {
+            setCarryTick((n) => n + 1);
+            setCarryEditOpen(false);
+          });
+        }}
+      />
 
       <section className="space-y-1">
         <FadeIn index={8} baseDelay={40} step={55}>
@@ -1042,7 +1171,13 @@ export function AssetsScreen() {
   );
 }
 
-export function AssetFormScreen({ asset }: { asset?: Asset }) {
+export function AssetFormScreen({
+  asset,
+  returnTo,
+}: {
+  asset?: Asset;
+  returnTo?: string;
+}) {
   const navigate = useNavigate();
   const [name, setName] = useState(asset?.name ?? '');
   const [purpose, setPurpose] = useState(asset?.purpose ?? '');
@@ -1161,6 +1296,10 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
             }
           : undefined,
     });
+    if (returnTo) {
+      await navigate({ to: returnTo, replace: true });
+      return;
+    }
     await navigate({
       to: '/assets/$slug',
       params: { slug: assetSlug({ id, name }) },
@@ -1171,7 +1310,10 @@ export function AssetFormScreen({ asset }: { asset?: Asset }) {
   return (
     <PageTransition fill>
       <main className={formShell}>
-        <PageHeader title={asset ? 'Редактировать' : 'Новый актив'} backTo="/assets" />
+        <PageHeader
+          title={asset ? 'Редактировать' : 'Новый актив'}
+          backTo={returnTo ?? '/assets'}
+        />
 
         <div className={formScroll}>
           <div>
@@ -1753,10 +1895,18 @@ function AssetDetailBody({ slug }: { slug: string }) {
         ) : null}
 
         <div className="grid grid-cols-2 gap-3">
-          <Button size="lg" onClick={() => setMode('deposit')}>
+          <Button
+            size="lg"
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
+            onClick={() => setMode('deposit')}
+          >
             Пополнить
           </Button>
-          <Button size="lg" variant="secondary" onClick={() => setMode('withdraw')}>
+          <Button
+            size="lg"
+            className="bg-rose-600 text-white hover:bg-rose-700"
+            onClick={() => setMode('withdraw')}
+          >
             Списать
           </Button>
         </div>
@@ -2248,6 +2398,13 @@ export function RulesScreen() {
     void load();
   }, [load]);
 
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  useEffect(() => {
+    if (pathname === '/settings/rules' || pathname === '/settings/rules/') {
+      void load();
+    }
+  }, [pathname, load]);
+
   const commitDelete = useCallback(async (ruleId: number) => {
     pendingRef.current.delete(ruleId);
     try {
@@ -2305,6 +2462,7 @@ export function RulesScreen() {
 
   const segmentColors = ['#2563EB', '#34D399', '#F59E0B', '#A78BFA', '#F472B6'];
   const showFreeSegment = !budget.overBudget && budget.freePercent > 0.05;
+  const hasAssets = data.assets.length > 0;
 
   return (
     <main className={`${shell} relative space-y-4`}>
@@ -2408,12 +2566,37 @@ export function RulesScreen() {
         </div>
       </Card>
 
-      <Link to="/settings/rules/new" className="block">
-        <Button className="w-full" size="lg">
-          <Plus className="h-4 w-4" />
-          Создать правило
-        </Button>
-      </Link>
+      {hasAssets ? (
+        <Link to="/settings/rules/new" className="block">
+          <Button className="w-full" size="lg">
+            <Plus className="h-4 w-4" />
+            Создать правило
+          </Button>
+        </Link>
+      ) : (
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-blue-50 to-white ring-1 ring-blue-100">
+          <div className="px-5 pt-5 pb-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-100">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <p className="mt-4 text-lg font-bold tracking-tight text-slate-900">
+              Сначала нужен актив
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+              Правило направляет остаток в актив. Добавьте хотя бы один — и
+              сможете создать правило.
+            </p>
+          </div>
+          <div className="px-5 pb-5">
+            <Link to="/assets/new" search={{ from: 'rules' }} className="block">
+              <Button className="w-full" size="lg">
+                <Plus className="h-4 w-4" />
+                Создать актив
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 flex flex-col gap-3">
         {data.rules.map((rule) => {
@@ -2495,6 +2678,10 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
       db.getAllIncomes(),
       db.getAllExpenses(),
     ]).then(([nextAssets, nextRules, incomes, expenses]) => {
+      if (!rule && nextAssets.length === 0) {
+        void navigate({ to: '/settings/rules', replace: true });
+        return;
+      }
       setAssets(nextAssets);
       setRules(nextRules);
       const report = calculateReport({
@@ -2507,7 +2694,7 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
       });
       setRemainder(isReportError(report) ? 100_000 : Math.max(report.remainder, 1));
     });
-  }, [rate]);
+  }, [rate, rule, navigate]);
 
   const selectedAsset = assets.find((a) => String(a.id) === target);
   const targetIsCreditWithRate =

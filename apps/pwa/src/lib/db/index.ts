@@ -38,6 +38,11 @@ interface Rejection {
   rejected_at: string;
 }
 
+interface CycleCarryover {
+  cycle_key: string;
+  amount_rub: number;
+}
+
 export interface AppDatabase {
   meta: Record<string, string>;
   income_sources: IncomeSource[];
@@ -48,6 +53,7 @@ export interface AppDatabase {
   vacation_periods: VacationPeriod[];
   allocation_confirmations: Confirmation[];
   allocation_rejections: Rejection[];
+  cycle_carryovers: CycleCarryover[];
   nextIds: {
     income: number;
     expense: number;
@@ -74,6 +80,7 @@ function emptyDb(): AppDatabase {
     vacation_periods: [],
     allocation_confirmations: [],
     allocation_rejections: [],
+    cycle_carryovers: [],
     nextIds: {
       income: 1,
       expense: 1,
@@ -124,6 +131,7 @@ function load(): AppDatabase {
       ...rule,
       credit_early_repay_mode: rule.credit_early_repay_mode ?? null,
     }));
+    parsed.cycle_carryovers = parsed.cycle_carryovers ?? [];
     parsed.nextIds = {
       ...emptyDb().nextIds,
       ...parsed.nextIds,
@@ -165,6 +173,32 @@ export async function completeOnboarding(): Promise<void> {
   await setMeta('onboarding_completed', 'true');
 }
 
+export function getTrackingStartedAtSync(): Date | null {
+  const raw = load().meta.tracking_started_at;
+  if (!raw) return null;
+  const parts = raw.slice(0, 10).split('-').map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2];
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+export function ensureTrackingStartedAt(date: Date): Date {
+  const existing = getTrackingStartedAtSync();
+  if (existing) return existing;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const iso = `${y}-${m}-${d}`;
+  withDb((db) => {
+    if (!db.meta.tracking_started_at) {
+      db.meta.tracking_started_at = iso;
+    }
+  });
+  return getTrackingStartedAtSync() ?? new Date(y, date.getMonth(), date.getDate());
+}
+
 export async function clearAllData(): Promise<void> {
   withDb((db) => {
     db.income_sources = [];
@@ -175,7 +209,9 @@ export async function clearAllData(): Promise<void> {
     db.vacation_periods = [];
     db.allocation_confirmations = [];
     db.allocation_rejections = [];
+    db.cycle_carryovers = [];
     db.meta.onboarding_completed = 'false';
+    delete db.meta.tracking_started_at;
   });
 }
 
@@ -761,6 +797,46 @@ export async function getRejectedRuleIds(cycleKey: string): Promise<number[]> {
   return load()
     .allocation_rejections.filter((r) => r.cycle_key === cycleKey)
     .map((r) => r.rule_id);
+}
+
+export function getCarryoverOverrideSync(cycleKey: string): number | null {
+  const row = load().cycle_carryovers.find((c) => c.cycle_key === cycleKey);
+  return row ? row.amount_rub : null;
+}
+
+export function getRejectedRuleIdsSync(cycleKey: string): number[] {
+  return load()
+    .allocation_rejections.filter((r) => r.cycle_key === cycleKey)
+    .map((r) => r.rule_id);
+}
+
+export async function getCarryoverOverride(
+  cycleKey: string,
+): Promise<number | null> {
+  return getCarryoverOverrideSync(cycleKey);
+}
+
+export async function setCarryoverOverride(
+  cycleKey: string,
+  amountRub: number,
+): Promise<void> {
+  withDb((db) => {
+    const amount = Math.max(0, Math.round(amountRub));
+    const idx = db.cycle_carryovers.findIndex((c) => c.cycle_key === cycleKey);
+    if (idx >= 0) {
+      db.cycle_carryovers[idx] = { cycle_key: cycleKey, amount_rub: amount };
+    } else {
+      db.cycle_carryovers.push({ cycle_key: cycleKey, amount_rub: amount });
+    }
+  });
+}
+
+export async function clearCarryoverOverride(cycleKey: string): Promise<void> {
+  withDb((db) => {
+    db.cycle_carryovers = db.cycle_carryovers.filter(
+      (c) => c.cycle_key !== cycleKey,
+    );
+  });
 }
 
 export async function confirmAllocation(input: {
