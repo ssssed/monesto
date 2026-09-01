@@ -1,0 +1,2 @@
+import{j as o,R as t}from"./index-DSDuTIR4.js";import{a as m}from"./screens-DGvBpCU6.js";import"./SwipeToDelete-Ce3mkkez.js";import"./format-RmOJ222w.js";import"./AssetAvatar-CjW-QHS7.js";import"./PageTransition-CrnDX_Tr.js";import"./dateWindow-KrdGf33R.js";import"./computeCycleHistory-C-CiJp5O.js";import"./git-branch-eC_c6pPN.js";const x=()=>o.jsx(m,{slug:t.useParams().slug});export{x as component};
+//# sourceMappingURL=_slug-CEwShtey.js.map

@@ -1,0 +1,17 @@
+import{j as s,s as b,f as M,r as e}from"./index-DSDuTIR4.js";function A({className:u,...h}){return s.jsx("div",{className:b("rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-card-foreground)] shadow-sm",u),...h})}/**
+ * @license lucide-react v0.544.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const T=[["path",{d:"m9 18 6-6-6-6",key:"mthhwq"}]],L=M("chevron-right",T);/**
+ * @license lucide-react v0.544.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const $=[["path",{d:"M5 12h14",key:"1ays0h"}],["path",{d:"M12 5v14",key:"s699le"}]],V=M("plus",$);/**
+ * @license lucide-react v0.544.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const E=[["path",{d:"M10 11v6",key:"nco0om"}],["path",{d:"M14 11v6",key:"outv1u"}],["path",{d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",key:"miytrc"}],["path",{d:"M3 6h18",key:"d0wm0j"}],["path",{d:"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",key:"e791ji"}]],O=M("trash-2",E),y=88,g=10;function q({children:u,onDelete:h,enabled:p=!0,className:v,borderRadius:N=16}){const[w,_]=e.useState(0),R=e.useRef(0),j=e.useRef(0),r=e.useRef(null),o=e.useRef(!1),i=e.useRef(!1),P=e.useRef(0),l=e.useRef(!1),f=e.useRef(null),x=e.useRef(null),c=e.useCallback(t=>{P.current=t,_(t)},[]),m=()=>{r.current=null,o.current=!1,i.current=!1,f.current=null},I=t=>{!p||t.button!==0||t.target?.closest("input, textarea, select, [data-no-swipe]")||(R.current=t.clientX,j.current=t.clientY,r.current=null,o.current=!0,i.current=!1,l.current=!1,f.current=t.pointerId,c(0))},X=t=>{if(!o.current||!p||f.current!==t.pointerId)return;const n=t.clientX-R.current,C=t.clientY-j.current;if(r.current==null){if(Math.abs(n)<g&&Math.abs(C)<g)return;if(r.current=Math.abs(n)>=Math.abs(C)?"x":"y",r.current==="x")x.current?.setPointerCapture(t.pointerId),i.current=!0;else{m();return}}r.current==="x"&&(Math.abs(n)>g*2&&(l.current=!0),c(Math.max(-y,Math.min(0,n))))},k=t=>{if(!o.current||f.current!==t.pointerId)return;if(i.current)try{x.current?.releasePointerCapture(t.pointerId)}catch{}if(r.current==="x"&&P.current<-48.400000000000006){c(-y),window.setTimeout(()=>{h(),c(0),m()},140);return}c(0),m()},D=t=>{l.current&&(t.preventDefault(),t.stopPropagation(),l.current=!1)},d=Math.min(1,Math.abs(w)/y),a={borderRadius:N},S=r.current==="x"&&o.current;return p?s.jsxs("div",{className:b("relative overflow-hidden",v),style:a,children:[s.jsx("div",{className:"absolute inset-0 flex items-center justify-end bg-red-500 pr-5",style:{...a,opacity:d>.05?.45+d*.55:0},"aria-hidden":!0,children:s.jsx(O,{className:"h-5 w-5 text-white",style:{opacity:d,transform:`scale(${.85+d*.15})`}})}),s.jsx("div",{ref:x,onPointerDown:I,onPointerMove:X,onPointerUp:k,onPointerCancel:k,onClickCapture:D,className:"relative bg-white",style:{...a,border:"1px solid #f1f5f9",touchAction:"pan-y",transform:`translateX(${w}px)`,transition:S?"none":"transform 220ms cubic-bezier(0.22, 1, 0.36, 1)"},children:u})]}):s.jsx("div",{className:b(v),style:a,children:s.jsx("div",{className:"relative overflow-hidden bg-white",style:{...a,border:"1px solid #f1f5f9"},children:u})})}export{A as C,V as P,q as S,O as T,L as a};
+//# sourceMappingURL=SwipeToDelete-Ce3mkkez.js.map

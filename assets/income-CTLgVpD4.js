@@ -1,0 +1,2 @@
+import{j as o}from"./index-DSDuTIR4.js";import{M as t}from"./screens-DGvBpCU6.js";import"./SwipeToDelete-Ce3mkkez.js";import"./format-RmOJ222w.js";import"./AssetAvatar-CjW-QHS7.js";import"./PageTransition-CrnDX_Tr.js";import"./dateWindow-KrdGf33R.js";import"./computeCycleHistory-C-CiJp5O.js";import"./git-branch-eC_c6pPN.js";const x=()=>o.jsx(t,{mode:"income",onboarding:!0});export{x as component};
+//# sourceMappingURL=income-CTLgVpD4.js.map

@@ -1,0 +1,2 @@
+import{n as r,j as e}from"./index-DSDuTIR4.js";import{C as t,M as m}from"./screens-DGvBpCU6.js";import"./SwipeToDelete-Ce3mkkez.js";import"./format-RmOJ222w.js";import"./AssetAvatar-CjW-QHS7.js";import"./PageTransition-CrnDX_Tr.js";import"./dateWindow-KrdGf33R.js";import"./computeCycleHistory-C-CiJp5O.js";import"./git-branch-eC_c6pPN.js";function x(){const{_cycle:o}=r.useSearch();return o?e.jsx(t,{mode:"income",cycleKey:o}):e.jsx(m,{mode:"income"})}export{x as component};
+//# sourceMappingURL=income-CWnW5KxO.js.map
