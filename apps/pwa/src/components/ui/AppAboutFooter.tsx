@@ -1,17 +1,14 @@
 import { Send } from 'lucide-react';
 
 const APP_VERSION = __APP_VERSION__;
-const TELEGRAM_URL =
-  import.meta.env.VITE_TELEGRAM_URL ?? 'https://t.me/monesto_news';
-const TELEGRAM_NAME = import.meta.env.VITE_TELEGRAM_NAME ?? '@monesto_news';
+const TELEGRAM_URL = import.meta.env.VITE_TELEGRAM_URL ?? 'https://t.me/monesto_news';
+const TELEGRAM_NAME = import.meta.env.VITE_TELEGRAM_NAME ?? '@monesto';
 
 /** Compact about strip — mirrors webapp settings info-section. */
 export function AppAboutFooter() {
   return (
-    <section className="mt-auto flex flex-col items-center gap-1 py-8">
-      <span className="text-xs font-medium text-slate-300">
-        Monesto v{APP_VERSION}
-      </span>
+    <section className="mt-auto flex flex-col items-center gap-1 pt-8">
+      <span className="text-xs font-medium text-slate-300">Monesto v{APP_VERSION}</span>
       <a
         href={TELEGRAM_URL}
         target="_blank"

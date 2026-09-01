@@ -226,6 +226,31 @@ export function ensureTrackingStartedAt(date: Date): Date {
   return getTrackingStartedAtSync() ?? new Date(y, date.getMonth(), date.getDate());
 }
 
+/** Полный бэкап хранилища одним JSON — для ручного экспорта/импорта в настройках. */
+export async function exportBackup(): Promise<string> {
+  return JSON.stringify(load(), null, 2);
+}
+
+export async function importBackup(raw: string): Promise<void> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('Файл повреждён — это не JSON');
+  }
+  const candidate = parsed as Partial<AppDatabase> | null;
+  if (
+    !candidate ||
+    typeof candidate !== 'object' ||
+    !Array.isArray(candidate.assets) ||
+    !Array.isArray(candidate.income_sources) ||
+    !Array.isArray(candidate.expenses)
+  ) {
+    throw new Error('Это не похоже на резервную копию Monesto');
+  }
+  localStorage.setItem(STORAGE_KEY, raw);
+}
+
 export async function clearAllData(): Promise<void> {
   withDb((db) => {
     db.income_sources = [];
