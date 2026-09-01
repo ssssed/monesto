@@ -1,19 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { MoneyFlowScreen } from '@/components/screens';
+import { CycleMoneyFlowPreview, MoneyFlowScreen } from '@/components/screens';
 
 type MoneyFlowSearch = {
-  _mode?: 'preview';
+  _cycle?: string;
 };
 
 export const Route = createFileRoute('/settings/expenses')({
   validateSearch: (search: Record<string, unknown>): MoneyFlowSearch => ({
-    _mode: search._mode === 'preview' ? 'preview' : undefined,
+    _cycle: typeof search._cycle === 'string' ? search._cycle : undefined,
   }),
   component: ExpensesSettingsPage,
 });
 
 function ExpensesSettingsPage() {
-  const { _mode } = Route.useSearch();
-  return <MoneyFlowScreen mode="expense" preview={_mode === 'preview'} />;
+  const { _cycle } = Route.useSearch();
+  if (_cycle) return <CycleMoneyFlowPreview mode="expense" cycleKey={_cycle} />;
+  return <MoneyFlowScreen mode="expense" />;
 }

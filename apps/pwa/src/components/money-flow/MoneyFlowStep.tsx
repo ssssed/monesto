@@ -1199,6 +1199,7 @@ export function MoneyFlowStep({
   onSubmit,
   onboarding = false,
   preview = false,
+  cycleKey,
 }: {
   mode: Mode;
   title: string;
@@ -1208,6 +1209,7 @@ export function MoneyFlowStep({
   onSubmit: (entries: MoneyFlowEntry[]) => Promise<void> | void;
   onboarding?: boolean;
   preview?: boolean;
+  cycleKey?: string;
 }) {
   const navigate = useNavigate();
   const usdRubRate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
@@ -1276,7 +1278,12 @@ export function MoneyFlowStep({
       const scheduleDays = scheduleDaysFromPrimary(primary);
       const cycles = listReportCycles(today, scheduleDays, vacationCtx);
       const selected =
-        cycles.find((c) => !c.isPreview) ?? cycles[0] ?? null;
+        (cycleKey
+          ? cycles.find((c) => reportCycleKey(c) === cycleKey)
+          : undefined) ??
+        cycles.find((c) => !c.isPreview) ??
+        cycles[0] ??
+        null;
       if (!selected || cancelled) return;
       setCyclePeriod({
         start: startOfDay(selected.expenseStart),
@@ -1312,7 +1319,7 @@ export function MoneyFlowStep({
     return () => {
       cancelled = true;
     };
-  }, [preview, mode, usdRubRate, carryTick]);
+  }, [preview, mode, usdRubRate, carryTick, cycleKey]);
 
   const visibleEntries = useMemo(() => {
     if (!preview || !cyclePeriod) return entries;
