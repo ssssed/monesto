@@ -34,6 +34,7 @@ import {
   ChevronRight,
   Download,
   GitBranch,
+  History,
   Minus,
   Pencil,
   Plus,
@@ -100,6 +101,7 @@ import {
   getEnabledProviders,
 } from '@/lib/providers/assetProviders';
 import { calculateReport, isReportError } from '@/lib/report/calculateReport';
+import { computeCycleHistory } from '@/lib/report/computeCycleHistory';
 import {
   findPrimaryIncome,
   formatReportDate,
@@ -2495,6 +2497,31 @@ export function SettingsScreen() {
   const [importError, setImportError] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [hasHistory, setHasHistory] = useState(false);
+  const rate = useExchangeRateStore((s) => s.usdRubRate) ?? 82;
+
+  useEffect(() => {
+    void Promise.all([
+      db.getAllIncomes(),
+      db.getAllExpenses(),
+      db.getAllRules(),
+      db.getAllAssets(),
+      db.getAllVacations(),
+    ]).then(([incomes, expenses, rules, assets, vacations]) => {
+      const points = computeCycleHistory({
+        incomes,
+        expenses,
+        rules,
+        assets,
+        vacations,
+        today: new Date(),
+        usdRubRate: rate,
+        monthsBack: 6,
+        trackingStartedAt: db.getTrackingStartedAtSync(),
+      });
+      setHasHistory(points.length > 0);
+    });
+  }, [rate]);
 
   const clear = async () => {
     await db.clearAllData();
@@ -2585,7 +2612,18 @@ export function SettingsScreen() {
       desc: 'Периоды и влияние на выплаты',
       icon: CalendarDays,
       color: 'bg-amber-50 text-amber-700'
-    }
+    },
+    ...(hasHistory
+      ? [
+          {
+            to: '/history' as const,
+            label: 'История циклов',
+            desc: 'Доходы и расходы за полгода',
+            icon: History,
+            color: 'bg-indigo-50 text-indigo-600'
+          }
+        ]
+      : [])
   ];
 
   return (

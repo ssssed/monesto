@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as YearSummaryRouteImport } from './routes/year-summary'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
 import { Route as AssetsSlugRouteImport } from './routes/assets/$slug'
@@ -29,6 +30,11 @@ import { Route as SettingsRulesNewRouteImport } from './routes/settings/rules/ne
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const YearSummaryRoute = YearSummaryRouteImport.update({
@@ -109,6 +115,7 @@ const SettingsRulesNewRoute = SettingsRulesNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
   '/year-summary': typeof YearSummaryRoute
   '/assets/$slug': typeof AssetsSlugRoute
   '/assets/new': typeof AssetsNewRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
   '/year-summary': typeof YearSummaryRoute
   '/assets/$slug': typeof AssetsSlugRoute
   '/assets/new': typeof AssetsNewRoute
@@ -146,6 +154,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
   '/year-summary': typeof YearSummaryRoute
   '/assets/$slug': typeof AssetsSlugRoute
   '/assets/new': typeof AssetsNewRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/history'
     | '/year-summary'
     | '/assets/$slug'
     | '/assets/new'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/history'
     | '/year-summary'
     | '/assets/$slug'
     | '/assets/new'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/history'
     | '/year-summary'
     | '/assets/$slug'
     | '/assets/new'
@@ -221,6 +233,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HistoryRoute: typeof HistoryRoute
   YearSummaryRoute: typeof YearSummaryRoute
   AssetsSlugRoute: typeof AssetsSlugRoute
   AssetsNewRoute: typeof AssetsNewRoute
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/year-summary': {
@@ -357,6 +377,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HistoryRoute: HistoryRoute,
   YearSummaryRoute: YearSummaryRoute,
   AssetsSlugRoute: AssetsSlugRoute,
   AssetsNewRoute: AssetsNewRoute,
