@@ -42,6 +42,7 @@ jobs:
         env:
           BASE_PATH: /monesto/
           VITE_FEATURE_YEAR_SUMMARY: ${{ vars.VITE_FEATURE_YEAR_SUMMARY || 'false' }}
+          VITE_FEATURE_VACATION_BANNER: ${{ vars.VITE_FEATURE_VACATION_BANNER || 'false' }}
           VITE_TELEGRAM_URL: ${{ vars.VITE_TELEGRAM_URL || 'https://t.me/monesto_news' }}
           VITE_TELEGRAM_NAME: ${{ vars.VITE_TELEGRAM_NAME || '@monesto_news' }}
         run: npm run build -w @monesto/pwa

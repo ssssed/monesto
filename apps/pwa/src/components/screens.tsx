@@ -76,9 +76,10 @@ import { ErrorPage } from '@/components/ui/ErrorPage';
 import { GoalProgressBadge, TrendBadge } from '@/components/ui/GoalProgressBadge';
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
+import { VacationBanner } from '@/components/vacation/VacationBanner';
 import { YearSummaryBanner } from '@/components/year-summary/YearSummaryBanner';
 import * as db from '@/lib/db';
-import { isYearSummaryEnabled } from '@/lib/features';
+import { isYearSummaryEnabled, shouldShowVacationBanner } from '@/lib/features';
 import {
   computeYearSummary,
   type YearSummary,
@@ -467,7 +468,9 @@ export function HomeScreen() {
   });
   const incomeNames = uniqueLineNames(report.incomeLines);
   const expenseCount = uniqueLineNames(report.expenseLines).length;
-  const originStart = 9 + Math.max(reportAssets.length, 1);
+  const showVacationBanner = shouldShowVacationBanner(data.vacations);
+  const vacationBannerIndex = 9 + Math.max(reportAssets.length, 1);
+  const originStart = vacationBannerIndex + (showVacationBanner ? 1 : 0);
 
   const confirmAsset = async (assetId: number) => {
     if (report.isPreview) return;
@@ -760,6 +763,12 @@ export function HomeScreen() {
           });
         })()}
       </section>
+
+      {showVacationBanner ? (
+        <FadeIn index={vacationBannerIndex} baseDelay={40} step={55}>
+          <VacationBanner />
+        </FadeIn>
+      ) : null}
 
       <section className="space-y-3">
         <FadeIn index={originStart} baseDelay={40} step={55}>
