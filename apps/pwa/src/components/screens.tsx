@@ -17,6 +17,7 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  SlidingToggleGroup,
   Tabs,
   TabsList,
   TabsTrigger
@@ -29,6 +30,7 @@ import {
   ArrowUpDown,
   ArrowUpRight,
   CalendarDays,
+  Check,
   ChevronRight,
   GitBranch,
   Minus,
@@ -119,7 +121,15 @@ import type {
   RuleType,
   VacationPeriod,
 } from '@/lib/types';
-import { expensesToEntries, formatRub, formatUsd, incomesToEntries } from '@/lib/utils/format';
+import {
+  createEmptyExpenseEntry,
+  expensesToEntries,
+  formatRub,
+  formatUsd,
+  incomesToEntries,
+  toIsoDate,
+} from '@/lib/utils/format';
+import { startOfDay } from '@/lib/calendar/workingDays';
 import { assetSlug } from '@/lib/utils/slug';
 import { useCycleSelectionStore } from '@/stores/cycle-selection-store';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
@@ -1711,6 +1721,14 @@ function AssetDetailBody({ slug }: { slug: string }) {
   const [sellRate, setSellRate] = useState('82');
   const [transferTargetId, setTransferTargetId] = useState('');
   const [mode, setMode] = useState<'deposit' | 'withdraw' | null>(null);
+  const [fundSource, setFundSource] = useState<'manual' | 'free_money'>('manual');
+  const [freeMoney, setFreeMoney] = useState<{
+    amountRub: number;
+    expenseStart: Date;
+    expenseEndExclusive: Date;
+  } | null>(null);
+  const [ruleSuggestOpen, setRuleSuggestOpen] = useState(false);
+  const [ruleSuggestSnoozeChecked, setRuleSuggestSnoozeChecked] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPurpose, setEditPurpose] = useState('');
@@ -1744,6 +1762,78 @@ function AssetDetailBody({ slug }: { slug: string }) {
     setLoadState('loading');
     void reload();
   }, [reload]);
+
+  const loadFreeMoney = useCallback(async () => {
+    const [incomes, expenses, rules, assets, vacations] = await Promise.all([
+      db.getAllIncomes(),
+      db.getAllExpenses(),
+      db.getAllRules(),
+      db.getAllAssets(),
+      db.getAllVacations(),
+    ]);
+    const primary = findPrimaryIncome(incomes);
+    const vacationCtx =
+      primary?.income_kind === 'bimonthly_salary'
+        ? {
+            vacations,
+            monthlyAmount: primary.monthly_amount ?? 0,
+            tranches: primary.salary_tranches,
+          }
+        : undefined;
+    const today = new Date();
+    const scheduleDays = scheduleDaysFromPrimary(primary);
+    const cycles = listReportCycles(today, scheduleDays, vacationCtx);
+    const cycle = cycles.find((c) => !c.isPreview) ?? cycles[0] ?? null;
+    if (!cycle) {
+      setFreeMoney(null);
+      return;
+    }
+    const trackingStartedAt = db.ensureTrackingStartedAt(cycle.nominalDate);
+    const carryIn = resolveCarryIn({
+      today,
+      cycle,
+      scheduleDays,
+      vacationCtx,
+      incomes,
+      expenses,
+      rules,
+      assets,
+      vacations,
+      usdRubRate: usdRate,
+      getOverride: db.getCarryoverOverrideSync,
+      getRejectedIds: db.getRejectedRuleIdsSync,
+      trackingStartedAt,
+    });
+    const report = calculateReport({
+      incomes,
+      expenses,
+      rules,
+      assets,
+      vacations,
+      today,
+      cyclePaymentDay: cycle.paymentDay,
+      cycleNominalDate: cycle.nominalDate,
+      usdRubRate: usdRate,
+      carryInRub: carryIn.amountRub,
+    });
+    if (isReportError(report)) {
+      setFreeMoney(null);
+      return;
+    }
+    const rejectedIds = await db.getRejectedRuleIds(report.cycleKey);
+    const effectiveAllocatedRub = report.allocations
+      .filter((item) => !rejectedIds.includes(item.ruleId))
+      .reduce((sum, item) => sum + item.amountRub, 0);
+    setFreeMoney({
+      amountRub: report.remainder - effectiveAllocatedRub,
+      expenseStart: cycle.expenseStart,
+      expenseEndExclusive: cycle.expenseEndExclusive,
+    });
+  }, [usdRate]);
+
+  useEffect(() => {
+    void loadFreeMoney();
+  }, [loadFreeMoney]);
 
   useEffect(() => {
     if (!asset || !editOpen) return;
@@ -1789,19 +1879,53 @@ function AssetDetailBody({ slug }: { slug: string }) {
     setMode(null);
     setAmount('');
     setTransferTargetId('');
+    setFundSource('manual');
   };
+
+  const depositRubValue = numeric(amount) * (asset.provider === 'usd' ? numeric(buyRate) : 1);
 
   const change = async () => {
     const value = numeric(amount);
     if (!value || !mode) return;
 
     if (mode === 'deposit') {
+      if (fundSource === 'free_money') {
+        if (!freeMoney || depositRubValue > freeMoney.amountRub) return;
+        const today = startOfDay(new Date());
+        const start = startOfDay(freeMoney.expenseStart);
+        const lastValidDay = startOfDay(freeMoney.expenseEndExclusive);
+        lastValidDay.setDate(lastValidDay.getDate() - 1);
+        const specificDate = today < start ? start : today > lastValidDay ? lastValidDay : today;
+        const entries = expensesToEntries(await db.getAllExpenses());
+        entries.push({
+          ...createEmptyExpenseEntry(),
+          name: `Пополнение «${asset.name}»`,
+          amount: String(depositRubValue),
+          currency: 'rub',
+          isOneTime: true,
+          specificDate: toIsoDate(specificDate),
+        });
+        await db.replaceAllExpenses(entries);
+      }
+
       await db.addTransaction(
         asset.id,
         value,
-        'Пополнение',
+        fundSource === 'free_money' ? 'Пополнение из свободных денег' : 'Пополнение',
         asset.provider === 'usd' ? value * numeric(buyRate) : undefined,
       );
+
+      if (fundSource === 'free_money') {
+        const count = await db.recordFreeMoneyTopup(asset.id);
+        const rules = await db.getAllRules();
+        const hasRule = rules.some((r) => r.target_asset_id === asset.id);
+        if (count >= 2 && !hasRule && !db.isRuleSuggestionSnoozedSync(asset.id)) {
+          setRuleSuggestSnoozeChecked(false);
+          setRuleSuggestOpen(true);
+        }
+        void loadFreeMoney();
+      }
+
       closeMoneySheet();
       await reload();
       return;
@@ -2097,6 +2221,31 @@ function AssetDetailBody({ slug }: { slug: string }) {
                   />
                 </div>
               ) : null}
+              {mode === 'deposit' && freeMoney ? (
+                <div>
+                  <Label>Источник</Label>
+                  <div className="mt-2">
+                    <SlidingToggleGroup
+                      size="sm"
+                      value={fundSource}
+                      onValueChange={(key) =>
+                        setFundSource(key as 'manual' | 'free_money')
+                      }
+                      options={[
+                        { value: 'manual', label: 'Вручную' },
+                        { value: 'free_money', label: 'Из свободных денег' },
+                      ]}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    {fundSource === 'free_money'
+                      ? depositRubValue > freeMoney.amountRub
+                        ? `Доступно только ${formatRub(freeMoney.amountRub)}`
+                        : `Доступно: ${formatRub(freeMoney.amountRub)}`
+                      : 'Деньги со стороны, не из текущего цикла'}
+                  </p>
+                </div>
+              ) : null}
               {asset.provider === 'usd' && mode === 'withdraw' ? (
                 <>
                   <div>
@@ -2172,7 +2321,10 @@ function AssetDetailBody({ slug }: { slug: string }) {
                     mode === 'withdraw' &&
                     (!numeric(sellRate) ||
                       !transferTargetId ||
-                      numeric(amount) > asset.current_amount))
+                      numeric(amount) > asset.current_amount)) ||
+                  (mode === 'deposit' &&
+                    fundSource === 'free_money' &&
+                    (!freeMoney || depositRubValue > freeMoney.amountRub))
                 }
                 onClick={() => void change()}
               >
@@ -2184,6 +2336,79 @@ function AssetDetailBody({ slug }: { slug: string }) {
                 onClick={closeMoneySheet}
               >
                 Отмена
+              </button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet
+          open={ruleSuggestOpen}
+          onOpenChange={(o) => {
+            if (!o) {
+              if (ruleSuggestSnoozeChecked) void db.snoozeRuleSuggestion(asset.id);
+              setRuleSuggestOpen(false);
+            }
+          }}
+        >
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Автоматизировать пополнение?</SheetTitle>
+            </SheetHeader>
+            <SheetBody className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                  <GitBranch className="h-5 w-5" />
+                </div>
+                <p className="text-sm leading-relaxed text-slate-500">
+                  Вы дважды пополнили «{asset.name}» из свободных денег вручную.
+                  Создайте правило — и часть остатка будет уходить сюда
+                  автоматически каждый цикл.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRuleSuggestSnoozeChecked((v) => !v)}
+                className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 p-3.5 text-left"
+              >
+                <span
+                  className={
+                    ruleSuggestSnoozeChecked
+                      ? 'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-blue-600 bg-blue-600'
+                      : 'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-slate-300'
+                  }
+                >
+                  {ruleSuggestSnoozeChecked ? (
+                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                  ) : null}
+                </span>
+                <span className="text-sm text-slate-600">
+                  Не предлагать для этого актива в течение месяца
+                </span>
+              </button>
+            </SheetBody>
+            <SheetFooter className="gap-2 sm:flex-col">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => {
+                  setRuleSuggestOpen(false);
+                  void navigate({
+                    to: '/settings/rules/new',
+                    search: { asset: String(asset.id) },
+                  });
+                }}
+              >
+                Создать правило
+              </Button>
+              <button
+                type="button"
+                className="w-full py-2 text-sm text-slate-400"
+                onClick={() => {
+                  if (ruleSuggestSnoozeChecked) void db.snoozeRuleSuggestion(asset.id);
+                  setRuleSuggestOpen(false);
+                }}
+              >
+                Не сейчас
               </button>
             </SheetFooter>
           </SheetContent>
@@ -3057,7 +3282,13 @@ export function RulesScreen() {
   );
 }
 
-export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
+export function RuleFormScreen({
+  rule,
+  defaultTargetAssetId,
+}: {
+  rule?: DistributionRule;
+  defaultTargetAssetId?: number;
+}) {
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
@@ -3066,7 +3297,13 @@ export function RuleFormScreen({ rule }: { rule?: DistributionRule }) {
   const [rules, setRules] = useState<DistributionRule[]>([]);
   const [remainder, setRemainder] = useState(100_000);
   const [name, setName] = useState(rule?.name ?? '');
-  const [target, setTarget] = useState(rule?.target_asset_id ? String(rule.target_asset_id) : '');
+  const [target, setTarget] = useState(
+    rule?.target_asset_id
+      ? String(rule.target_asset_id)
+      : defaultTargetAssetId
+        ? String(defaultTargetAssetId)
+        : '',
+  );
   const [type, setType] = useState<RuleType>(rule?.rule_type ?? 'percent');
   const [value, setValue] = useState(String(rule?.value ?? '10'));
   const [creditMode, setCreditMode] = useState<'reduce_term' | 'reduce_payment'>(

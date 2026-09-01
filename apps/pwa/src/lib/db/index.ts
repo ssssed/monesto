@@ -169,6 +169,33 @@ export async function isOnboardingCompleted(): Promise<boolean> {
   return (await getMeta('onboarding_completed')) === 'true';
 }
 
+/** Счётчик пополнений актива из свободных денег цикла — триггер предложения авто-правила. */
+export function getFreeMoneyTopupCountSync(assetId: number): number {
+  return Number(load().meta[`free_money_topup_count_${assetId}`]) || 0;
+}
+
+export async function recordFreeMoneyTopup(assetId: number): Promise<number> {
+  return withDb((db) => {
+    const key = `free_money_topup_count_${assetId}`;
+    const next = (Number(db.meta[key]) || 0) + 1;
+    db.meta[key] = String(next);
+    return next;
+  });
+}
+
+/** Пользователь отклонил предложение автоматизации на месяц — не показываем до этой даты. */
+export function isRuleSuggestionSnoozedSync(assetId: number): boolean {
+  const raw = load().meta[`rule_suggestion_snooze_until_${assetId}`];
+  if (!raw) return false;
+  return new Date(raw).getTime() > Date.now();
+}
+
+export async function snoozeRuleSuggestion(assetId: number): Promise<void> {
+  const until = new Date();
+  until.setMonth(until.getMonth() + 1);
+  await setMeta(`rule_suggestion_snooze_until_${assetId}`, until.toISOString());
+}
+
 export async function completeOnboarding(): Promise<void> {
   await setMeta('onboarding_completed', 'true');
 }
