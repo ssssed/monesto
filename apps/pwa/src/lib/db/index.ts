@@ -196,6 +196,28 @@ export async function snoozeRuleSuggestion(assetId: number): Promise<void> {
   await setMeta(`rule_suggestion_snooze_until_${assetId}`, until.toISOString());
 }
 
+/** Когда в последний раз скачивали резервную копию — для баннера напоминания. */
+export function getLastBackupExportAtSync(): Date | null {
+  const raw = load().meta.last_backup_export_at;
+  return raw ? new Date(raw) : null;
+}
+
+export async function markBackupExported(): Promise<void> {
+  await setMeta('last_backup_export_at', new Date().toISOString());
+}
+
+export function isBackupBannerSnoozedSync(): boolean {
+  const raw = load().meta.backup_banner_snooze_until;
+  if (!raw) return false;
+  return new Date(raw).getTime() > Date.now();
+}
+
+export async function snoozeBackupBanner(): Promise<void> {
+  const until = new Date();
+  until.setDate(until.getDate() + 14);
+  await setMeta('backup_banner_snooze_until', until.toISOString());
+}
+
 export async function completeOnboarding(): Promise<void> {
   await setMeta('onboarding_completed', 'true');
 }

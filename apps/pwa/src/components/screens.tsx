@@ -80,10 +80,15 @@ import { ErrorPage } from '@/components/ui/ErrorPage';
 import { GoalProgressBadge, TrendBadge } from '@/components/ui/GoalProgressBadge';
 import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { UndoToast } from '@/components/ui/UndoToast';
+import { BackupReminderBanner } from '@/components/backup/BackupReminderBanner';
 import { VacationBanner } from '@/components/vacation/VacationBanner';
 import { YearSummaryBanner } from '@/components/year-summary/YearSummaryBanner';
 import * as db from '@/lib/db';
-import { isYearSummaryEnabled, shouldShowVacationBanner } from '@/lib/features';
+import {
+  isBackupBannerEnabled,
+  isYearSummaryEnabled,
+  shouldShowVacationBanner,
+} from '@/lib/features';
 import {
   computeYearSummary,
   type YearSummary,
@@ -136,6 +141,7 @@ import {
   toIsoDate,
 } from '@/lib/utils/format';
 import { startOfDay } from '@/lib/calendar/workingDays';
+import { downloadBackup } from '@/lib/utils/downloadBackup';
 import { assetSlug } from '@/lib/utils/slug';
 import {
   requestNotificationPermission,
@@ -257,6 +263,7 @@ export function HomeScreen() {
     'income' | 'expense' | null
   >(null);
   const [celebrateAsset, setCelebrateAsset] = useState<Asset | null>(null);
+  const [showBackupBanner, setShowBackupBanner] = useState(false);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -269,6 +276,20 @@ export function HomeScreen() {
       db.getAllVacations(),
     ]);
     setData({ assets, incomes, expenses, rules, vacations });
+
+    if (!isBackupBannerEnabled()) {
+      setShowBackupBanner(false);
+    } else {
+      const lastExport = db.getLastBackupExportAtSync();
+      const daysSinceExport = lastExport
+        ? (Date.now() - lastExport.getTime()) / (1000 * 60 * 60 * 24)
+        : Infinity;
+      setShowBackupBanner(
+        assets.length > 0 &&
+          daysSinceExport > 30 &&
+          !db.isBackupBannerSnoozedSync(),
+      );
+    }
 
     if (isYearSummaryEnabled()) {
       const transactions = await db.getAllAssetTransactions();
@@ -566,6 +587,18 @@ export function HomeScreen() {
           <ExchangeRateBadge compact />
         </div>
       </FadeIn>
+
+      {showBackupBanner ? (
+        <FadeIn index={0}>
+          <BackupReminderBanner
+            onExported={() => setShowBackupBanner(false)}
+            onDismiss={() => {
+              setShowBackupBanner(false);
+              void db.snoozeBackupBanner();
+            }}
+          />
+        </FadeIn>
+      ) : null}
 
       <FadeIn index={1}>
         <ReportCycleSwitcher
@@ -2606,20 +2639,6 @@ export function SettingsScreen() {
     await navigate({ to: '/onboarding' });
   };
 
-  const exportData = async () => {
-    const json = await db.exportBackup();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10);
-    a.href = url;
-    a.download = `monesto-backup-${date}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
   const pickImportFile = () => {
     setImportError('');
     fileInputRef.current?.click();
@@ -2740,7 +2759,7 @@ export function SettingsScreen() {
         <Card className="overflow-hidden border-slate-100 p-0 shadow-sm">
           <button
             type="button"
-            onClick={() => void exportData()}
+            onClick={() => void downloadBackup()}
             className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">

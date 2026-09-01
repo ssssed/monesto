@@ -10,6 +10,13 @@ export function isVacationBannerEnabled(): boolean {
   return isFeatureEnabled(import.meta.env.VITE_FEATURE_VACATION_BANNER);
 }
 
+/** Включён по умолчанию — флаг только чтобы полностью выключить баннер. */
+export function isBackupBannerEnabled(): boolean {
+  const raw = import.meta.env.VITE_FEATURE_BACKUP_BANNER;
+  if (raw === undefined || raw === '') return true;
+  return isFeatureEnabled(raw);
+}
+
 type VacationPeriodLike = {
   start_date: string;
   end_date: string;

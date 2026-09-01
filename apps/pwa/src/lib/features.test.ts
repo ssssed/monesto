@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   hasFilledVacationPeriods,
+  isBackupBannerEnabled,
   shouldShowVacationBanner,
 } from './features';
 
@@ -45,5 +46,26 @@ describe('shouldShowVacationBanner', () => {
     vi.stubEnv('VITE_FEATURE_VACATION_BANNER', 'false');
     expect(shouldShowVacationBanner([])).toBe(false);
     expect(shouldShowVacationBanner([filledVacation])).toBe(false);
+  });
+});
+
+describe('isBackupBannerEnabled', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('включён по умолчанию, если флаг не задан', () => {
+    vi.stubEnv('VITE_FEATURE_BACKUP_BANNER', undefined);
+    expect(isBackupBannerEnabled()).toBe(true);
+  });
+
+  it('включён явным true', () => {
+    vi.stubEnv('VITE_FEATURE_BACKUP_BANNER', 'true');
+    expect(isBackupBannerEnabled()).toBe(true);
+  });
+
+  it('полностью выключается флагом false', () => {
+    vi.stubEnv('VITE_FEATURE_BACKUP_BANNER', 'false');
+    expect(isBackupBannerEnabled()).toBe(false);
   });
 });
