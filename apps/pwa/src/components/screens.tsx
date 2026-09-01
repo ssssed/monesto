@@ -2264,10 +2264,13 @@ function AssetDetailBody({ slug }: { slug: string }) {
               <div>
                 <Label required>Сумма</Label>
                 <Input
+                  type="number"
+                  format="money"
+                  suffix={asset.provider === 'usd' ? '$' : '₽'}
+                  withRelativeSuffix
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  inputMode="decimal"
-                  placeholder={asset.provider === 'usd' ? 'Сумма в $' : 'Сумма в ₽'}
+                  placeholder="0"
                 />
               </div>
               {asset.provider === 'usd' && mode === 'deposit' ? (
