@@ -36,6 +36,7 @@ import {
   GitBranch,
   History,
   Minus,
+  PartyPopper,
   Pencil,
   Plus,
   Receipt,
@@ -136,6 +137,10 @@ import {
 } from '@/lib/utils/format';
 import { startOfDay } from '@/lib/calendar/workingDays';
 import { assetSlug } from '@/lib/utils/slug';
+import {
+  requestNotificationPermission,
+  showGoalReachedNotification,
+} from '@/lib/notifications/goalNotifications';
 import { useCycleSelectionStore } from '@/stores/cycle-selection-store';
 import { useExchangeRateStore } from '@/stores/exchange-rate-store';
 
@@ -251,6 +256,7 @@ export function HomeScreen() {
   const [quickOneTimeMode, setQuickOneTimeMode] = useState<
     'income' | 'expense' | null
   >(null);
+  const [celebrateAsset, setCelebrateAsset] = useState<Asset | null>(null);
   const rate = useExchangeRateStore((s) => s.usdRubRate);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -516,12 +522,18 @@ export function HomeScreen() {
     if (newlyConfirmed.length && totalRub > 0) {
       const target = data.assets.find((a) => a.id === assetId);
       if (target?.provider !== 'credit') {
-        await db.depositFromAllocation(
+        const { goalJustReached } = await db.depositFromAllocation(
           assetId,
           totalRub,
           rate ?? 82,
           'Распределение из отчёта',
         );
+        if (goalJustReached && target) {
+          setCelebrateAsset(target);
+          void requestNotificationPermission().then((permission) => {
+            if (permission === 'granted') void showGoalReachedNotification(target.name);
+          });
+        }
       }
     }
     setConfirmedIds((prev) => [...new Set([...prev, ...newlyConfirmed])]);
@@ -667,6 +679,32 @@ export function HomeScreen() {
           void reload();
         }}
       />
+
+      <Sheet
+        open={celebrateAsset != null}
+        onOpenChange={(open) => {
+          if (!open) setCelebrateAsset(null);
+        }}
+      >
+        <SheetContent>
+          <SheetBody className="flex flex-col items-center gap-3 py-4 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+              <PartyPopper className="h-8 w-8" strokeWidth={1.75} />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-slate-900">Цель достигнута!</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                «{celebrateAsset?.name}» — план накопления выполнен
+              </p>
+            </div>
+          </SheetBody>
+          <SheetFooter>
+            <Button className="w-full" size="lg" onClick={() => setCelebrateAsset(null)}>
+              Ура
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <section className="space-y-1">
         <FadeIn index={8} baseDelay={40} step={55}>
@@ -1742,6 +1780,7 @@ function AssetDetailBody({ slug }: { slug: string }) {
   } | null>(null);
   const [ruleSuggestOpen, setRuleSuggestOpen] = useState(false);
   const [ruleSuggestSnoozeChecked, setRuleSuggestSnoozeChecked] = useState(false);
+  const [goalReachedOpen, setGoalReachedOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPurpose, setEditPurpose] = useState('');
@@ -1921,12 +1960,19 @@ function AssetDetailBody({ slug }: { slug: string }) {
         await db.replaceAllExpenses(entries);
       }
 
-      await db.addTransaction(
+      const { goalJustReached } = await db.addTransaction(
         asset.id,
         value,
         fundSource === 'free_money' ? 'Пополнение из свободных денег' : 'Пополнение',
         asset.provider === 'usd' ? value * numeric(buyRate) : undefined,
       );
+
+      if (goalJustReached) {
+        setGoalReachedOpen(true);
+        void requestNotificationPermission().then((permission) => {
+          if (permission === 'granted') void showGoalReachedNotification(asset.name);
+        });
+      }
 
       if (fundSource === 'free_money') {
         const count = await db.recordFreeMoneyTopup(asset.id);
@@ -2423,6 +2469,35 @@ function AssetDetailBody({ slug }: { slug: string }) {
               >
                 Не сейчас
               </button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={goalReachedOpen} onOpenChange={setGoalReachedOpen}>
+          <SheetContent>
+            <SheetBody className="flex flex-col items-center gap-3 py-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+                <PartyPopper className="h-8 w-8" strokeWidth={1.75} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-slate-900">Цель достигнута!</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                  «{asset.name}» — накоплено{' '}
+                  {asset.provider === 'usd'
+                    ? formatUsd(asset.current_amount)
+                    : formatRub(asset.current_amount)}
+                  , план выполнен
+                </p>
+              </div>
+            </SheetBody>
+            <SheetFooter>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => setGoalReachedOpen(false)}
+              >
+                Ура
+              </Button>
             </SheetFooter>
           </SheetContent>
         </Sheet>

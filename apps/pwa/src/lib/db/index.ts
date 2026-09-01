@@ -548,10 +548,13 @@ export async function addTransaction(
   options?: {
     earlyRepayMode?: 'reduce_term' | 'reduce_payment' | null;
   },
-): Promise<void> {
-  withDb((db) => {
+): Promise<{ goalJustReached: boolean }> {
+  return withDb((db) => {
     const asset = db.assets.find((a) => a.id === assetId);
-    if (!asset) return;
+    if (!asset) return { goalJustReached: false };
+
+    const hasGoal = asset.provider !== 'credit' && (asset.goal_amount ?? 0) > 0;
+    const wasBelowGoal = hasGoal && asset.current_amount < (asset.goal_amount ?? 0);
 
     if (asset.provider === 'credit') {
       // Положительный delta = погашение → долг уменьшается.
@@ -643,7 +646,7 @@ export async function addTransaction(
         });
         asset.current_amount = roundMoney(asset.current_amount + add);
       }
-      return;
+      return { goalJustReached: false };
     }
 
     let costDelta = costRubDelta ?? 0;
@@ -671,6 +674,10 @@ export async function addTransaction(
 
     asset.current_amount += amountDelta;
     asset.cost_basis_rub = Math.max(0, asset.cost_basis_rub + costDelta);
+
+    const goalJustReached =
+      wasBelowGoal && asset.current_amount >= (asset.goal_amount ?? 0);
+    return { goalJustReached };
   });
 }
 
@@ -682,15 +689,15 @@ export async function depositFromAllocation(
   options?: {
     earlyRepayMode?: 'reduce_term' | 'reduce_payment' | null;
   },
-): Promise<void> {
+): Promise<{ goalJustReached: boolean }> {
   const asset = await getAssetById(assetId);
-  if (!asset) return;
+  if (!asset) return { goalJustReached: false };
 
   if (asset.provider === 'usd') {
     const usdAmount = amountRub / usdRubRate;
-    await addTransaction(assetId, usdAmount, note, amountRub);
+    return addTransaction(assetId, usdAmount, note, amountRub);
   } else if (asset.provider === 'credit') {
-    await addTransaction(
+    return addTransaction(
       assetId,
       amountRub,
       note || 'Погашение из отчёта',
@@ -698,7 +705,7 @@ export async function depositFromAllocation(
       { earlyRepayMode: options?.earlyRepayMode },
     );
   } else {
-    await addTransaction(assetId, amountRub, note, amountRub);
+    return addTransaction(assetId, amountRub, note, amountRub);
   }
 }
 
