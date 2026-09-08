@@ -54,6 +54,8 @@ export interface Asset {
   purpose: string | null;
   /** Для накоплений — цель; для кредита — исходный долг. */
   goal_amount: number | null;
+  /** Дедлайн цели накопления, ISO YYYY-MM-DD. */
+  goal_deadline: string | null;
   /** Для накоплений — баланс; для кредита — остаток долга. */
   current_amount: number;
   steam_inventory_url: string | null;

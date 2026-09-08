@@ -48,6 +48,7 @@ function makeAsset(overrides: Partial<Asset> = {}): Asset {
     provider: 'rub',
     purpose: null,
     goal_amount: null,
+    goal_deadline: null,
     current_amount: 1_000,
     steam_inventory_url: null,
     icon: 'wallet',

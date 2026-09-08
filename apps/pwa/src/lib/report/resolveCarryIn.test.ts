@@ -59,6 +59,7 @@ const assets: Asset[] = [
     provider: 'rub',
     purpose: null,
     goal_amount: null,
+    goal_deadline: null,
     current_amount: 0,
     steam_inventory_url: null,
     icon: 'wallet',

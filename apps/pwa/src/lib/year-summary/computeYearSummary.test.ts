@@ -15,6 +15,7 @@ function asset(
     provider: 'rub',
     purpose: null,
     goal_amount: null,
+    goal_deadline: null,
     steam_inventory_url: null,
     icon: 'wallet',
     bg_color: '#DBEAFE',

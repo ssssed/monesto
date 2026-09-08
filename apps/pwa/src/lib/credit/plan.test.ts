@@ -20,6 +20,7 @@ const credit = (partial: Partial<Asset>): Asset => ({
   provider: 'credit',
   purpose: null,
   goal_amount: 1_000_000,
+  goal_deadline: null,
   current_amount: 800_000,
   steam_inventory_url: null,
   icon: 'card',
