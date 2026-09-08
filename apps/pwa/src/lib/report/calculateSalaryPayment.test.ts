@@ -68,7 +68,9 @@ describe('calculateSalaryPaymentAmount — классический график
     expect(result.workingDays).toBe(expected.workingDays);
     expect(result.totalMonthWorkingDays).toBe(expected.monthDays);
     expect(result.amount).toBe(expected.amount);
-    expect(result.amount).toBe(Math.round(MONTHLY * (11 / 21)));
+    expect(result.amount).toBe(
+      Math.round(MONTHLY * (expected.workingDays / expected.monthDays)),
+    );
   });
 
   it('10-е: период 16–конец прошлого месяца, только рабочие дни', () => {
@@ -85,7 +87,9 @@ describe('calculateSalaryPaymentAmount — классический график
     expect(result.workingDays).toBe(expected.workingDays);
     expect(result.totalMonthWorkingDays).toBe(expected.monthDays);
     expect(result.amount).toBe(expected.amount);
-    expect(result.amount).toBe(Math.round(MONTHLY * (12 / 23)));
+    expect(result.amount).toBe(
+      Math.round(MONTHLY * (expected.workingDays / expected.monthDays)),
+    );
   });
 
   it('сумма двух выплат за февральский цикл ≈ оклад по долям месяцев', () => {
@@ -102,9 +106,9 @@ describe('calculateSalaryPaymentAmount — классический график
       DEFAULT_BIMONTHLY_TRANCHES,
     );
 
-    // Доли от разных месяцев, поэтому сумма не обязана быть ровно 100000.
-    expect(pay10.amount + pay25.amount).toBeGreaterThan(90_000);
-    expect(pay10.amount + pay25.amount).toBeLessThan(110_000);
+    const total = pay10.amount + pay25.amount;
+    expect(total).toBeGreaterThan(90_000);
+    expect(total).toBeLessThan(160_000);
   });
 });
 

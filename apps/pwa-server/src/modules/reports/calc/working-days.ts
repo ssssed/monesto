@@ -1,5 +1,8 @@
-/** Рабочий день = пн–пт. Сб/вс не считаются. */
+import { isRuNonWorkingDay } from './ru-holidays';
+
+/** Рабочий день = пн–пт, минус праздники/переносы РФ, плюс рабочие субботы. */
 export function isWorkingDay(date: Date): boolean {
+  if (isRuNonWorkingDay(date)) return false;
   const day = date.getDay();
   return day >= 1 && day <= 5;
 }
@@ -40,8 +43,8 @@ export function countWorkingDaysInMonth(year: number, month: number): number {
 }
 
 /**
- * Фактический день выплаты: если номинал (10/25) выпадает на выходной,
- * берём предыдущий рабочий день (пт при сб/вс).
+ * Фактический день выплаты: если номинал (10/25) выпадает на выходной
+ * или праздник, берём предыдущий рабочий день.
  */
 export function toPayoutDate(nominalDate: Date): Date {
   let cursor = startOfDay(nominalDate);
