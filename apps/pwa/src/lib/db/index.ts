@@ -122,6 +122,7 @@ function load(): AppDatabase {
       credit_start_date: asset.credit_start_date ?? null,
       credit_remaining_months: asset.credit_remaining_months ?? null,
       credit_early_repay_mode: asset.credit_early_repay_mode ?? null,
+      goal_deadline: asset.goal_deadline ?? null,
       sort_order:
         typeof (asset as Asset).sort_order === 'number'
           ? (asset as Asset).sort_order
@@ -216,6 +217,26 @@ export async function snoozeBackupBanner(): Promise<void> {
   const until = new Date();
   until.setDate(until.getDate() + 14);
   await setMeta('backup_banner_snooze_until', until.toISOString());
+}
+
+export function isCarryInWizardDoneSync(cycleKey: string): boolean {
+  return load().meta[`carry_in_wizard_done_${cycleKey}`] === 'true';
+}
+
+export async function markCarryInWizardDone(cycleKey: string): Promise<void> {
+  await setMeta(`carry_in_wizard_done_${cycleKey}`, 'true');
+}
+
+export function isSeasonalTipSnoozedSync(tipId: string): boolean {
+  const raw = load().meta[`seasonal_tip_snooze_${tipId}`];
+  if (!raw) return false;
+  return new Date(raw).getTime() > Date.now();
+}
+
+export async function snoozeSeasonalTip(tipId: string): Promise<void> {
+  const until = new Date();
+  until.setDate(until.getDate() + 21);
+  await setMeta(`seasonal_tip_snooze_${tipId}`, until.toISOString());
 }
 
 export async function completeOnboarding(): Promise<void> {
@@ -427,6 +448,7 @@ export async function createAsset(input: {
   provider: AssetProvider;
   purpose?: string;
   goal_amount?: number;
+  goal_deadline?: string | null;
   current_amount: number;
   icon?: string;
   bg_color?: string;
@@ -478,6 +500,7 @@ export async function createAsset(input: {
       provider: input.provider,
       purpose: input.purpose ?? null,
       goal_amount: input.goal_amount ?? null,
+      goal_deadline: isCredit ? null : (input.goal_deadline ?? null),
       current_amount: input.current_amount,
       steam_inventory_url: null,
       icon: input.icon ?? (isCredit ? 'card' : 'wallet'),
@@ -517,6 +540,7 @@ export async function updateAsset(
     name?: string;
     purpose?: string | null;
     goal_amount?: number | null;
+    goal_deadline?: string | null;
     icon?: string;
     bg_color?: string;
     icon_color?: string;
@@ -535,6 +559,9 @@ export async function updateAsset(
     if (input.name !== undefined) asset.name = input.name;
     if (input.purpose !== undefined) asset.purpose = input.purpose;
     if (input.goal_amount !== undefined) asset.goal_amount = input.goal_amount;
+    if (input.goal_deadline !== undefined) {
+      asset.goal_deadline = input.goal_deadline;
+    }
     if (input.icon !== undefined) asset.icon = input.icon;
     if (input.bg_color !== undefined) asset.bg_color = input.bg_color;
     if (input.icon_color !== undefined) asset.icon_color = input.icon_color;
