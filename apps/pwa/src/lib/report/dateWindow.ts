@@ -56,6 +56,7 @@ export interface ReportCycle {
 }
 
 export function formatReportDate(date: Date): string {
+  const weekdays = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
   const months = [
     'января',
     'февраля',
@@ -70,7 +71,7 @@ export function formatReportDate(date: Date): string {
     'ноября',
     'декабря',
   ];
-  return `${date.getDate()} ${months[date.getMonth()]}`;
+  return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 }
 
 export function parseDate(value: string): Date {
