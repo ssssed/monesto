@@ -56,6 +56,10 @@ import {
 } from '@/lib/report/resolveCarryIn';
 import type { Asset, MoneyFlowEntry, MoneyFlowCurrency, SalaryPaymentDay, SalaryTranche } from '@/lib/types';
 import {
+  EXPENSE_TEMPLATES,
+  mergeExpenseTemplates,
+} from '@/lib/expenses/templates';
+import {
   createEmptyExpenseEntry,
   createEmptyIncomeEntry,
   entryAmountRub,
@@ -1582,6 +1586,43 @@ export function MoneyFlowStep({
             <p className="text-[11px] text-slate-400">Свайп влево — удалить</p>
           )}
         </div>
+
+        {onboarding && mode === 'expense' && !preview ? (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-slate-400">
+              Быстро добавить «как у всех»
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {EXPENSE_TEMPLATES.map((template) => {
+                const taken = entries.some(
+                  (e) =>
+                    e.name.trim().toLowerCase() ===
+                    template.name.trim().toLowerCase(),
+                );
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    disabled={taken}
+                    onClick={() => {
+                      setEntries((prev) =>
+                        mergeExpenseTemplates(prev, [template]),
+                      );
+                    }}
+                    className={cn(
+                      'rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition-colors',
+                      taken
+                        ? 'bg-slate-50 text-slate-300 ring-slate-100'
+                        : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50',
+                    )}
+                  >
+                    {template.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div>
           {preview &&
