@@ -1,8 +1,8 @@
 import { Plus } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-import { Link } from '@tanstack/react-router';
 import { ROUTES } from '@/shared/config/routes';
+import { Link } from '@tanstack/react-router';
 
 /** Плавающая кнопка «+», стиль как у Plus/Minus на главной (FreeMoneyQuickActions). */
 export function AddFab() {
@@ -10,7 +10,7 @@ export function AddFab() {
 
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 w-full">
-      <div className="relative mx-auto h-0 max-w-[430px]">
+      <div className="relative mx-auto h-0">
         <Link
           to={ROUTES.wishlist.new}
           aria-label="Добавить хотелку"
@@ -20,6 +20,6 @@ export function AddFab() {
         </Link>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }
