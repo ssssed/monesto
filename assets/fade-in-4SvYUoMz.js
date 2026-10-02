@@ -1,0 +1,2 @@
+import{j as d,e as r}from"./index-WRBlAuX3.js";const f={up:"animate-in fade-in-0 slide-in-from-bottom-3",fade:"animate-in fade-in-0",scale:"animate-in fade-in-0 zoom-in-95",rise:"animate-in fade-in-0 slide-in-from-bottom-6 zoom-in-95"};function u({children:i,className:n,index:a=0,baseDelay:e=40,step:o=55,durationClass:t="duration-500",variant:m="up"}){const s={animationDelay:`${e+a*o}ms`,animationFillMode:"both"};return d.jsx("div",{className:r(f[m],t,"ease-out",n),style:s,children:i})}export{u as F};
+//# sourceMappingURL=fade-in-4SvYUoMz.js.map
