@@ -11,6 +11,7 @@ import type {
   IncomeSource,
   MoneyFlowEntry,
   VacationPeriod,
+  WishlistItem,
 } from '../types';
 import {
   applyEarlyRepayment,
@@ -54,6 +55,7 @@ export interface AppDatabase {
   allocation_confirmations: Confirmation[];
   allocation_rejections: Rejection[];
   cycle_carryovers: CycleCarryover[];
+  wishlist_items: WishlistItem[];
   nextIds: {
     income: number;
     expense: number;
@@ -63,6 +65,7 @@ export interface AppDatabase {
     vacation: number;
     confirmation: number;
     rejection: number;
+    wishlistItem: number;
   };
 }
 
@@ -81,6 +84,7 @@ function emptyDb(): AppDatabase {
     allocation_confirmations: [],
     allocation_rejections: [],
     cycle_carryovers: [],
+    wishlist_items: [],
     nextIds: {
       income: 1,
       expense: 1,
@@ -90,6 +94,7 @@ function emptyDb(): AppDatabase {
       vacation: 1,
       confirmation: 1,
       rejection: 1,
+      wishlistItem: 1,
     },
   };
 }
@@ -133,6 +138,10 @@ function load(): AppDatabase {
       credit_early_repay_mode: rule.credit_early_repay_mode ?? null,
     }));
     parsed.cycle_carryovers = parsed.cycle_carryovers ?? [];
+    parsed.wishlist_items = (parsed.wishlist_items ?? []).map((item) => ({
+      ...item,
+      planned_date: item.planned_date ?? null,
+    }));
     parsed.nextIds = {
       ...emptyDb().nextIds,
       ...parsed.nextIds,
@@ -243,6 +252,15 @@ export async function completeOnboarding(): Promise<void> {
   await setMeta('onboarding_completed', 'true');
 }
 
+/** Одноразовый анонс фичи — показываем один раз, потом не повторяем. */
+export function isWishlistAnnouncementSeenSync(): boolean {
+  return load().meta.wishlist_announcement_seen === 'true';
+}
+
+export async function markWishlistAnnouncementSeen(): Promise<void> {
+  await setMeta('wishlist_announcement_seen', 'true');
+}
+
 export function getTrackingStartedAtSync(): Date | null {
   const raw = load().meta.tracking_started_at;
   if (!raw) return null;
@@ -305,6 +323,7 @@ export async function clearAllData(): Promise<void> {
     db.allocation_confirmations = [];
     db.allocation_rejections = [];
     db.cycle_carryovers = [];
+    db.wishlist_items = [];
     db.meta.onboarding_completed = 'false';
     delete db.meta.tracking_started_at;
   });
@@ -989,4 +1008,120 @@ export async function rejectAllocation(input: {
     });
   });
   return 'ok';
+}
+
+// --- planned expenses ----------------------------------------------------
+
+// --- wishlist --------------------------------------------------------------
+
+export async function getAllWishlistItems(): Promise<WishlistItem[]> {
+  return [...load().wishlist_items].sort(
+    (a, b) => a.sort_order - b.sort_order || a.id - b.id,
+  );
+}
+
+export async function getWishlistItemById(
+  id: number,
+): Promise<WishlistItem | null> {
+  return load().wishlist_items.find((w) => w.id === id) ?? null;
+}
+
+export async function createWishlistItem(input: {
+  name: string;
+  currency?: MoneyFlowEntry['currency'];
+  price?: number | null;
+  url?: string | null;
+  note?: string | null;
+  icon?: string;
+  bg_color?: string;
+  icon_color?: string;
+  /** Проставьте дату — хотелка сразу попадёт в «Запланировано». */
+  planned_date?: string | null;
+}): Promise<number> {
+  return withDb((db) => {
+    const id = db.nextIds.wishlistItem++;
+    const sort_order =
+      db.wishlist_items.reduce((max, w) => Math.max(max, w.sort_order), -1) + 1;
+    db.wishlist_items.push({
+      id,
+      name: input.name,
+      currency: input.currency ?? 'rub',
+      price: input.price ?? null,
+      url: input.url ?? null,
+      note: input.note ?? null,
+      icon: input.icon ?? 'sparkles',
+      bg_color: input.bg_color ?? '#FCE7F3',
+      icon_color: input.icon_color ?? '#DB2777',
+      sort_order,
+      created_at: new Date().toISOString(),
+      planned_date: input.planned_date ?? null,
+    });
+    return id;
+  });
+}
+
+export async function updateWishlistItem(
+  id: number,
+  input: {
+    name?: string;
+    price?: number | null;
+    url?: string | null;
+    note?: string | null;
+    icon?: string;
+    bg_color?: string;
+    icon_color?: string;
+    planned_date?: string | null;
+  },
+): Promise<void> {
+  withDb((db) => {
+    const item = db.wishlist_items.find((w) => w.id === id);
+    if (!item) return;
+    if (input.name !== undefined) item.name = input.name;
+    if (input.price !== undefined) item.price = input.price;
+    if (input.url !== undefined) item.url = input.url;
+    if (input.note !== undefined) item.note = input.note;
+    if (input.icon !== undefined) item.icon = input.icon;
+    if (input.bg_color !== undefined) item.bg_color = input.bg_color;
+    if (input.icon_color !== undefined) item.icon_color = input.icon_color;
+    if (input.planned_date !== undefined) item.planned_date = input.planned_date;
+  });
+}
+
+export async function deleteWishlistItem(id: number): Promise<void> {
+  withDb((db) => {
+    db.wishlist_items = db.wishlist_items.filter((w) => w.id !== id);
+  });
+}
+
+export async function reorderWishlistItems(orderedIds: number[]): Promise<void> {
+  withDb((db) => {
+    const byId = new Map(db.wishlist_items.map((w) => [w.id, w]));
+    orderedIds.forEach((id, index) => {
+      const item = byId.get(id);
+      if (item) item.sort_order = index;
+    });
+  });
+}
+
+/** Создаёт разовый расход из запланированной хотелки и убирает её — «купили». */
+export async function convertWishlistItemToExpense(
+  wishlistItemId: number,
+  amountRub: number,
+  specificDateIso: string,
+): Promise<void> {
+  withDb((db) => {
+    const item = db.wishlist_items.find((w) => w.id === wishlistItemId);
+    if (!item) return;
+    db.expenses.push({
+      id: db.nextIds.expense++,
+      name: item.name,
+      currency: 'rub',
+      amount: amountRub,
+      recurrence: 'one_time',
+      due_day: null,
+      specific_date: specificDateIso,
+      linked_asset_id: null,
+    });
+    db.wishlist_items = db.wishlist_items.filter((w) => w.id !== wishlistItemId);
+  });
 }

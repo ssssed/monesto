@@ -8,6 +8,11 @@ export const ROUTES = {
     new: '/assets/new',
     detail: '/assets/$slug',
   },
+  wishlist: {
+    index: '/wishlist',
+    new: '/wishlist/new',
+    detail: '/wishlist/$id',
+  },
   onboarding: {
     index: '/onboarding',
     income: '/onboarding/income',

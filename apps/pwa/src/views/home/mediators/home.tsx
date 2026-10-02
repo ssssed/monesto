@@ -37,13 +37,19 @@ import {
 import { CarryInWizardSheet } from '../ui/carry-in-wizard-sheet';
 import { QuickOneTimeSheet } from '../ui/quick-one-time-sheet';
 import { SwipeConfirmCard } from '../ui/swipe-confirm-card';
+import { PlannedExpenseConfirmSheet } from '../ui/planned-expense-confirm-sheet';
+import { PlannedPeriodEntryCard } from '../ui/planned-period-entry-card';
+import { PlannedPeriodSheet } from '../ui/planned-period-sheet';
+import { WishlistEntryCard } from '../ui/wishlist-entry-card';
 import { ExchangeRateBadge } from '@/entities/exchange';
 import { FadeIn } from '@/shared/ui/fade-in';
 import { BackupReminderBanner } from '../ui/backup-reminder-banner';
 import { SeasonalTipBanner } from '../ui/seasonal-tip-banner';
 import { VacationBanner } from '../ui/vacation-banner';
+import { WishlistAnnouncementBanner } from '../ui/wishlist-announcement-banner';
 import { YearSummaryBanner } from '../ui/year-summary-banner';
 import * as db from '@/kernel/db';
+import { plannedWishlistItemsInPeriod, resolveSpendDateIso } from '@/entities/wishlist';
 import {
   isBackupBannerEnabled,
   isYearSummaryEnabled,
@@ -70,8 +76,9 @@ import type {
   Asset,
   DistributionRule,
   VacationPeriod,
+  WishlistItem,
 } from '@/kernel/types';
-import { formatRub, formatUsd } from '@/shared/lib/format';
+import { formatRub, formatUsd, toIsoDate } from '@/shared/lib/format';
 import {
   requestNotificationPermission,
   showGoalReachedNotification,
@@ -166,11 +173,15 @@ export function Home() {
     expenses: Awaited<ReturnType<typeof db.getAllExpenses>>;
     rules: DistributionRule[];
     vacations: VacationPeriod[];
+    wishlistItems: WishlistItem[];
   } | null>(null);
   const cycleKey = useCycleSelectionStore((s) => s.cycleKey);
   const setCycleKey = useCycleSelectionStore((s) => s.setCycleKey);
   const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
   const [rejectedIds, setRejectedIds] = useState<number[]>([]);
+  const [plannedExpenseTarget, setPlannedExpenseTarget] =
+    useState<WishlistItem | null>(null);
+  const [plannedPeriodOpen, setPlannedPeriodOpen] = useState(false);
   const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
   const [carryTick, setCarryTick] = useState(0);
   const [carryEditOpen, setCarryEditOpen] = useState(false);
@@ -181,6 +192,7 @@ export function Home() {
   >(null);
   const [celebrateAsset, setCelebrateAsset] = useState<Asset | null>(null);
   const [showBackupBanner, setShowBackupBanner] = useState(false);
+  const [showWishlistAnnouncement, setShowWishlistAnnouncement] = useState(false);
   const [carryWizardOpen, setCarryWizardOpen] = useState(false);
   const [seasonalTipId, setSeasonalTipId] = useState<string | null>(null);
   const [historyPreview, setHistoryPreview] = useState<{
@@ -191,14 +203,18 @@ export function Home() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   const reload = useCallback(async () => {
-    const [assets, incomes, expenses, rules, vacations] = await Promise.all([
-      db.getAllAssets(),
-      db.getAllIncomes(),
-      db.getAllExpenses(),
-      db.getAllRules(),
-      db.getAllVacations(),
-    ]);
-    setData({ assets, incomes, expenses, rules, vacations });
+    const [assets, incomes, expenses, rules, vacations, wishlistItems] =
+      await Promise.all([
+        db.getAllAssets(),
+        db.getAllIncomes(),
+        db.getAllExpenses(),
+        db.getAllRules(),
+        db.getAllVacations(),
+        db.getAllWishlistItems(),
+      ]);
+    setData({ assets, incomes, expenses, rules, vacations, wishlistItems });
+
+    setShowWishlistAnnouncement(!db.isWishlistAnnouncementSeenSync());
 
     if (!isBackupBannerEnabled()) {
       setShowBackupBanner(false);
@@ -448,6 +464,19 @@ export function Home() {
     carryAmount > 0 &&
     !carryIn?.isOverride;
 
+  /** Хотелки, запланированные на ближайший период (окно текущего цикла). */
+  const plannedInPeriod = plannedWishlistItemsInPeriod(
+    data.wishlistItems,
+    toIsoDate(selectedCycle.expenseStart),
+    toIsoDate(selectedCycle.expenseEndExclusive),
+  );
+
+  /** Показываем вишлист, только если свободных денег хватит хотя бы на один предмет. */
+  const affordableWishlistItems = data.wishlistItems
+    .filter((item) => !item.planned_date)
+    .filter((item) => item.price == null || item.price <= freeMoney)
+    .sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+
   const reportAssets = (report.assetSummary ?? []).filter(
     (asset) => (allocationsByAsset.get(asset.id) ?? []).length > 0
   );
@@ -539,6 +568,17 @@ export function Home() {
     await reload();
   };
 
+  const spendPlannedExpense = async (amountRub: number) => {
+    if (!plannedExpenseTarget) return;
+    await db.convertWishlistItemToExpense(
+      plannedExpenseTarget.id,
+      amountRub,
+      resolveSpendDateIso(plannedExpenseTarget, toIsoDate(new Date())),
+    );
+    setPlannedExpenseTarget(null);
+    await reload();
+  };
+
   return (
     <main className={`${shell} space-y-4`}>
       <FadeIn variant="fade">
@@ -607,6 +647,17 @@ export function Home() {
           })()
         : null}
 
+      {showWishlistAnnouncement ? (
+        <FadeIn index={5}>
+          <WishlistAnnouncementBanner
+            onDismiss={() => {
+              setShowWishlistAnnouncement(false);
+              void db.markWishlistAnnouncementSeen();
+            }}
+          />
+        </FadeIn>
+      ) : null}
+
       <div className="space-y-3">
         <FadeIn index={0} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
           <div className="flex items-stretch gap-3">
@@ -648,6 +699,25 @@ export function Home() {
                       setCarryEditOpen(true);
                     }
               }
+            />
+          </FadeIn>
+        ) : null}
+
+        {plannedInPeriod.length > 0 ? (
+          <FadeIn index={2} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
+            <PlannedPeriodEntryCard
+              count={plannedInPeriod.length}
+              topName={plannedInPeriod[0]!.name}
+              onClick={() => setPlannedPeriodOpen(true)}
+            />
+          </FadeIn>
+        ) : null}
+
+        {affordableWishlistItems.length > 0 ? (
+          <FadeIn index={3} baseDelay={180} step={140} variant="rise" durationClass="duration-700">
+            <WishlistEntryCard
+              count={affordableWishlistItems.length}
+              topName={affordableWishlistItems[0]!.name}
             />
           </FadeIn>
         ) : null}
@@ -725,6 +795,23 @@ export function Home() {
         onDone={() => {
           void reload();
         }}
+      />
+
+      <PlannedExpenseConfirmSheet
+        item={plannedExpenseTarget}
+        onOpenChange={(open) => {
+          if (!open) setPlannedExpenseTarget(null);
+        }}
+        onConfirm={(amountRub) => void spendPlannedExpense(amountRub)}
+      />
+
+      <PlannedPeriodSheet
+        items={plannedInPeriod}
+        freeMoney={freeMoney}
+        open={plannedPeriodOpen}
+        onOpenChange={setPlannedPeriodOpen}
+        onSpend={(item) => setPlannedExpenseTarget(item)}
+        onChanged={() => void reload()}
       />
 
       <Sheet

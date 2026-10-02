@@ -6,8 +6,8 @@ import {
   BG_COLOR_OPTIONS,
   ICON_COLOR_OPTIONS,
   type AssetIconName,
-} from '@/entities/asset';
-import { AssetAvatar } from '@/entities/asset';
+} from '../lib/asset-icons';
+import { AssetAvatar } from './asset-avatar';
 
 export function AssetStylePicker({
   icon,

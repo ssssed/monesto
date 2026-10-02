@@ -72,6 +72,34 @@ const assetsNewRoute = createRoute({
   component: lazyRouteComponent(() => import('@/views/assets'), 'AssetForm'),
 });
 
+// --- wishlist -----------------------------------------------------------
+
+type WishlistSearch = { tab?: 'items' | 'planned' };
+
+const wishlistIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: ROUTES.wishlist.index,
+  beforeLoad: requireOnboardingCompleted,
+  validateSearch: (search: Record<string, unknown>): WishlistSearch => ({
+    tab: search.tab === 'planned' ? 'planned' : search.tab === 'items' ? 'items' : undefined,
+  }),
+  component: lazyRouteComponent(() => import('@/views/wishlist'), 'Wishlist'),
+});
+
+const wishlistNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: ROUTES.wishlist.new,
+  beforeLoad: requireOnboardingCompleted,
+  component: lazyRouteComponent(() => import('@/views/wishlist'), 'WishlistForm'),
+});
+
+const wishlistDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: ROUTES.wishlist.detail,
+  beforeLoad: requireOnboardingCompleted,
+  component: lazyRouteComponent(() => import('@/views/wishlist'), 'WishlistDetail'),
+});
+
 // --- onboarding -----------------------------------------------------------
 
 const onboardingIndexRoute = createRoute({
@@ -169,6 +197,9 @@ export const routeTree = rootRoute.addChildren([
   assetsIndexRoute,
   assetsDetailRoute,
   assetsNewRoute,
+  wishlistIndexRoute,
+  wishlistNewRoute,
+  wishlistDetailRoute,
   onboardingIndexRoute,
   onboardingIncomeRoute,
   onboardingExpensesRoute,

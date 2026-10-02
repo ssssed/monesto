@@ -151,6 +151,27 @@ export interface ReportExpenseLine {
   detail?: string;
 }
 
+/**
+ * Хотелка из вишлиста — не обязательный расход, просто список желаний.
+ * «Запланированные» — это те же хотелки с проставленной датой: отдельной
+ * сущности для них нет.
+ */
+export interface WishlistItem {
+  id: number;
+  name: string;
+  currency: MoneyFlowCurrency;
+  price: number | null;
+  url: string | null;
+  note: string | null;
+  icon: string;
+  bg_color: string;
+  icon_color: string;
+  sort_order: number;
+  created_at: string;
+  /** Когда планирую купить, ISO YYYY-MM-DD. null — просто хотелка без плана. */
+  planned_date: string | null;
+}
+
 export interface RuleAllocation {
   name: string;
   amountRub: number;

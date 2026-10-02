@@ -31,7 +31,7 @@ import {
 } from 'react';
 
 import { AssetAvatar } from '@/entities/asset';
-import { AssetStylePicker } from '../ui/asset-style-picker';
+import { AssetStylePicker } from '@/entities/asset';
 import { CreditDetailScreen } from '../ui/credit-detail-screen';
 import { PageHeader } from '@/shared/ui/page-header';
 import { PageTransition } from '@/shared/ui/page-transition';

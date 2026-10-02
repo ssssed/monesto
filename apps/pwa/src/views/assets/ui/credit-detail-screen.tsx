@@ -16,7 +16,7 @@ import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AssetAvatar } from '@/entities/asset';
-import { AssetStylePicker } from './asset-style-picker';
+import { AssetStylePicker } from '@/entities/asset';
 import { PageHeader } from '@/shared/ui/page-header';
 import { PageTransition } from '@/shared/ui/page-transition';
 import { FadeIn } from '@/shared/ui/fade-in';

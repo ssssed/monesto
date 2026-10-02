@@ -13,7 +13,7 @@ type Props = {
   title?: string;
   message?: string;
   onRetry?: () => void;
-  homeTo?: typeof ROUTES.home | typeof ROUTES.assets.index;
+  homeTo?: typeof ROUTES.home | typeof ROUTES.assets.index | typeof ROUTES.wishlist.index;
   homeLabel?: string;
 };
 

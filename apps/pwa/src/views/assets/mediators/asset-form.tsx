@@ -12,7 +12,7 @@ import {
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 
-import { AssetStylePicker } from '../ui/asset-style-picker';
+import { AssetStylePicker } from '@/entities/asset';
 import { PageHeader } from '@/shared/ui/page-header';
 import { PageTransition } from '@/shared/ui/page-transition';
 import * as db from '@/kernel/db';

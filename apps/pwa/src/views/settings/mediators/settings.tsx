@@ -16,6 +16,7 @@ import {
   Download,
   GitBranch,
   History,
+  Sparkles,
   TrendingUp,
   Upload,
   Wallet
@@ -140,6 +141,13 @@ export function Settings() {
       desc: 'Периоды и влияние на выплаты',
       icon: CalendarDays,
       color: 'bg-amber-50 text-amber-700'
+    },
+    {
+      to: ROUTES.wishlist.index,
+      label: 'Вишлист',
+      desc: 'Хотелки и запланированные траты',
+      icon: Sparkles,
+      color: 'bg-pink-50 text-pink-600'
     },
     ...(hasHistory
       ? [
