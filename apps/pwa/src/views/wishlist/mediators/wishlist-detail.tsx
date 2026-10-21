@@ -12,7 +12,7 @@ import {
 } from '@monesto/rune';
 import { formatDateDisplay } from '@monesto/rune';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
-import { CalendarClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { CalendarClock, ExternalLink, PiggyBank, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -27,6 +27,7 @@ import type { MoneyFlowCurrency, WishlistItem } from '@/kernel/types';
 import { ROUTES } from '@/shared/config/routes';
 import { formatMoney } from '@/shared/lib/format';
 import { nestedShell, numeric } from '@/shared/lib/layout';
+import { assetSlug } from '@/shared/lib/slug';
 import { ErrorPage } from '@/shared/ui/error-page';
 import { PageHeader } from '@/shared/ui/page-header';
 import { PageTransition } from '@/shared/ui/page-transition';
@@ -109,6 +110,15 @@ export function WishlistDetail() {
     setPlanOpen(false);
   };
 
+  const becomeAssetGoal = async () => {
+    const id = await db.convertWishlistItemToAssetGoal(item.id);
+    await navigate({
+      to: ROUTES.assets.detail,
+      params: { slug: assetSlug({ id, name: item.name }) },
+      replace: true
+    });
+  };
+
   return (
     <PageTransition>
       <main className={nestedShell}>
@@ -177,6 +187,14 @@ export function WishlistDetail() {
               Запланировать покупку
             </Button>
           )}
+          <button
+            type="button"
+            onClick={() => void becomeAssetGoal()}
+            className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-100 py-3 text-sm font-semibold text-[var(--color-primary)]"
+          >
+            <PiggyBank className="h-4 w-4" />
+            Стать активом с целью
+          </button>
           <button
             type="button"
             onClick={() => void remove()}

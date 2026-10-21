@@ -6,8 +6,15 @@ import {
 } from './calendar/working-days';
 import type { SalaryPaymentDay, VacationPeriod } from '@/kernel/types';
 
-/** За сколько дней до начала отпуска приходят отпускные. */
+/** За сколько дней до начала отпуска приходят отпускные (если график выплат не задан). */
 export const VACATION_PAY_DAYS_BEFORE = 7;
+
+/**
+ * Минимальный запас перед отпуском (по ТК РФ отпускные платят не позднее
+ * чем за 3 дня до начала) — ближайшая к отпуску выплата, не дающая такого
+ * запаса, считается слишком рискованной: берём предыдущую.
+ */
+export const VACATION_PAY_MIN_SAFE_DAYS = 3;
 
 export function parseIsoDate(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);
@@ -79,8 +86,10 @@ export function countWorkingDaysExcludingVacation(
 }
 
 /**
- * Дата отпускных: ≈ за неделю до начала.
- * Если рядом есть день зарплаты (±3 дня) — привязываем к нему.
+ * Дата отпускных: ближайшая выплата по графику ДО начала отпуска, дающая
+ * не меньше VACATION_PAY_MIN_SAFE_DAYS запаса; если ближайшая выплата
+ * слишком близко к старту отпуска (риск не уложиться в срок по ТК РФ) —
+ * берём предыдущую по графику. Без графика — ≈ за неделю до начала.
  * Возвращает номинальную дату (как у транша зарплаты); сдвиг с выходного — снаружи.
  */
 export function resolveVacationPayDate(
@@ -98,26 +107,23 @@ export function resolveVacationPayDate(
 
   if (!scheduleDays.length) return ideal;
 
-  let best: Date | null = null;
-  let bestDist = Infinity;
-
-  for (let monthOffset = -1; monthOffset <= 0; monthOffset += 1) {
+  const candidates: Date[] = [];
+  for (let monthOffset = -2; monthOffset <= 0; monthOffset += 1) {
     for (const day of scheduleDays) {
       const candidate = startOfDay(
-        new Date(ideal.getFullYear(), ideal.getMonth() + monthOffset, day),
+        new Date(start.getFullYear(), start.getMonth() + monthOffset, day),
       );
-      if (candidate >= start) continue;
-      const dist = Math.abs(
-        (candidate.getTime() - ideal.getTime()) / 86_400_000,
-      );
-      if (dist <= 3 && dist < bestDist) {
-        best = candidate;
-        bestDist = dist;
-      }
+      if (candidate < start) candidates.push(candidate);
     }
   }
+  candidates.sort((a, b) => b.getTime() - a.getTime());
 
-  return best ?? ideal;
+  for (const candidate of candidates) {
+    const gapDays = (start.getTime() - candidate.getTime()) / 86_400_000;
+    if (gapDays >= VACATION_PAY_MIN_SAFE_DAYS) return candidate;
+  }
+
+  return candidates[0] ?? ideal;
 }
 
 export interface VacationPayout {

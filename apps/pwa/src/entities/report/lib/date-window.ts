@@ -412,87 +412,86 @@ export function findPreviousReportCycle(
   );
 }
 
-/** Доступные циклы по дням графика, отсортированные по дате выплаты. */
+/**
+ * Ровно два цикла — текущий и следующий (план).
+ * Для нескольких дней графика (напр. 10 и 25) каждый день сам по себе
+ * может считаться «наступившим» — здесь берём только последний
+ * наступивший (текущий) и первый будущий (план), а не все дни разом.
+ */
 export function listReportCycles(
   today: Date,
   scheduleDays?: SalaryPaymentDay[],
   vacationCtx?: VacationReportContext,
 ): ReportCycle[] {
   const days = sortedPaymentDays(scheduleDays);
+  if (!days.length) return [];
+
   const vacations = vacationCtx?.vacations ?? [];
   const monthlyAmount = vacationCtx?.monthlyAmount ?? 0;
   const tranches = vacationCtx?.tranches;
+  const hasVacations = vacations.length > 0 && monthlyAmount > 0;
 
-  const cycles = days.map((day) => resolveReportCycle(today, day, days));
+  const isEmpty = (date: Date) =>
+    hasVacations &&
+    isEmptyPayment(date, monthlyAmount, tranches, vacations, days);
 
-  if (!vacations.length || monthlyAmount <= 0 || !vacationCtx) {
-    return cycles.sort(
-      (a, b) => a.payoutDate.getTime() - b.payoutDate.getTime(),
-    );
+  const rawCycles = days
+    .map((day) => resolveReportCycle(today, day, days))
+    .sort((a, b) => a.nominalDate.getTime() - b.nominalDate.getTime());
+
+  let current: ReportCycle | null = null;
+  for (let i = rawCycles.length - 1; i >= 0; i -= 1) {
+    const candidate = rawCycles[i]!;
+    if (!candidate.isPreview && !isEmpty(candidate.nominalDate)) {
+      current = candidate;
+      break;
+    }
   }
 
-  const kept: ReportCycle[] = [];
-  for (const cycle of cycles) {
-    if (
-      isEmptyPayment(
-        cycle.nominalDate,
-        monthlyAmount,
-        tranches,
-        vacations,
+  if (!current) {
+    current = hasVacations
+      ? findPreviousNonEmptyPayment(today, startOfDay(today), days, vacationCtx!)
+      : resolveCycleForNominalDate(
+          today,
+          getPreviousSchedulePaymentDate(startOfDay(today), days),
+          days,
+          vacationCtx,
+        );
+  }
+
+  if (!current) return [];
+
+  const next = hasVacations
+    ? findNextNonEmptyPayment(today, current.nominalDate, days, vacationCtx!)
+    : resolveCycleForNominalDate(
+        today,
+        getNextSchedulePaymentDate(current.nominalDate, days),
         days,
-      )
-    ) {
-      continue;
-    }
-    kept.push({
-      ...cycle,
+        vacationCtx,
+      );
+
+  const result: ReportCycle[] = [
+    {
+      ...current,
       expenseEndExclusive: resolveExpenseEndExclusive(
-        cycle.nominalDate,
+        current.nominalDate,
+        days,
+        vacationCtx,
+      ),
+    },
+  ];
+  if (next && next.nominalDate.getTime() !== current.nominalDate.getTime()) {
+    result.push({
+      ...next,
+      expenseEndExclusive: resolveExpenseEndExclusive(
+        next.nominalDate,
         days,
         vacationCtx,
       ),
     });
   }
 
-  const hasPreview = kept.some((c) => c.isPreview);
-  if (!hasPreview) {
-    const after =
-      kept.length > 0
-        ? kept.reduce(
-            (max, c) => (c.nominalDate > max ? c.nominalDate : max),
-            kept[0]!.nominalDate,
-          )
-        : startOfDay(today);
-    const next = findNextNonEmptyPayment(today, after, days, vacationCtx);
-    if (
-      next &&
-      !kept.some((c) => c.nominalDate.getTime() === next.nominalDate.getTime())
-    ) {
-      kept.push(next);
-    }
-  }
-
-  // Пустая текущая выплата (весь период в отпуске) выпадает из списка —
-  // подставляем ближайший прошлый непустой цикл, иначе остаётся только план.
-  const hasPast = kept.some((c) => !c.isPreview);
-  if (!hasPast) {
-    const before =
-      kept.length > 0
-        ? kept.reduce(
-            (min, c) => (c.nominalDate < min ? c.nominalDate : min),
-            kept[0]!.nominalDate,
-          )
-        : startOfDay(today);
-    const prev = findPreviousNonEmptyPayment(today, before, days, vacationCtx);
-    if (
-      prev &&
-      !kept.some((c) => c.nominalDate.getTime() === prev.nominalDate.getTime())
-    ) {
-      kept.push(prev);
-    }
-  }
-
-  return kept.sort((a, b) => a.payoutDate.getTime() - b.payoutDate.getTime());
+  return result.sort((a, b) => a.payoutDate.getTime() - b.payoutDate.getTime());
 }
 
 /** @deprecated используйте resolveReportWindow */

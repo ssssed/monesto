@@ -1103,6 +1103,28 @@ export async function reorderWishlistItems(orderedIds: number[]): Promise<void> 
   });
 }
 
+/** Создаёт актив-цель из хотелки (цена → цель накопления) и убирает её из вишлиста. */
+export async function convertWishlistItemToAssetGoal(
+  wishlistItemId: number,
+): Promise<number> {
+  const item = await getWishlistItemById(wishlistItemId);
+  if (!item) throw new Error('Хотелка не найдена');
+
+  const id = await createAsset({
+    name: item.name,
+    provider: item.currency === 'usd' ? 'usd' : 'rub',
+    purpose: item.note ?? undefined,
+    goal_amount: item.price ?? undefined,
+    current_amount: 0,
+    icon: item.icon,
+    bg_color: item.bg_color,
+    icon_color: item.icon_color,
+  });
+
+  await deleteWishlistItem(wishlistItemId);
+  return id;
+}
+
 /** Создаёт разовый расход из запланированной хотелки и убирает её — «купили». */
 export async function convertWishlistItemToExpense(
   wishlistItemId: number,
