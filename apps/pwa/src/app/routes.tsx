@@ -74,14 +74,21 @@ const assetsNewRoute = createRoute({
 
 // --- wishlist -----------------------------------------------------------
 
-type WishlistSearch = { tab?: 'items' | 'planned' };
+type WishlistSearch = { tab?: 'items' | 'planned' | 'completed' };
 
 const wishlistIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: ROUTES.wishlist.index,
   beforeLoad: requireOnboardingCompleted,
   validateSearch: (search: Record<string, unknown>): WishlistSearch => ({
-    tab: search.tab === 'planned' ? 'planned' : search.tab === 'items' ? 'items' : undefined,
+    tab:
+      search.tab === 'planned'
+        ? 'planned'
+        : search.tab === 'completed'
+          ? 'completed'
+          : search.tab === 'items'
+            ? 'items'
+            : undefined,
   }),
   component: lazyRouteComponent(() => import('@/views/wishlist'), 'Wishlist'),
 });

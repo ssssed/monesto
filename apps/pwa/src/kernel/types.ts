@@ -170,6 +170,8 @@ export interface WishlistItem {
   created_at: string;
   /** Когда планирую купить, ISO YYYY-MM-DD. null — просто хотелка без плана. */
   planned_date: string | null;
+  /** Когда хотелка куплена, ISO YYYY-MM-DD. null — ещё не завершена. */
+  completed_at: string | null;
 }
 
 export interface RuleAllocation {

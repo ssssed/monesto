@@ -17,6 +17,7 @@ function makeItem(overrides: Partial<WishlistItem>): WishlistItem {
     sort_order: 0,
     created_at: '2026-01-01T00:00:00.000Z',
     planned_date: null,
+    completed_at: null,
     ...overrides,
   };
 }
@@ -43,6 +44,13 @@ describe('plannedWishlistItemsInPeriod', () => {
     ];
     const result = plannedWishlistItemsInPeriod(items, '2026-10-25', '2026-11-10');
     expect(result.map((i) => i.id)).toEqual([1]);
+  });
+
+  it('excludes completed items', () => {
+    const items = [
+      makeItem({ id: 1, planned_date: '2026-10-26', completed_at: '2026-10-26' }),
+    ];
+    expect(plannedWishlistItemsInPeriod(items, '2026-10-25', '2026-11-10')).toEqual([]);
   });
 
   it('sorts matches by date ascending', () => {

@@ -141,6 +141,7 @@ function load(): AppDatabase {
     parsed.wishlist_items = (parsed.wishlist_items ?? []).map((item) => ({
       ...item,
       planned_date: item.planned_date ?? null,
+      completed_at: item.completed_at ?? null,
     }));
     parsed.nextIds = {
       ...emptyDb().nextIds,
@@ -1055,6 +1056,7 @@ export async function createWishlistItem(input: {
       sort_order,
       created_at: new Date().toISOString(),
       planned_date: input.planned_date ?? null,
+      completed_at: null,
     });
     return id;
   });
@@ -1071,6 +1073,7 @@ export async function updateWishlistItem(
     bg_color?: string;
     icon_color?: string;
     planned_date?: string | null;
+    completed_at?: string | null;
   },
 ): Promise<void> {
   withDb((db) => {
@@ -1084,6 +1087,7 @@ export async function updateWishlistItem(
     if (input.bg_color !== undefined) item.bg_color = input.bg_color;
     if (input.icon_color !== undefined) item.icon_color = input.icon_color;
     if (input.planned_date !== undefined) item.planned_date = input.planned_date;
+    if (input.completed_at !== undefined) item.completed_at = input.completed_at;
   });
 }
 
@@ -1125,7 +1129,7 @@ export async function convertWishlistItemToAssetGoal(
   return id;
 }
 
-/** Создаёт разовый расход из запланированной хотелки и убирает её — «купили». */
+/** Создаёт разовый расход из запланированной хотелки и помечает её завершённой. */
 export async function convertWishlistItemToExpense(
   wishlistItemId: number,
   amountRub: number,
@@ -1144,6 +1148,6 @@ export async function convertWishlistItemToExpense(
       specific_date: specificDateIso,
       linked_asset_id: null,
     });
-    db.wishlist_items = db.wishlist_items.filter((w) => w.id !== wishlistItemId);
+    item.completed_at = specificDateIso;
   });
 }

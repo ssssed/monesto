@@ -20,7 +20,7 @@ export function WishlistList({
   onPlanRequested,
 }: {
   items: WishlistItem[];
-  variant: 'items' | 'planned';
+  variant: 'items' | 'planned' | 'completed';
   onDeleted: () => void;
   onPlanRequested?: (item: WishlistItem) => void;
 }) {
@@ -113,12 +113,15 @@ export function WishlistList({
                     {variant === 'planned' && item.planned_date
                       ? ` · ${formatDateDisplay(item.planned_date)}`
                       : ''}
+                    {variant === 'completed' && item.completed_at
+                      ? ` · Куплено ${formatDateDisplay(item.completed_at)}`
+                      : ''}
                   </p>
                 </div>
               </Link>
             );
 
-            if (variant === 'planned') {
+            if (variant === 'planned' || variant === 'completed') {
               return (
                 <SwipeToDelete key={item.id} borderRadius={16} onDelete={() => scheduleDelete(item)}>
                   {row}

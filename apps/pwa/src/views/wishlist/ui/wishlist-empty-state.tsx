@@ -1,10 +1,30 @@
 import { Button } from '@monesto/rune';
 import { Link } from '@tanstack/react-router';
-import { CalendarClock, Sparkles } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Sparkles } from 'lucide-react';
 
 import { ROUTES } from '@/shared/config/routes';
 
-export function WishlistEmptyState({ variant }: { variant: 'items' | 'planned' }) {
+export function WishlistEmptyState({
+  variant,
+}: {
+  variant: 'items' | 'planned' | 'completed';
+}) {
+  if (variant === 'completed') {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl bg-[linear-gradient(135deg,#f0fdf4_0%,#ecfdf5_100%)] px-6 py-10 text-center ring-1 ring-emerald-100">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/80 text-emerald-600 shadow-sm ring-1 ring-emerald-100">
+          <CheckCircle2 className="h-7 w-7" strokeWidth={1.75} />
+        </div>
+        <div>
+          <p className="font-semibold text-slate-900">Завершённых пока нет</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">
+            Купленные хотелки будут собираться здесь
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (variant === 'planned') {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl bg-[linear-gradient(135deg,#fffbeb_0%,#fff7ed_100%)] px-6 py-10 text-center ring-1 ring-amber-100">

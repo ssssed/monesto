@@ -60,9 +60,10 @@ describe('convertWishlistItemToExpense — regression: must land on its planned 
     expect(expenses).toHaveLength(1);
     expect(expenses[0]?.specific_date).toBe('2026-12-20');
 
-    // Хотелка превращается в расход и уходит из вишлиста.
+    // Хотелка остаётся в вишлисте как завершённая.
     const wishlistItems = await db.getAllWishlistItems();
-    expect(wishlistItems).toHaveLength(0);
+    expect(wishlistItems).toHaveLength(1);
+    expect(wishlistItems[0]?.completed_at).toBe('2026-12-20');
   });
 
   it('does not show up in the cycle current at the moment of spending', async () => {

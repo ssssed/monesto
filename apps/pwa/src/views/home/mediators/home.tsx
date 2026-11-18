@@ -473,7 +473,7 @@ export function Home() {
 
   /** Показываем вишлист, только если свободных денег хватит хотя бы на один предмет. */
   const affordableWishlistItems = data.wishlistItems
-    .filter((item) => !item.planned_date)
+    .filter((item) => !item.planned_date && !item.completed_at)
     .filter((item) => item.price == null || item.price <= freeMoney)
     .sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 

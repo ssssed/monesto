@@ -8,11 +8,20 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-  SlidingToggleGroup
+  SlidingToggleGroup,
+  Textarea
 } from '@monesto/rune';
 import { formatDateDisplay } from '@monesto/rune';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
-import { CalendarClock, ExternalLink, PiggyBank, Pencil, Trash2 } from 'lucide-react';
+import {
+  CalendarClock,
+  CheckCircle2,
+  ExternalLink,
+  PiggyBank,
+  Pencil,
+  RotateCcw,
+  Trash2
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -25,7 +34,7 @@ import {
 import * as db from '@/kernel/db';
 import type { MoneyFlowCurrency, WishlistItem } from '@/kernel/types';
 import { ROUTES } from '@/shared/config/routes';
-import { formatMoney } from '@/shared/lib/format';
+import { formatMoney, toIsoDate } from '@/shared/lib/format';
 import { nestedShell, numeric } from '@/shared/lib/layout';
 import { assetSlug } from '@/shared/lib/slug';
 import { ErrorPage } from '@/shared/ui/error-page';
@@ -110,6 +119,18 @@ export function WishlistDetail() {
     setPlanOpen(false);
   };
 
+  const markCompleted = async () => {
+    await db.updateWishlistItem(item.id, { completed_at: toIsoDate(new Date()) });
+    const updated = await db.getWishlistItemById(item.id);
+    setItem(updated);
+  };
+
+  const returnToWishlist = async () => {
+    await db.updateWishlistItem(item.id, { completed_at: null, planned_date: null });
+    const updated = await db.getWishlistItemById(item.id);
+    setItem(updated);
+  };
+
   const becomeAssetGoal = async () => {
     const id = await db.convertWishlistItemToAssetGoal(item.id);
     await navigate({
@@ -168,7 +189,12 @@ export function WishlistDetail() {
         ) : null}
 
         <div className="space-y-2.5 pt-2 pb-4">
-          {item.planned_date ? (
+          {item.completed_at ? (
+            <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+              <CheckCircle2 className="h-4 w-4" />
+              Куплено {formatDateDisplay(item.completed_at)}
+            </div>
+          ) : item.planned_date ? (
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-blue-50 px-4 py-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
                 <CalendarClock className="h-4 w-4" />
@@ -187,14 +213,35 @@ export function WishlistDetail() {
               Запланировать покупку
             </Button>
           )}
-          <button
-            type="button"
-            onClick={() => void becomeAssetGoal()}
-            className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-100 py-3 text-sm font-semibold text-[var(--color-primary)]"
-          >
-            <PiggyBank className="h-4 w-4" />
-            Стать активом с целью
-          </button>
+          {item.completed_at ? (
+            <button
+              type="button"
+              onClick={() => void returnToWishlist()}
+              className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-100 py-3 text-sm font-semibold text-slate-600"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Вернуть в хотелки
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void markCompleted()}
+                className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-100 py-3 text-sm font-semibold text-emerald-600"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Отметить купленной
+              </button>
+              <button
+                type="button"
+                onClick={() => void becomeAssetGoal()}
+                className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-100 py-3 text-sm font-semibold text-[var(--color-primary)]"
+              >
+                <PiggyBank className="h-4 w-4" />
+                Стать активом с целью
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => void remove()}
@@ -247,7 +294,11 @@ export function WishlistDetail() {
             </div>
             <div>
               <Label>Заметка</Label>
-              <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} />
+              <Textarea
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                rows={4}
+              />
             </div>
             <AssetStylePicker
               icon={editStyle.icon}

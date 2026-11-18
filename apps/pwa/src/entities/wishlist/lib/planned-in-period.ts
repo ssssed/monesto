@@ -13,6 +13,7 @@ export function plannedWishlistItemsInPeriod(
     .filter(
       (item) =>
         item.planned_date != null &&
+        item.completed_at == null &&
         item.planned_date >= startIso &&
         item.planned_date < endExclusiveIso,
     )

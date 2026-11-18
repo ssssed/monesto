@@ -1,10 +1,11 @@
-import { Button, DatePicker, Input, Label, SlidingToggleGroup } from '@monesto/rune';
-import { useNavigate } from '@tanstack/react-router';
+import { Button, DatePicker, Input, Label, SlidingToggleGroup, Textarea } from '@monesto/rune';
+import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { ROUTES } from '@/shared/config/routes';
 import {
   AssetStylePicker,
+  rememberWishlistTab,
   type AssetIconName,
 } from '@/entities/wishlist';
 import { PageHeader } from '@/shared/ui/page-header';
@@ -15,6 +16,8 @@ import { formScroll, formShell, numeric } from '@/shared/lib/layout';
 
 export function WishlistForm() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState<MoneyFlowCurrency>('rub');
@@ -43,6 +46,11 @@ export function WishlistForm() {
         icon_color: style.iconColor,
         planned_date: plannedDate || null,
       });
+      if (canGoBack) {
+        rememberWishlistTab(plannedDate ? 'planned' : 'items');
+        router.history.back();
+        return;
+      }
       await navigate({
         to: ROUTES.wishlist.index,
         search: { tab: plannedDate ? 'planned' : 'items' },
@@ -105,10 +113,11 @@ export function WishlistForm() {
 
           <div>
             <Label>Заметка</Label>
-            <Input
+            <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Необязательно"
+              rows={4}
             />
           </div>
 
@@ -145,7 +154,10 @@ export function WishlistForm() {
           <button
             type="button"
             className="w-full py-2 text-center text-sm text-slate-400"
-            onClick={() => void navigate({ to: ROUTES.wishlist.index })}
+            onClick={() => {
+              if (canGoBack) router.history.back();
+              else void navigate({ to: ROUTES.wishlist.index });
+            }}
           >
             Отмена
           </button>

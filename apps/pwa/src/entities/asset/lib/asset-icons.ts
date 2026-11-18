@@ -1,9 +1,16 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Bike,
   Briefcase,
+  Bus,
   Car,
+  CarFront,
+  CarTaxiFront,
+  Caravan,
+  CircleParking,
   CreditCard,
   DollarSign,
+  Fuel,
   Gamepad2,
   Gem,
   Home,
@@ -12,6 +19,7 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  Truck,
   Wallet,
   Banknote,
 } from 'lucide-react';
@@ -25,6 +33,14 @@ export type AssetIconName =
   | 'card'
   | 'home'
   | 'car'
+  | 'carfront'
+  | 'taxi'
+  | 'caravan'
+  | 'truck'
+  | 'bus'
+  | 'bike'
+  | 'fuel'
+  | 'parking'
   | 'plane'
   | 'briefcase'
   | 'gamepad'
@@ -41,6 +57,14 @@ export const ASSET_ICON_MAP: Record<AssetIconName, LucideIcon> = {
   card: CreditCard,
   home: Home,
   car: Car,
+  carfront: CarFront,
+  taxi: CarTaxiFront,
+  caravan: Caravan,
+  truck: Truck,
+  bus: Bus,
+  bike: Bike,
+  fuel: Fuel,
+  parking: CircleParking,
   plane: Plane,
   briefcase: Briefcase,
   gamepad: Gamepad2,
@@ -58,6 +82,14 @@ export const ASSET_ICON_OPTIONS: { name: AssetIconName; label: string }[] = [
   { name: 'card', label: 'Карта' },
   { name: 'home', label: 'Дом' },
   { name: 'car', label: 'Машина' },
+  { name: 'carfront', label: 'Купе' },
+  { name: 'taxi', label: 'Такси' },
+  { name: 'caravan', label: 'Дом на колёсах' },
+  { name: 'truck', label: 'Грузовик' },
+  { name: 'bus', label: 'Автобус' },
+  { name: 'bike', label: 'Велосипед' },
+  { name: 'fuel', label: 'Топливо' },
+  { name: 'parking', label: 'Парковка' },
   { name: 'plane', label: 'Путешествия' },
   { name: 'briefcase', label: 'Работа' },
   { name: 'gamepad', label: 'Игры' },

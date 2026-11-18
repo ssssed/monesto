@@ -7,5 +7,6 @@ export {
 } from '@/entities/asset';
 export { AssetAvatar, AssetStylePicker, StylePreviewFooter } from '@/entities/asset';
 export * from './lib/planned-in-period';
+export * from './lib/pending-tab';
 export * from './lib/resolve-spend-date';
 export { PlanDateSheet } from './ui/plan-date-sheet';

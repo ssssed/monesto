@@ -30,6 +30,7 @@ export {
   SelectValue,
 } from './components/ui/select';
 export { Separator } from './components/ui/separator';
+export { Textarea, type TextareaProps } from './components/ui/textarea';
 export {
   Sheet,
   SheetBody,
